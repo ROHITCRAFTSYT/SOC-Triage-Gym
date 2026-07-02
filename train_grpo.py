@@ -585,11 +585,11 @@ def train(
     raw_dataset = build_step_dataset(client, tasks, SEEDS, role)
     print(f"      {len(raw_dataset)} per-step prompts generated")
 
-    # Shuffle and split 90/10
+    # Shuffle and hold out the first 10% from training. (Held-out *evaluation*
+    # is done on disjoint seeds 100-114 in benchmark.py, not on this slice.)
     random.shuffle(raw_dataset)
     split = max(1, int(len(raw_dataset) * 0.1))
     train_data = raw_dataset[split:]
-    eval_data = raw_dataset[:split]
 
     # ---- Load model ----
     print(f"\n[2/4] Loading model: {model_name}...")

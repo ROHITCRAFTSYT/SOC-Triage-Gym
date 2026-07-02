@@ -47,8 +47,6 @@ class TeamLateralTeamScenario(BaseScenario):
         super().__init__(seed)
 
     def generate(self) -> ScenarioConfig:
-        rng = self.rng  # seeded random.Random(seed) from BaseScenario
-
         # --- Shared IOCs tying the kill chain together ---
         compromised_user = self._username()
         attacker_ip = self._public_ip()          # external phishing source IP
@@ -64,7 +62,7 @@ class TeamLateralTeamScenario(BaseScenario):
         phishing_domain = self._malicious_domain()
         phishing_hash = self._sha256()           # phishing dropper hash
         cred_dump_hash = self._sha256()          # credential dump tool hash (known bad)
-        malicious_domain = self._malicious_domain()
+        self._malicious_domain()                 # seed-sequence anchor; not surfaced
 
         # Noise alert IOCs (benign / FP)
         noise_ip_1 = self._private_ip()          # internal DNS noise

@@ -37,8 +37,6 @@ class TeamPhishingEscalationScenario(BaseScenario):
         super().__init__(seed)
 
     def generate(self) -> ScenarioConfig:
-        rng = self.rng  # seeded random.Random(seed) from BaseScenario
-
         alert_id = self.ALERT_ID
 
         # --- IOCs ---

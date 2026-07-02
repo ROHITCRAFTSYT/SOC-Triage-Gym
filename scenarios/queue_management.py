@@ -139,9 +139,12 @@ class QueueManagementScenario(BaseScenario):
     def _build_chain_a(self):
         attacker_ip = self._tor_exit_ip()
         victim_user = self._username()
-        victim_host = self._hostname("WORKSTATION")
-        victim_ip = self._private_ip()
-        c2_ip = self._public_ip()
+        # These draws are kept (not bound) so the deterministic RNG sequence
+        # is preserved; this chain only surfaces attacker_ip / victim_user /
+        # c2_domain in its alert payloads.
+        self._hostname("WORKSTATION")
+        self._private_ip()
+        self._public_ip()
         c2_domain = self._malicious_domain()
         tool_hash = self._sha256()
 
