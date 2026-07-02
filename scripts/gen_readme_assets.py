@@ -18,17 +18,9 @@ from __future__ import annotations
 
 import os
 
-import matplotlib
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-import numpy as np
-from matplotlib.patches import FancyBboxPatch
-
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 OUT_DIR = os.path.join(ROOT, "assets")
-os.makedirs(OUT_DIR, exist_ok=True)
 
 # SOC-dashboard palette (dark).
 BG = "#0d1117"
@@ -36,17 +28,28 @@ FG = "#e6edf3"
 GRID = "#30363d"
 ACCENT = "#58a6ff"
 
-plt.rcParams.update({
-    "figure.facecolor": BG,
-    "axes.facecolor": BG,
-    "savefig.facecolor": BG,
-    "text.color": FG,
-    "axes.labelcolor": FG,
-    "xtick.color": FG,
-    "ytick.color": FG,
-    "axes.edgecolor": GRID,
-    "font.size": 11,
-})
+
+def _setup_matplotlib():
+    """Lazily import + configure matplotlib so this module's data tables stay
+    importable (e.g. from tests) on machines without matplotlib installed."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    plt.rcParams.update({
+        "figure.facecolor": BG,
+        "axes.facecolor": BG,
+        "savefig.facecolor": BG,
+        "text.color": FG,
+        "axes.labelcolor": FG,
+        "xtick.color": FG,
+        "ytick.color": FG,
+        "axes.edgecolor": GRID,
+        "font.size": 11,
+    })
+    os.makedirs(OUT_DIR, exist_ok=True)
+    return plt
 
 # task_id, alerts, max_steps, difficulty_rank(1..6), mode
 TASKS = [
@@ -57,13 +60,14 @@ TASKS = [
     ("team_phishing_escalation", 1, 68, 1, "team"),
     ("team_lateral_team", 8, 68, 2, "team"),
     ("apt_campaign", 60, 250, 6, "solo"),
-    ("red_team_generated", 12, 250, 3, "adaptive"),
+    ("red_team_generated", 12, 30, 3, "adaptive"),
 ]
 
 MODE_COLOR = {"solo": "#58a6ff", "team": "#f778ba", "adaptive": "#3fb950"}
 
 
 def gen_task_landscape() -> None:
+    plt = _setup_matplotlib()
     fig, ax = plt.subplots(figsize=(11, 6.2))
     for name, alerts, steps, rank, mode in TASKS:
         ax.scatter(
@@ -104,6 +108,9 @@ def gen_task_landscape() -> None:
 
 
 def gen_efficiency_curve() -> None:
+    plt = _setup_matplotlib()
+    import numpy as np
+
     # server/environment.py::_efficiency_multiplier
     xs = np.linspace(0, 1.0, 501)
 
@@ -141,6 +148,9 @@ def gen_efficiency_curve() -> None:
 
 
 def gen_theme_matrix() -> None:
+    plt = _setup_matplotlib()
+    from matplotlib.patches import FancyBboxPatch
+
     rows = [
         ("Theme #1 — Multi-Agent (primary)", "3-role team + ticket bus + phase FSM"),
         ("Theme #2 — Long-Horizon", "apt_campaign: 250 steps, 5 phases"),
