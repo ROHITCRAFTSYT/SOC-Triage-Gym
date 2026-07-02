@@ -143,7 +143,6 @@ def test_over_escalation_penalty(team_env):
     # team_phishing has 1 alert — escalating it is fine (0/1 < 0.3)
     # Simulate by manually pre-populating escalated_alert_ids
     env._escalated_alert_ids = [f"fake-{i}" for i in range(5)]  # 5 already escalated
-    env._config.alerts[0].alert_id  # 1 real alert
     # With 5 escalated out of 1 total alert, ratio > 0.3
     alert_id = env._config.alerts[0].alert_id
     ip = list(env._config.alerts[0].indicators.get("ip", ["1.2.3.4"]))[0]

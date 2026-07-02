@@ -148,7 +148,7 @@ class TestSOCEnvironment:
         obs = environment.reset(task_id="phishing", seed=42)
 
         # Phishing has max_steps=15, use NOOP to burn through budget
-        for i in range(15):
+        for _ in range(15):
             obs = environment.step(SOCAction(action_type=ActionType.NOOP))
 
         assert obs.done is True

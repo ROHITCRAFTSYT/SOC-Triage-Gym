@@ -51,8 +51,8 @@ def forensic_timeline(
 ) -> tuple[ContainmentResult, float, str]:
     """Generate a forensic timeline for a host by scanning all log_db entries."""
     entries: list[str] = []
-    for source_name, alert_map in config.log_db.items():
-        for aid, log_list in alert_map.items():
+    for _source_name, alert_map in config.log_db.items():
+        for _aid, log_list in alert_map.items():
             for entry in log_list:
                 if entry.hostname == target_host:
                     user = entry.user or "—"

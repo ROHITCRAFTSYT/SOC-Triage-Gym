@@ -913,7 +913,7 @@ def _heuristic_action(obs: dict, step: int) -> dict:
     # Check log evidence for suspicious activity
     log_evidence_suspicious = False
     log_evidence_benign = False
-    for source_key, entries in inv.get("queried_sources", {}).items():
+    for _source_key, entries in inv.get("queried_sources", {}).items():
         if isinstance(entries, list):
             for entry in entries:
                 if isinstance(entry, dict):

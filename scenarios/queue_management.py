@@ -483,7 +483,7 @@ class QueueManagementScenario(BaseScenario):
              "WAF blocked automated vulnerability scan from external scanner. No successful requests.", LogSource.FIREWALL),
         ]
 
-        for i, (rule, title, severity, description, primary_source) in enumerate(fp_templates):
+        for rule, title, severity, description, primary_source in fp_templates:
             aid = self._alert_id("FP")
             fps.append(AlertMeta(
                 alert_id=aid,

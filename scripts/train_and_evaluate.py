@@ -229,7 +229,7 @@ def emit_artifacts(summary: dict) -> None:
     with csv_path.open("w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["episode", "oracle", "trained"])
-        for i, (o, t) in enumerate(zip(summary["oracle_scores"], summary["trained_scores"])):
+        for i, (o, t) in enumerate(zip(summary["oracle_scores"], summary["trained_scores"], strict=False)):
             w.writerow([i + 1, o, t])
 
     # JSON summary for demo.py

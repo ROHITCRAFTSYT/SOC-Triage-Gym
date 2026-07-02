@@ -490,7 +490,8 @@ def make_reward_fn(client: httpx.Client, role: str):
         # batch (group of completions for the same prompt).
         total = sum(quality_counts.values()) or 1
         if total >= 4:  # batch of meaningful size
-            pct = lambda k: 100 * quality_counts[k] / total
+            def pct(k):
+                return 100 * quality_counts[k] / total
             print(
                 f"[reward_fn] parse: strict {pct('strict'):.0f}% "
                 f"loose {pct('loose'):.0f}% fallback {pct('fallback'):.0f}% "
@@ -851,7 +852,7 @@ def _compare_baselines(client, tasks, role, n_seeds: int = 10):
         ax.axhline(o_mean, linestyle="--", color="#2b4a3a", alpha=0.6,
                    label=f"Oracle μ={o_mean:.3f}")
         ax.fill_between(x, random_scores, oracle_scores,
-                        where=[o >= r for o, r in zip(oracle_scores, random_scores)],
+                        where=[o >= r for o, r in zip(oracle_scores, random_scores, strict=False)],
                         alpha=0.08, color="#2b4a3a")
         ax.set_xlabel("Episode")
         ax.set_ylabel("Task score")

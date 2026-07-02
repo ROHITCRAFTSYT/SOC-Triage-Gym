@@ -137,7 +137,7 @@ def plot_redteam_curriculum():
     difficulty = 0.30  # initial floor
     win_rates, difficulties = [], []
 
-    for r in range(NUM_ROUNDS):
+    for _r in range(NUM_ROUNDS):
         # Blue oracle wins more often when difficulty is below ~0.5; below it
         # wins ~70%, above it drops fast. Add per-round noise.
         prob = float(np.clip(0.95 - 1.4 * difficulty + rng.normal(0, 0.05), 0.05, 0.95))

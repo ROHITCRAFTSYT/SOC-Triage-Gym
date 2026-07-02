@@ -79,10 +79,15 @@ def gen_redteam_curriculum(client: httpx.Client, num_rounds: int = 15,
     ax1.plot(rounds, winrate_hist, "o-", color="#2196F3", linewidth=2, label="Blue win rate")
     ax1.axhline(0.5, linestyle="--", color="red", alpha=0.7, label="Target 0.5")
     ax1.fill_between(rounds, 0.4, 0.6, alpha=0.1, color="green", label="Sweet spot [0.4, 0.6]")
-    ax1.set_ylabel("Blue Win Rate"); ax1.set_ylim(0, 1); ax1.legend()
+    ax1.set_ylabel("Blue Win Rate")
+    ax1.set_ylim(0, 1)
+    ax1.legend()
     ax1.set_title("Blue-Team Win Rate (oscillates around 0.5 as Red-Team adapts)")
     ax2.plot(rounds, difficulty_hist, "s-", color="#F44336", linewidth=2, label="Difficulty floor")
-    ax2.set_xlabel("Round"); ax2.set_ylabel("Difficulty Floor"); ax2.set_ylim(0, 1); ax2.legend()
+    ax2.set_xlabel("Round")
+    ax2.set_ylabel("Difficulty Floor")
+    ax2.set_ylim(0, 1)
+    ax2.legend()
     ax2.set_title("Red-Team Difficulty Adaptation")
     plt.tight_layout()
     path = os.path.join(OUT_DIR, "redteam_curriculum.png")
@@ -113,11 +118,12 @@ def gen_task_difficulty(client: httpx.Client, n_episodes: int = 20) -> None:
     fig, ax = plt.subplots(figsize=(11, 5))
     labels = list(results.keys())
     data = [results[t] for t in labels]
-    bp = ax.boxplot(data, labels=[l.replace("_", "\n") for l in labels],
+    bp = ax.boxplot(data, labels=[lbl.replace("_", "\n") for lbl in labels],
                      patch_artist=True, showmeans=True)
     palette = ["#4C72B0", "#55A868", "#C44E52", "#8172B2", "#CCB974", "#64B5CD"]
-    for patch, color in zip(bp["boxes"], palette):
-        patch.set_facecolor(color); patch.set_alpha(0.7)
+    for patch, color in zip(bp["boxes"], palette, strict=False):
+        patch.set_facecolor(color)
+        patch.set_alpha(0.7)
     ax.set_ylabel("Oracle Episode Score")
     ax.set_ylim(0, 1.0)
     ax.axhline(0.5, linestyle="--", color="gray", alpha=0.5)
