@@ -92,6 +92,10 @@ The tasks span three orders of magnitude in episode horizon and two in queue siz
 
 ## Team Mode
 
+![Animated SOC team pipeline](assets/pipeline_animated.svg)
+
+*A ticket travels Tier-1 → Tier-2 → Manager while the team-F1 reward meter fills. Animated SVG — no binary, renders inline on GitHub and the HF Space.*
+
 Team episodes run through three phases. Each phase has a dedicated step budget.
 
 **Tier-1 actions:** `enrich_indicator`, `query_logs`, `correlate_alerts`, `check_asset`, `check_user`, `classify_alert`, `map_technique`, `recommend_action`, `escalate_to_tier2`, `phase_complete`, `noop`
