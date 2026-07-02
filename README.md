@@ -21,7 +21,10 @@ tags:
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ROHITCRAFTSYT/-Metas-OpenEnv-2/blob/main/soc_triage_gym_v2_training.ipynb)
 [![HF Space](https://img.shields.io/badge/🤗%20Space-rohitcraftsyt%2Fopenenv2-yellow)](https://huggingface.co/spaces/rohitcraftsyt/openenv2)
 [![Trained Model](https://img.shields.io/badge/🤗%20Model-rohitcraftsyt%2Fsoc--grpo--tier1-blue)](https://huggingface.co/rohitcraftsyt/soc-grpo-tier1)
-[![Tests](https://img.shields.io/badge/tests-108%20passing-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/tests-109%20passing-brightgreen)](tests/)
+[![CI](https://github.com/ROHITCRAFTSYT/SOC-Triage-Gym/actions/workflows/ci.yml/badge.svg)](.github/workflows/ci.yml)
+[![Ruff](https://img.shields.io/badge/lint-ruff-261230?logo=ruff&logoColor=white)](pyproject.toml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 > Also runnable on Kaggle (free T4, 30h/week). Clone the repo and run `python scripts/train_and_evaluate.py` — override `SOC_TRAIN_TASKS`, `SOC_TRAIN_N_SEEDS`, `NUM_EPOCHS`, `NUM_GENERATIONS` env vars to fit the free tier budget.
 
@@ -357,7 +360,7 @@ Dense step rewards for productive investigation. Final score on submit/phase_com
 ## Test Coverage
 
 ```
-108 passed, 1 skipped
+109 passed, 1 skipped
 ```
 
 Coverage includes: solo backward-compat, team phase state machine, ticket bus, containment tools, manager oversight, team grader, red-team generator, reward-hack regression tests (close_case idempotency, team_f1 delta, zero-escalation guard, over-escalation threshold, manager judge fallback), **plus new v3 theme-coverage tests**: multi-actor determinism & role routing, policy-drift schedule & active-at semantics, token-bonus floor/cap/monotonicity, expert-panel rotation & weight shift, ticketing cross-app rule, apt_campaign narrative reward growth.
@@ -444,6 +447,24 @@ No submission wins by overclaiming. Here's what this one *doesn't* do:
 5. **APT campaign narrative grader is length-sensitive**, not semantics-sensitive. Token-length cap limits abuse but a smart agent could still hit the cap with padding. We note this as a known limit; fixing it requires an LLM semantic judge in the narrative grader, which we skipped to keep `demo.py` dependency-free.
 
 If any of these surprise a judge, we'd rather have said so first.
+
+---
+
+## Development
+
+| Task | Command |
+|---|---|
+| Install (dev) | `make install` — `pip install -e ".[dev]"` |
+| Run tests | `make test` — `pytest -q` |
+| Lint | `make lint` — `ruff check .` |
+| Auto-fix + format | `make fmt` |
+| Start server | `make serve` — Uvicorn on `:7860` |
+| Regenerate charts | `make plots` |
+
+CI (`ruff` + `pytest` on Python 3.11/3.12) runs on every push and PR — see
+[.github/workflows/ci.yml](.github/workflows/ci.yml). Contribution guidelines
+are in [CONTRIBUTING.md](CONTRIBUTING.md); notable changes are tracked in
+[CHANGELOG.md](CHANGELOG.md). Optional local hooks: `pre-commit install`.
 
 ---
 
