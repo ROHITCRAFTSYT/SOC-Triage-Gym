@@ -13,8 +13,14 @@ and correctly identify insider threat patterns.
 """
 
 from models import (
-    AlertClassification, AlertMeta, AlertSeverity, GroundTruth,
-    IndicatorType, LogSource, ResponseActionType, ScenarioConfig
+    AlertClassification,
+    AlertMeta,
+    AlertSeverity,
+    GroundTruth,
+    IndicatorType,
+    LogSource,
+    ResponseActionType,
+    ScenarioConfig,
 )
 from scenarios.base import BaseScenario
 
@@ -266,7 +272,7 @@ class InsiderThreatScenario(BaseScenario):
             self._make_log_entry(LogSource.ENDPOINT, "file_created", hours_ago=5.5,
                 hostname=insider_host, user=insider_user,
                 details={
-                    "file_path": "C:\\Users\\{}\\Documents\\hr_export_full.csv".format(insider_user),
+                    "file_path": f"C:\\Users\\{insider_user}\\Documents\\hr_export_full.csv",
                     "file_size_bytes": 356515840, "records": 12000,
                     "hash": export_hash,
                 }),

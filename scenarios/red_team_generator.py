@@ -3,8 +3,7 @@ import hashlib
 import random
 import string
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional
+from datetime import UTC, datetime, timedelta
 
 from models import (
     AlertClassification,
@@ -37,7 +36,7 @@ class RedTeamGenerator:
         self.config = config if config is not None else RedTeamConfig()
         self.seed = seed
         self._rng = random.Random(seed)
-        self._base_time = datetime.now(timezone.utc) - timedelta(hours=2)
+        self._base_time = datetime.now(UTC) - timedelta(hours=2)
 
     # ------------------------------------------------------------------
     # Public API
@@ -146,9 +145,9 @@ class RedTeamGenerator:
     # Internal: Alert Generators
     # ------------------------------------------------------------------
 
-    def _generate_attack_alerts(self, pattern: str, num_tp: int) -> List[AlertMeta]:
+    def _generate_attack_alerts(self, pattern: str, num_tp: int) -> list[AlertMeta]:
         """Create num_tp true-positive alerts for the given attack pattern."""
-        alerts: List[AlertMeta] = []
+        alerts: list[AlertMeta] = []
 
         if pattern == "phishing":
             alerts = self._phishing_alerts(num_tp)
@@ -159,7 +158,7 @@ class RedTeamGenerator:
 
         return alerts
 
-    def _phishing_alerts(self, count: int) -> List[AlertMeta]:
+    def _phishing_alerts(self, count: int) -> list[AlertMeta]:
         alerts = []
         for i in range(count):
             alert_id = f"ALT-RT-{str(uuid.UUID(int=self._rng.getrandbits(128)))[:6].upper()}"
@@ -196,7 +195,7 @@ class RedTeamGenerator:
             ))
         return alerts
 
-    def _lateral_movement_alerts(self, count: int) -> List[AlertMeta]:
+    def _lateral_movement_alerts(self, count: int) -> list[AlertMeta]:
         """Chain of escalating SMB/RDP lateral movement alerts."""
         alerts = []
         base_src_ip = self._private_ip()
@@ -240,7 +239,7 @@ class RedTeamGenerator:
             ))
         return alerts
 
-    def _insider_threat_alerts(self, count: int) -> List[AlertMeta]:
+    def _insider_threat_alerts(self, count: int) -> list[AlertMeta]:
         """Data access anomaly alerts consistent with insider threat."""
         alerts = []
         insider_user = self._username()
@@ -281,8 +280,8 @@ class RedTeamGenerator:
     def _generate_noise_alerts(
         self,
         num_fp: int,
-        shared_ips: Optional[List[str]] = None,
-    ) -> List[AlertMeta]:
+        shared_ips: list[str] | None = None,
+    ) -> list[AlertMeta]:
         """
         Create benign FP noise alerts.
         When correlation_obfuscation is high, some FPs share IPs with real alerts.
@@ -336,9 +335,9 @@ class RedTeamGenerator:
 
     def _build_enrichment_db(
         self,
-        alerts: List[AlertMeta],
+        alerts: list[AlertMeta],
         ioc_freshness: float,
-    ) -> Dict[str, EnrichmentResult]:
+    ) -> dict[str, EnrichmentResult]:
         """
         Build a threat-intel database for all indicators in all alerts.
 
@@ -348,7 +347,7 @@ class RedTeamGenerator:
           - freshness >= 0.5: confidence = freshness * 0.9  (fresh, easy to detect)
           - freshness <  0.5: confidence = 0.3-0.5           (stale, harder to detect)
         """
-        db: Dict[str, EnrichmentResult] = {}
+        db: dict[str, EnrichmentResult] = {}
 
         # Classify each alert's maliciousness by checking severity
         # TP alerts have severity >= MEDIUM and are not labelled as routine rules
@@ -484,8 +483,8 @@ class RedTeamGenerator:
     # ------------------------------------------------------------------
 
     def _build_log_db(
-        self, alerts: List[AlertMeta]
-    ) -> Dict[str, Dict[str, List[LogEntry]]]:
+        self, alerts: list[AlertMeta]
+    ) -> dict[str, dict[str, list[LogEntry]]]:
         """
         Generate minimal log entries for every alert.
         TP alerts get suspicious log entries; FP alerts get benign entries.
@@ -500,7 +499,7 @@ class RedTeamGenerator:
         }
 
         all_ids = [a.alert_id for a in alerts]
-        log_db: Dict[str, Dict[str, List[LogEntry]]] = {}
+        log_db: dict[str, dict[str, list[LogEntry]]] = {}
         for source in LogSource:
             log_db[source.value] = {aid: [] for aid in all_ids}
 
@@ -574,11 +573,11 @@ class RedTeamGenerator:
     # ------------------------------------------------------------------
 
     def _build_asset_and_user_db(
-        self, alerts: List[AlertMeta]
+        self, alerts: list[AlertMeta]
     ) -> tuple:
         """Build one workstation asset + one user per alert."""
-        asset_db: Dict[str, AssetInfo] = {}
-        user_db: Dict[str, UserInfo] = {}
+        asset_db: dict[str, AssetInfo] = {}
+        user_db: dict[str, UserInfo] = {}
 
         for alert in alerts:
             hostname = self._hostname("WORKSTATION")
@@ -633,8 +632,8 @@ class RedTeamGenerator:
 
     def _build_ground_truth(
         self,
-        tp_alerts: List[AlertMeta],
-        fp_alerts: List[AlertMeta],
+        tp_alerts: list[AlertMeta],
+        fp_alerts: list[AlertMeta],
     ) -> GroundTruth:
         """
         Build the answer key.
@@ -645,14 +644,14 @@ class RedTeamGenerator:
         expected_manager_flags: TP IDs where correlation_obfuscation > 0.5
             (these are alerts Tier-1 is likely to miss due to shared noise IPs).
         """
-        alert_classifications: Dict[str, AlertClassification] = {}
-        expected_techniques: Dict[str, List[str]] = {}
-        expected_response_actions: Dict[str, List[ResponseActionType]] = {}
-        relevant_log_sources: Dict[str, List[LogSource]] = {}
-        relevant_indicators: Dict[str, List[str]] = {}
-        required_escalations: List[str] = []
-        required_containments: Dict[str, List[str]] = {}
-        expected_manager_flags: List[str] = []
+        alert_classifications: dict[str, AlertClassification] = {}
+        expected_techniques: dict[str, list[str]] = {}
+        expected_response_actions: dict[str, list[ResponseActionType]] = {}
+        relevant_log_sources: dict[str, list[LogSource]] = {}
+        relevant_indicators: dict[str, list[str]] = {}
+        required_escalations: list[str] = []
+        required_containments: dict[str, list[str]] = {}
+        expected_manager_flags: list[str] = []
 
         high_severities = {AlertSeverity.HIGH, AlertSeverity.CRITICAL}
 
@@ -754,13 +753,13 @@ class RedTeamGenerator:
         source: LogSource,
         event_type: str,
         hours_ago: float = 0.5,
-        src_ip: Optional[str] = None,
-        dst_ip: Optional[str] = None,
-        user: Optional[str] = None,
-        hostname: Optional[str] = None,
-        action: Optional[str] = None,
-        severity: Optional[str] = None,
-        details: Optional[Dict] = None,
+        src_ip: str | None = None,
+        dst_ip: str | None = None,
+        user: str | None = None,
+        hostname: str | None = None,
+        action: str | None = None,
+        severity: str | None = None,
+        details: dict | None = None,
     ) -> LogEntry:
         return LogEntry(
             timestamp=self._timestamp(hours_ago=hours_ago),

@@ -2,8 +2,8 @@
 Shared pytest fixtures for SOC-Triage-Gym test suite.
 """
 
-import sys
 import os
+import sys
 
 # Ensure project root is on sys.path so imports like "from models import ..."
 # work the same way they do when running the server.
@@ -14,14 +14,13 @@ if PROJECT_ROOT not in sys.path:
 import pytest
 from fastapi.testclient import TestClient
 
-from server.app import app
-from server.environment import SOCEnvironment
-from scenarios.phishing import PhishingScenario
+from models import ScenarioConfig
 from scenarios.lateral_movement import LateralMovementScenario
+from scenarios.phishing import PhishingScenario
 from scenarios.queue_management import QueueManagementScenario
 from scenarios.team_phishing_escalation import TeamPhishingEscalationScenario
-from models import ScenarioConfig
-
+from server.app import app
+from server.environment import SOCEnvironment
 
 # ---------------------------------------------------------------------------
 # Scenario config fixtures

@@ -7,13 +7,11 @@ Each function returns (ContainmentResult, float reward, str message).
 
 from __future__ import annotations
 
-from typing import List
 from models import (
     ContainmentResult,
-    ScenarioConfig,
     InvestigationState,
+    ScenarioConfig,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -52,7 +50,7 @@ def forensic_timeline(
     target_host: str,
 ) -> tuple[ContainmentResult, float, str]:
     """Generate a forensic timeline for a host by scanning all log_db entries."""
-    entries: List[str] = []
+    entries: list[str] = []
     for source_name, alert_map in config.log_db.items():
         for aid, log_list in alert_map.items():
             for entry in log_list:

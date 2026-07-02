@@ -44,3 +44,21 @@ soc-triage-gym = "server.app:main"
 where = ["."]
 include = ["*"]
 exclude = ["tests*"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+extend-exclude = ["*.ipynb", "uv.lock"]
+
+[tool.ruff.lint]
+# F = pyflakes (real bugs), I = import sorting, B = bugbear, UP = pyupgrade,
+# E/W = pycodestyle. E501 (line length) and E402 (import position) are
+# intentionally relaxed: several modules define a module logger before their
+# imports, and many data-table lines are legitimately long.
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501", "E402"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests favour readability over strict bugbear/import rules.
+"tests/*" = ["B011", "B017", "F841"]
+"scripts/*" = ["F841"]

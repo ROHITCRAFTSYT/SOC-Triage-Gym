@@ -7,7 +7,6 @@ and the episode's InvestigationState dict, returning a float in [0.0, 1.0].
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict
 
 from models import AlertClassification, InvestigationState, ScenarioConfig
 
@@ -19,7 +18,7 @@ class BaseGrader(ABC):
     def grade(
         self,
         config: ScenarioConfig,
-        investigations: Dict[str, InvestigationState],
+        investigations: dict[str, InvestigationState],
         steps_used: int,
         max_steps: int,
     ) -> float:
@@ -40,7 +39,7 @@ class BaseGrader(ABC):
     def grade_with_breakdown(
         self,
         config: "ScenarioConfig",
-        investigations: "Dict[str, InvestigationState]",
+        investigations: "dict[str, InvestigationState]",
         steps_used: int,
         max_steps: int,
     ) -> tuple:
@@ -59,7 +58,7 @@ class BaseGrader(ABC):
     def _classification_accuracy(
         self,
         config: ScenarioConfig,
-        investigations: Dict[str, InvestigationState],
+        investigations: dict[str, InvestigationState],
     ) -> float:
         """Fraction of alerts correctly classified (unclassified = wrong)."""
         gt = config.ground_truth.alert_classifications
@@ -75,7 +74,7 @@ class BaseGrader(ABC):
     def _technique_accuracy(
         self,
         config: ScenarioConfig,
-        investigations: Dict[str, InvestigationState],
+        investigations: dict[str, InvestigationState],
         only_tps: bool = True,
     ) -> float:
         """
@@ -124,7 +123,7 @@ class BaseGrader(ABC):
     def _evidence_completeness(
         self,
         config: ScenarioConfig,
-        investigations: Dict[str, InvestigationState],
+        investigations: dict[str, InvestigationState],
     ) -> float:
         """
         Fraction of relevant log sources that were queried across all alerts.
@@ -150,7 +149,7 @@ class BaseGrader(ABC):
     def _response_quality(
         self,
         config: ScenarioConfig,
-        investigations: Dict[str, InvestigationState],
+        investigations: dict[str, InvestigationState],
     ) -> float:
         """
         Fraction of expected response actions that were recommended,

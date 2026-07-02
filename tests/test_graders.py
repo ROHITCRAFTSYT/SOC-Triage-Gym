@@ -3,16 +3,15 @@ Tests for all graders: PhishingGrader, LateralMovementGrader, QueueManagementGra
 """
 
 
+from graders.lateral_movement_grader import LateralMovementGrader
+from graders.phishing_grader import PhishingGrader
+from graders.queue_management_grader import QueueManagementGrader
 from models import (
     AlertClassification,
     CorrelatedEvent,
     CorrelationType,
     InvestigationState,
 )
-from graders.phishing_grader import PhishingGrader
-from graders.lateral_movement_grader import LateralMovementGrader
-from graders.queue_management_grader import QueueManagementGrader
-
 
 # ===================================================================
 # Phishing Grader Tests

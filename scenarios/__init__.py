@@ -1,11 +1,11 @@
 """SOC-Triage-Gym scenario generators."""
-from scenarios.phishing import PhishingScenario
-from scenarios.lateral_movement import LateralMovementScenario
-from scenarios.queue_management import QueueManagementScenario
-from scenarios.insider_threat import InsiderThreatScenario
-from scenarios.team_phishing_escalation import TeamPhishingEscalationScenario
-from scenarios.team_lateral_team import TeamLateralTeamScenario
 from scenarios.apt_campaign import APTCampaignScenario
+from scenarios.insider_threat import InsiderThreatScenario
+from scenarios.lateral_movement import LateralMovementScenario
+from scenarios.phishing import PhishingScenario
+from scenarios.queue_management import QueueManagementScenario
+from scenarios.team_lateral_team import TeamLateralTeamScenario
+from scenarios.team_phishing_escalation import TeamPhishingEscalationScenario
 
 SCENARIO_REGISTRY = {
     "phishing": PhishingScenario,

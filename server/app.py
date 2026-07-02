@@ -22,7 +22,7 @@ Thread safety: a single threading.Lock protects the SOCEnvironment instance.
 import logging
 import threading
 from contextlib import asynccontextmanager
-from typing import List, Literal, Optional
+from typing import Literal
 
 from fastapi import Body, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -48,23 +48,30 @@ from models import (
 )
 from scenarios.policy_drift import PolicyDriftEngine
 from scenarios.red_team_generator import RedTeamGenerator
+from server.environment import SOCEnvironment
 from server.landing_ui import UI_HTML
 from server.page_ui import (
     render_metadata as _render_metadata_page,
-    render_tasks as _render_tasks_page,
-    render_themes as _render_themes_page,
-    render_state as _render_state_page,
+)
+from server.page_ui import (
     render_schema as _render_schema_page,
 )
-from server.environment import SOCEnvironment
+from server.page_ui import (
+    render_state as _render_state_page,
+)
+from server.page_ui import (
+    render_tasks as _render_tasks_page,
+)
+from server.page_ui import (
+    render_themes as _render_themes_page,
+)
 from tools.ticketing import TicketingSystem
-
 
 # ---------------------------------------------------------------------------
 # App state
 # ---------------------------------------------------------------------------
 
-_env: Optional[SOCEnvironment] = None
+_env: SOCEnvironment | None = None
 _env_lock = threading.Lock()
 _baseline_agent = HeuristicBaselineAgent()
 
@@ -194,7 +201,7 @@ class GenerateScenarioRequest(BaseModel):
     """Request body for POST /generate_scenario."""
     seed: int = 42
     difficulty_floor: float = 0.5
-    attack_patterns: List[str] = ["phishing", "lateral_movement", "insider_threat"]
+    attack_patterns: list[str] = ["phishing", "lateral_movement", "insider_threat"]
     noise_density: float = 0.6
     ioc_freshness: float = 0.7
     correlation_obfuscation: float = 0.3
@@ -233,7 +240,7 @@ def metadata():
 @app.get("/schema")
 def schema():
     """Action, observation and state JSON schemas (OpenEnv runtime spec)."""
-    from models import SOCAction, SOCObservation, EnvironmentState
+    from models import EnvironmentState, SOCAction, SOCObservation
     return {
         "action": SOCAction.model_json_schema(),
         "observation": SOCObservation.model_json_schema(),
@@ -242,7 +249,7 @@ def schema():
 
 
 @app.post("/mcp")
-def mcp_endpoint(request: Optional[dict] = Body(default=None)):
+def mcp_endpoint(request: dict | None = Body(default=None)):
     """
     MCP (Model Context Protocol) JSON-RPC 2.0 endpoint.
 
@@ -462,7 +469,7 @@ def mcp_endpoint(request: Optional[dict] = Body(default=None)):
 
 
 @app.post("/reset", response_model=SOCObservation)
-def reset(request: Optional[ResetRequest] = Body(default=None)):
+def reset(request: ResetRequest | None = Body(default=None)):
     """
     Start a new episode.
 
@@ -490,7 +497,7 @@ def reset(request: Optional[ResetRequest] = Body(default=None)):
             return obs
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
-        except Exception as e:
+        except Exception:
             logger.exception("Error in /reset")
             raise HTTPException(status_code=500, detail="Internal server error.")
 
@@ -524,7 +531,7 @@ def step(action: SOCAction):
             _policy_drift.maybe_drift(step=_actor_step)
             _ticketing.tick()
             return obs
-        except Exception as e:
+        except Exception:
             logger.exception("Error in /step")
             raise HTTPException(status_code=500, detail="Internal server error.")
 
@@ -540,7 +547,7 @@ def state():
     with _env_lock:
         try:
             return _env.state()
-        except Exception as e:
+        except Exception:
             logger.exception("Error in /state")
             raise HTTPException(status_code=500, detail="Internal server error.")
 
@@ -619,7 +626,7 @@ def get_tasks():
 
 
 @app.post("/grader")
-def grader(request: Optional[ResetRequest] = Body(default=None)):
+def grader(request: ResetRequest | None = Body(default=None)):
     """
     Run the grader on the current episode state (OpenEnv spec endpoint).
 
@@ -639,13 +646,13 @@ def grader(request: Optional[ResetRequest] = Body(default=None)):
                 "max_steps": _env._config.max_steps if _env._config else 0,
                 "done": _env._done,
             }
-        except Exception as e:
+        except Exception:
             logger.exception("Error in /grader")
             raise HTTPException(status_code=500, detail="Internal server error.")
 
 
 @app.post("/baseline")
-def baseline(request: Optional[ResetRequest] = Body(default=None)):
+def baseline(request: ResetRequest | None = Body(default=None)):
     """
     Run the heuristic baseline agent on a fresh episode (OpenEnv spec endpoint).
 
@@ -679,7 +686,7 @@ def baseline(request: Optional[ResetRequest] = Body(default=None)):
             }
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
-        except Exception as e:
+        except Exception:
             logger.exception("Error in /baseline")
             raise HTTPException(status_code=500, detail="Internal server error.")
 
@@ -720,7 +727,7 @@ def list_tasks():
 
 
 @app.post("/generate_scenario")
-def generate_scenario(request: Optional[GenerateScenarioRequest] = Body(default=None)):
+def generate_scenario(request: GenerateScenarioRequest | None = Body(default=None)):
     """Generate and load an adaptive red-team scenario for reset(task_id='red_team_generated')."""
     req = request or GenerateScenarioRequest()
     rt_config = RedTeamConfig(
@@ -883,7 +890,7 @@ def threat_intel_hash(file_hash: str):
 @app.get("/logs/{source}")
 def query_log_source(
     source: str,
-    alert_id: Optional[str] = Query(default=None),
+    alert_id: str | None = Query(default=None),
     hours: int = Query(default=24, ge=1, le=168),
 ):
     """
@@ -927,7 +934,7 @@ def query_log_source(
 # ---------------------------------------------------------------------------
 
 @app.get("/actors/messages")
-def actor_messages(role: Optional[str] = Query(default=None)):
+def actor_messages(role: str | None = Query(default=None)):
     """
     Halluminate sub-theme — Inspect messages from external NPC actors
     (ThreatIntelFeed, ComplianceOfficer, EndUserReporter) in the current episode.
@@ -967,12 +974,12 @@ def reward_config():
 
 class RewardBlendUpdate(BaseModel):
     """Optional blend override."""
-    role_weight: Optional[float] = None
-    team_weight: Optional[float] = None
-    token_scale_enabled: Optional[bool] = None
-    token_scale_floor: Optional[int] = None
-    token_scale_cap: Optional[int] = None
-    token_scale_max_bonus: Optional[float] = None
+    role_weight: float | None = None
+    team_weight: float | None = None
+    token_scale_enabled: bool | None = None
+    token_scale_floor: int | None = None
+    token_scale_cap: int | None = None
+    token_scale_max_bonus: float | None = None
 
 
 @app.post("/reward/config")
@@ -1018,11 +1025,11 @@ def experts_panel():
 
 
 class ExpertRotateRequest(BaseModel):
-    round_index: Optional[int] = None
+    round_index: int | None = None
 
 
 @app.post("/experts/rotate")
-def experts_rotate(req: Optional[ExpertRotateRequest] = Body(default=None)):
+def experts_rotate(req: ExpertRotateRequest | None = Body(default=None)):
     """
     Advance the expert rotation. If round_index is given, rotate to that round;
     otherwise increment by 1. Emulates Snorkel experts-in-the-loop curriculum.

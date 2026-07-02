@@ -9,15 +9,15 @@ Reward logic:
   -0.03  if hostname doesn't exist in the asset DB and wasn't seen in any logs
 """
 
-from typing import Optional, Tuple
-from models import AssetInfo, ScenarioConfig, InvestigationState
+
+from models import AssetInfo, InvestigationState, ScenarioConfig
 
 
 def lookup_asset(
     config: ScenarioConfig,
     investigation: InvestigationState,
     hostname: str,
-) -> Tuple[Optional[AssetInfo], float, str]:
+) -> tuple[AssetInfo | None, float, str]:
     """
     Look up a host in the asset inventory.
 

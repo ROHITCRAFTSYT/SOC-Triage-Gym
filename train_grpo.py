@@ -33,7 +33,6 @@ import json
 import os
 import random
 import sys
-from typing import List
 
 import httpx
 
@@ -178,10 +177,10 @@ def run_episode(
     client: httpx.Client,
     task_id: str,
     seed: int,
-    model_actions: List[dict] | None = None,
+    model_actions: list[dict] | None = None,
     role_to_train: str = "tier1",
     max_steps: int = 80,
-) -> tuple[float, List[dict]]:
+) -> tuple[float, list[dict]]:
     """
     Run one full team episode.
 
@@ -236,10 +235,10 @@ def run_episode(
 
 def build_prompt_dataset(
     client: httpx.Client,
-    tasks: List[str],
-    seeds: List[int],
+    tasks: list[str],
+    seeds: list[int],
     role: str,
-) -> List[dict]:
+) -> list[dict]:
     """
     Legacy initial-observation dataset builder (one prompt per episode).
 
@@ -268,11 +267,11 @@ def build_prompt_dataset(
 
 def build_step_dataset(
     client: httpx.Client,
-    tasks: List[str],
-    seeds: List[int],
+    tasks: list[str],
+    seeds: list[int],
     role: str,
     max_steps_per_episode: int = 80,
-) -> List[dict]:
+) -> list[dict]:
     """
     Per-step dataset builder for real per-step GRPO.
 
@@ -564,7 +563,7 @@ def train(
     tasks = {"tier1": TIER1_TASKS, "tier2": TIER2_TASKS, "manager": MANAGER_TASKS}[role]
 
     print(f"\n{'='*60}")
-    print(f"SOC-Triage-Gym v2 — GRPO Training")
+    print("SOC-Triage-Gym v2 — GRPO Training")
     print(f"  role={role}  model={model_name}  epochs={num_train_epochs}")
     print(f"  tasks={tasks}  group_size={num_generations}")
     print(f"{'='*60}\n")
@@ -621,8 +620,8 @@ def train(
             use_unsloth = False
 
     if not use_unsloth:
+        from peft import LoraConfig, TaskType, get_peft_model
         from transformers import AutoModelForCausalLM, AutoTokenizer
-        from peft import LoraConfig, get_peft_model, TaskType
         tokenizer = AutoTokenizer.from_pretrained(model_name, token=HF_TOKEN)
         if tokenizer.pad_token is None:
             tokenizer.pad_token = tokenizer.eos_token
@@ -649,12 +648,13 @@ def train(
     reward_fn = make_reward_fn(client, role)
 
     # ---- Run GRPO training ----
-    print(f"\n[4/4] Starting GRPO training...")
+    print("\n[4/4] Starting GRPO training...")
 
     try:
         import inspect
-        from trl import GRPOConfig, GRPOTrainer
+
         from datasets import Dataset
+        from trl import GRPOConfig, GRPOTrainer
 
         hf_train = Dataset.from_list([{"prompt": d["prompt"],
                                         "task_id": d["task_id"],
@@ -800,8 +800,8 @@ def _compare_baselines(client, tasks, role, n_seeds: int = 10):
     print("\n--- Baseline comparison: random vs oracle ---")
     rows = []
     ep = 0
-    random_scores: List[float] = []
-    oracle_scores: List[float] = []
+    random_scores: list[float] = []
+    oracle_scores: list[float] = []
     for task_id in tasks:
         for seed in SEEDS[:n_seeds]:
             ep += 1

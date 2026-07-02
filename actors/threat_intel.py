@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import uuid
-from typing import Optional
 
 from actors.registry import BaseActor
 from models import ActorKind, ActorMessage, AgentRole
@@ -23,7 +22,7 @@ class ThreatIntelFeedActor(BaseActor):
         ("benign-corp.example", "registrar churn flagged by a noisy vendor feed"),
     ]
 
-    def on_step(self, step: int, ctx: Optional[dict] = None) -> Optional[ActorMessage]:
+    def on_step(self, step: int, ctx: dict | None = None) -> ActorMessage | None:
         if step < 3 or step % 12 != 0:
             return None
         self._counter += 1

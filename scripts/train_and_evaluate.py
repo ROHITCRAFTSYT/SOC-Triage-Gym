@@ -120,12 +120,17 @@ def train_policy() -> None:
 
 def evaluate() -> dict:
     """Load the trained adapter, run held-out eval on tier1 tasks, compare vs oracle."""
-    from train_grpo import (
-        TIER1_TASKS, ROLE_SYSTEM_PROMPTS,
-        run_episode, parse_action_from_text, format_obs_prompt, oracle_action,
-    )
     import torch
     from unsloth import FastLanguageModel
+
+    from train_grpo import (
+        ROLE_SYSTEM_PROMPTS,
+        TIER1_TASKS,
+        format_obs_prompt,
+        oracle_action,
+        parse_action_from_text,
+        run_episode,
+    )
 
     client = httpx.Client(base_url=SERVER_URL, timeout=180.0)
 
@@ -213,6 +218,7 @@ def evaluate() -> dict:
 
 def emit_artifacts(summary: dict) -> None:
     import csv
+
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -270,7 +276,7 @@ def emit_artifacts(summary: dict) -> None:
     plt.tight_layout()
     fig.savefig(ROOT / "trained_vs_baseline.png", dpi=150, bbox_inches="tight")
 
-    print(f"\n[artifacts] wrote:")
+    print("\n[artifacts] wrote:")
     print(f"  {ROOT / 'trained_vs_baseline.png'}")
     print(f"  {csv_path}")
     print(f"  {ROOT / 'training_summary.json'}")

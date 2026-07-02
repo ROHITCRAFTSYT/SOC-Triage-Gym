@@ -21,12 +21,12 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable, List
 
 
-def _read_jsonl(path: Path) -> List[dict]:
-    lines: List[dict] = []
+def _read_jsonl(path: Path) -> list[dict]:
+    lines: list[dict] = []
     with path.open("r", encoding="utf-8") as fh:
         for i, raw in enumerate(fh, 1):
             raw = raw.strip()
@@ -39,12 +39,12 @@ def _read_jsonl(path: Path) -> List[dict]:
     return lines
 
 
-def _replay_in_process(events: Iterable[dict]) -> List[float]:
+def _replay_in_process(events: Iterable[dict]) -> list[float]:
     from models import SOCAction
     from server.environment import SOCEnvironment
 
     env = SOCEnvironment()
-    rewards: List[float] = []
+    rewards: list[float] = []
     for ev in events:
         kind = ev.get("kind")
         if kind == "reset":
@@ -62,7 +62,7 @@ def _replay_in_process(events: Iterable[dict]) -> List[float]:
     return rewards
 
 
-def _replay_http(events: Iterable[dict], base_url: str) -> List[float]:
+def _replay_http(events: Iterable[dict], base_url: str) -> list[float]:
     try:
         import urllib.request
     except ImportError:  # pragma: no cover
@@ -78,7 +78,7 @@ def _replay_http(events: Iterable[dict], base_url: str) -> List[float]:
         with urllib.request.urlopen(req, timeout=30) as resp:
             return json.loads(resp.read().decode("utf-8"))
 
-    rewards: List[float] = []
+    rewards: list[float] = []
     for ev in events:
         kind = ev.get("kind")
         if kind == "reset":

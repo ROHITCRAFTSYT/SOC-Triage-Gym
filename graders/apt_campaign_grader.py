@@ -12,8 +12,6 @@ implementing the Mercor sub-theme directly inside the grader.
 """
 from __future__ import annotations
 
-from typing import Dict, Optional
-
 from graders.base import BaseGrader
 from graders.token_scaled_reward import token_scaled_bonus
 from models import AlertClassification, InvestigationState, RewardBlendConfig, ScenarioConfig
@@ -26,13 +24,13 @@ class APTCampaignGrader(BaseGrader):
     def __init__(self) -> None:
         self._narrative_text: str = ""
         self._policy_compliance: float = 1.0
-        self._blend: Optional[RewardBlendConfig] = None
+        self._blend: RewardBlendConfig | None = None
 
     def set_context(
         self,
         narrative_text: str = "",
         policy_compliance_rate: float = 1.0,
-        blend: Optional[RewardBlendConfig] = None,
+        blend: RewardBlendConfig | None = None,
     ) -> None:
         self._narrative_text = narrative_text or ""
         self._policy_compliance = max(0.0, min(1.0, policy_compliance_rate))
@@ -41,7 +39,7 @@ class APTCampaignGrader(BaseGrader):
     def _components(
         self,
         config: ScenarioConfig,
-        investigations: Dict[str, InvestigationState],
+        investigations: dict[str, InvestigationState],
     ):
         gt = config.ground_truth
         tp_set = set(gt.true_positive_ids)
@@ -79,7 +77,7 @@ class APTCampaignGrader(BaseGrader):
     def grade(
         self,
         config: ScenarioConfig,
-        investigations: Dict[str, InvestigationState],
+        investigations: dict[str, InvestigationState],
         steps_used: int,
         max_steps: int,
     ) -> float:
@@ -90,7 +88,7 @@ class APTCampaignGrader(BaseGrader):
     def grade_with_breakdown(
         self,
         config: ScenarioConfig,
-        investigations: Dict[str, InvestigationState],
+        investigations: dict[str, InvestigationState],
         steps_used: int,
         max_steps: int,
     ) -> tuple:

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import uuid
-from typing import Optional
 
 from actors.registry import BaseActor
 from models import ActorKind, ActorMessage, AgentRole
@@ -24,7 +23,7 @@ class ComplianceOfficerActor(BaseActor):
         "Please attest that privileged-account alerts received Tier-2 containment within this shift.",
     ]
 
-    def on_step(self, step: int, ctx: Optional[dict] = None) -> Optional[ActorMessage]:
+    def on_step(self, step: int, ctx: dict | None = None) -> ActorMessage | None:
         if step < 10 or step % 20 != 0:
             return None
         self._counter += 1

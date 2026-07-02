@@ -7,16 +7,15 @@ Each function returns (ManagerReviewResult, float reward, str message).
 
 from __future__ import annotations
 
+from graders.manager_judge import ManagerJudge
 from models import (
+    AlertClassification,
+    InvestigationState,
     ManagerReviewResult,
     ScenarioConfig,
-    InvestigationState,
-    AlertClassification,
-    TicketMessage,
     TicketKind,
+    TicketMessage,
 )
-from graders.manager_judge import ManagerJudge
-
 
 _MANAGER_JUDGE = ManagerJudge()
 

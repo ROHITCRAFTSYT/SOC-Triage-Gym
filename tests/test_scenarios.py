@@ -3,10 +3,10 @@ Tests for scenario generation: alert counts, determinism, ground truth.
 """
 
 
-from scenarios.phishing import PhishingScenario
-from scenarios.lateral_movement import LateralMovementScenario
-from scenarios.queue_management import QueueManagementScenario
 from models import AlertClassification
+from scenarios.lateral_movement import LateralMovementScenario
+from scenarios.phishing import PhishingScenario
+from scenarios.queue_management import QueueManagementScenario
 
 
 class TestPhishingScenario:

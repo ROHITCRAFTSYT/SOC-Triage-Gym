@@ -11,10 +11,9 @@ Weights:
   response_score      0.15  -- quality of response for actual TPs
 """
 
-from typing import Dict, Set
 
-from models import AlertClassification, InvestigationState, ScenarioConfig
 from graders.base import BaseGrader
+from models import AlertClassification, InvestigationState, ScenarioConfig
 
 
 class InsiderThreatGrader(BaseGrader):
@@ -23,7 +22,7 @@ class InsiderThreatGrader(BaseGrader):
     def grade(
         self,
         config: ScenarioConfig,
-        investigations: Dict[str, InvestigationState],
+        investigations: dict[str, InvestigationState],
         steps_used: int,
         max_steps: int,
     ) -> float:
@@ -86,12 +85,12 @@ class InsiderThreatGrader(BaseGrader):
 
     def _compute_f1(
         self,
-        investigations: Dict[str, InvestigationState],
+        investigations: dict[str, InvestigationState],
         gt,
     ) -> float:
         """Compute F1 score treating TP+BTP as positive, FP as negative."""
-        actual_positives: Set[str] = set(gt.true_positive_ids + gt.benign_tp_ids)
-        actual_negatives: Set[str] = set(gt.false_positive_ids)
+        actual_positives: set[str] = set(gt.true_positive_ids + gt.benign_tp_ids)
+        actual_negatives: set[str] = set(gt.false_positive_ids)
 
         positive_classes = {AlertClassification.TRUE_POSITIVE, AlertClassification.BENIGN_TRUE_POSITIVE}
         negative_class = AlertClassification.FALSE_POSITIVE
@@ -127,7 +126,7 @@ class InsiderThreatGrader(BaseGrader):
 
     def _attack_chain_score(
         self,
-        investigations: Dict[str, InvestigationState],
+        investigations: dict[str, InvestigationState],
         gt,
     ) -> float:
         """
@@ -156,7 +155,7 @@ class InsiderThreatGrader(BaseGrader):
 
     def _missed_tp_score(
         self,
-        investigations: Dict[str, InvestigationState],
+        investigations: dict[str, InvestigationState],
         gt,
     ) -> float:
         """
@@ -186,7 +185,7 @@ class InsiderThreatGrader(BaseGrader):
     def _response_quality_score(
         self,
         config: ScenarioConfig,
-        investigations: Dict[str, InvestigationState],
+        investigations: dict[str, InvestigationState],
     ) -> float:
         """
         Fraction of expected response actions recommended for TPs.

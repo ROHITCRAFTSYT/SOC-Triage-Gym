@@ -7,10 +7,10 @@ multiple actors beyond its own three learnable roles.
 
 Actors are deterministic — same (scenario_id, seed) → same message stream.
 """
-from actors.threat_intel import ThreatIntelFeedActor
 from actors.compliance import ComplianceOfficerActor
 from actors.end_user import EndUserReporterActor
 from actors.registry import ActorRegistry, build_default_registry
+from actors.threat_intel import ThreatIntelFeedActor
 
 __all__ = [
     "ThreatIntelFeedActor",

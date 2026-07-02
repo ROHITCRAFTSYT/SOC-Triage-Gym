@@ -12,10 +12,10 @@ from __future__ import annotations
 
 import html
 import json as _json
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
 from fastapi.responses import HTMLResponse
-
 
 # ─── shared shell ────────────────────────────────────────────────────────────
 _STYLE = r"""

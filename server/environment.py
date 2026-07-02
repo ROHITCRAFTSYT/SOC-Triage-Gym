@@ -9,20 +9,22 @@ All data access is from in-memory ScenarioConfig; no disk I/O during episodes.
 Tool functions are pure and imported from tools/.
 """
 
-import uuid
-import json
 import hashlib
-from typing import Dict, List, Optional
+import json
+import uuid
 
+from data.mitre_attack import is_valid_technique
+from graders import GRADER_REGISTRY
+from graders.team_grader import compute_team_metrics
 from models import (
     ActionType,
     AgentRole,
     AlertClassification,
     ConsistencyStats,
     ContainmentResult,
+    EnvironmentState,
     EpisodeMode,
     EpisodePhase,
-    EnvironmentState,
     InvestigationState,
     ManagerReviewResult,
     ResponseActionType,
@@ -33,34 +35,30 @@ from models import (
     TicketKind,
     TicketMessage,
 )
-from tools.enrichment import enrich_indicator
-from tools.log_query import query_logs
-from tools.correlation import correlate_alerts
+from scenarios import SCENARIO_REGISTRY
 from tools.asset_lookup import lookup_asset
-from tools.user_lookup import lookup_user
 from tools.containment import (
-    forensic_timeline,
-    sandbox_detonate,
-    memory_analysis,
-    isolate_host,
-    disable_user_account,
     block_ioc,
     close_case,
+    disable_user_account,
+    forensic_timeline,
+    isolate_host,
+    memory_analysis,
+    sandbox_detonate,
 )
+from tools.correlation import correlate_alerts
+from tools.enrichment import enrich_indicator
+from tools.log_query import query_logs
 from tools.oversight import (
-    review_decision,
-    override_classification,
-    flag_inconsistency,
     explain_team_behavior,
+    flag_inconsistency,
+    override_classification,
+    review_decision,
 )
-from scenarios import SCENARIO_REGISTRY
-from graders import GRADER_REGISTRY
-from graders.team_grader import compute_team_metrics
-from data.mitre_attack import is_valid_technique
-
+from tools.user_lookup import lookup_user
 
 # Per-phase step budgets in team mode
-_PHASE_BUDGETS: Dict[EpisodePhase, int] = {
+_PHASE_BUDGETS: dict[EpisodePhase, int] = {
     EpisodePhase.TRIAGE: 40,
     EpisodePhase.RESPONSE: 20,
     EpisodePhase.OVERSIGHT: 8,
@@ -95,23 +93,23 @@ class SOCEnvironment:
     """
 
     def __init__(self) -> None:
-        self._config: Optional[ScenarioConfig] = None
-        self._investigations: Dict[str, InvestigationState] = {}
+        self._config: ScenarioConfig | None = None
+        self._investigations: dict[str, InvestigationState] = {}
         self._cumulative_reward: float = 0.0
         self._step: int = 0
         self._done: bool = False
-        self._task_id: Optional[str] = None
-        self._episode_id: Optional[str] = None
-        self._action_history: List[str] = []
+        self._task_id: str | None = None
+        self._episode_id: str | None = None
+        self._action_history: list[str] = []
         # Multi-agent state
         self._mode: EpisodeMode = EpisodeMode.TIER1_SOLO
-        self._phase: Optional[EpisodePhase] = None
+        self._phase: EpisodePhase | None = None
         self._phase_step: int = 0
-        self._tickets: List[TicketMessage] = []
-        self._containment_results: List[ContainmentResult] = []
-        self._manager_review: Optional[ManagerReviewResult] = None
-        self._escalated_alert_ids: List[str] = []
-        self._generated_scenario: Optional[ScenarioConfig] = None
+        self._tickets: list[TicketMessage] = []
+        self._containment_results: list[ContainmentResult] = []
+        self._manager_review: ManagerReviewResult | None = None
+        self._escalated_alert_ids: list[str] = []
+        self._generated_scenario: ScenarioConfig | None = None
         # Per-role cumulative rewards (team mode)
         self._tier1_reward: float = 0.0
         self._tier2_reward: float = 0.0
@@ -341,7 +339,7 @@ class SOCEnvironment:
     # Phase Management (team mode)
     # ------------------------------------------------------------------
 
-    def _current_role(self) -> Optional[AgentRole]:
+    def _current_role(self) -> AgentRole | None:
         """Return which role should act next."""
         if self._mode == EpisodeMode.TIER1_SOLO:
             return None
@@ -353,7 +351,7 @@ class SOCEnvironment:
         }
         return phase_to_role.get(self._phase)
 
-    def _advance_phase(self, current_role: Optional[AgentRole]) -> SOCObservation:
+    def _advance_phase(self, current_role: AgentRole | None) -> SOCObservation:
         """Advance to the next episode phase and return updated observation."""
         if self._phase == EpisodePhase.TRIAGE:
             if len(self._escalated_alert_ids) == 0:
@@ -432,9 +430,9 @@ class SOCEnvironment:
     def _accumulate_team_reward(
         self,
         reward: float,
-        role: Optional[AgentRole],
+        role: AgentRole | None,
         team_shared_reward: float,
-    ) -> Optional[TeamRewardBreakdown]:
+    ) -> TeamRewardBreakdown | None:
         """Track per-role rewards and return current snapshot."""
         if self._mode != EpisodeMode.TEAM or role is None:
             return None
@@ -456,7 +454,7 @@ class SOCEnvironment:
     # Action Dispatcher
     # ------------------------------------------------------------------
 
-    def _dispatch(self, action: SOCAction, acting_role: Optional[AgentRole]) -> dict:
+    def _dispatch(self, action: SOCAction, acting_role: AgentRole | None) -> dict:
         """Route action to appropriate handler based on action_type."""
         # Validate role/action compatibility in team mode
         if self._mode == EpisodeMode.TEAM and acting_role is not None:
@@ -662,7 +660,7 @@ class SOCEnvironment:
         if action.response_action == ResponseActionType.NO_ACTION:
             if gt_class == AlertClassification.FALSE_POSITIVE:
                 return {"reward": 0.05, "message": f"Recommended no_action for {action.alert_id}. [Correct for FP]"}
-            return {"reward": -0.10, "message": f"Recommended no_action for a true positive. [Insufficient]"}
+            return {"reward": -0.10, "message": "Recommended no_action for a true positive. [Insufficient]"}
         elif action.response_action in expected_actions:
             return {"reward": 0.08, "message": f"Recommended {action.response_action.value} for {action.alert_id}. [Appropriate]"}
         return {"reward": 0.02, "message": f"Recommended {action.response_action.value} for {action.alert_id}."}
@@ -948,7 +946,7 @@ class SOCEnvironment:
 
     def _build_observation(
         self,
-        role: Optional[AgentRole],
+        role: AgentRole | None,
         reward: float,
         enrichment_results=None,
         log_results=None,
@@ -1050,7 +1048,7 @@ class SOCEnvironment:
     # Helpers
     # ------------------------------------------------------------------
 
-    def _infer_alert_id(self, indicator: str) -> Optional[str]:
+    def _infer_alert_id(self, indicator: str) -> str | None:
         if not self._config:
             return None
         for alert in self._config.alerts:
@@ -1059,12 +1057,12 @@ class SOCEnvironment:
                     return alert.alert_id
         return self._config.alerts[0].alert_id if self._config.alerts else None
 
-    def _get_any_investigation(self) -> Optional[InvestigationState]:
+    def _get_any_investigation(self) -> InvestigationState | None:
         if self._investigations:
             return next(iter(self._investigations.values()))
         return None
 
-    def _get_most_relevant_investigation(self, hostname=None, username=None) -> Optional[InvestigationState]:
+    def _get_most_relevant_investigation(self, hostname=None, username=None) -> InvestigationState | None:
         if not self._config:
             return None
         for alert in self._config.alerts:

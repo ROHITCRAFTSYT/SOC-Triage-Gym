@@ -14,8 +14,14 @@ All 5 alerts are TRUE POSITIVEs. Adjacent alerts share at least one indicator
 """
 
 from models import (
-    AlertClassification, AlertMeta, AlertSeverity, GroundTruth,
-    IndicatorType, LogSource, ResponseActionType, ScenarioConfig
+    AlertClassification,
+    AlertMeta,
+    AlertSeverity,
+    GroundTruth,
+    IndicatorType,
+    LogSource,
+    ResponseActionType,
+    ScenarioConfig,
 )
 from scenarios.base import BaseScenario
 

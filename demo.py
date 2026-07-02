@@ -49,7 +49,7 @@ def _ensure_server(url: str):
             time.sleep(1)
             try:
                 httpx.get(f"{url}/health", timeout=3).raise_for_status()
-                print(f"✓ Server started")
+                print("✓ Server started")
                 return proc
             except Exception:
                 pass
@@ -112,7 +112,7 @@ def main():
             steps_baseline = base.get("steps_used", "?")
             print(f"  task={args.task}  seed={args.seed}")
             print(f"  score = {score_baseline*100:.1f}%   steps = {steps_baseline}")
-            print(f"  (agent has not learned to investigate — submits blindly)")
+            print("  (agent has not learned to investigate — submits blindly)")
 
             # ---- Beat 2: Verifier breakdown ----
             _banner("2/5 · Verifier breakdown (RLVR layered checks)", "②")
@@ -129,7 +129,8 @@ def main():
             # If a real GRPO eval summary exists (training_summary.json produced
             # by scripts/train_and_evaluate.py), use those metrics. Otherwise
             # fall back to the oracle proxy so the demo still runs end-to-end.
-            import json as _json, os as _os
+            import json as _json
+            import os as _os
             _summary_path = _os.path.join(_os.path.dirname(__file__), "training_summary.json")
             if _os.path.exists(_summary_path):
                 _s = _json.loads(open(_summary_path).read())
@@ -145,14 +146,14 @@ def main():
                 score_trained = trained.get("score", 0.0)
                 steps_trained = trained.get("steps_used", "?")
                 print(f"  score = {score_trained*100:.1f}%   steps = {steps_trained}")
-                print(f"  (oracle proxy · run scripts/train_and_evaluate.py to"
-                      f" produce training_summary.json and replace this beat)")
+                print("  (oracle proxy · run scripts/train_and_evaluate.py to"
+                      " produce training_summary.json and replace this beat)")
 
             # ---- Beat 4: Measurable delta ----
             _banner("4/5 · Measurable delta", "④")
             delta = score_trained - score_baseline
             print(f"  Δreward = {delta*100:+.2f} pp")
-            print(f"  determinism: same seed → same score ✓")
+            print("  determinism: same seed → same score ✓")
 
             # ---- Beat 5: Safeguards ----
             _banner("5/5 · Safeguards (reward-hack defenses + theme coverage)", "⑤")
@@ -161,7 +162,7 @@ def main():
                 print(f"  ✓ {name}")
             covered = [k for k, v in (tc.get("coverage") or {}).items() if v]
             print(f"\n  Themes covered: {len(covered)}")
-            print(f"  Machine-checkable manifest: GET /themes/coverage")
+            print("  Machine-checkable manifest: GET /themes/coverage")
 
             print()
             print("═" * 60)

@@ -8,11 +8,15 @@ import pytest
 from fastapi.testclient import TestClient
 
 from models import (
-    ActionType, AgentRole, AlertClassification, EpisodeMode, EpisodePhase,
-    SOCAction, TicketKind,
+    ActionType,
+    AgentRole,
+    AlertClassification,
+    EpisodeMode,
+    EpisodePhase,
+    SOCAction,
+    TicketKind,
 )
 from server.environment import SOCEnvironment
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -401,8 +405,8 @@ def test_tier1_does_not_see_tier2_tickets(team_env):
 
 def test_team_grader_perfect_score():
     from graders.team_grader import TeamGrader
+    from models import AlertClassification, InvestigationState, ResponseActionType
     from scenarios.team_phishing_escalation import TeamPhishingEscalationScenario
-    from models import InvestigationState, AlertClassification, ResponseActionType
 
     scenario = TeamPhishingEscalationScenario(seed=42).generate()
     alert_id = scenario.alerts[0].alert_id
@@ -419,8 +423,8 @@ def test_team_grader_perfect_score():
 def test_red_team_grader_inverse_of_blue():
     from graders.red_team_grader import RedTeamGrader
     from graders.team_grader import TeamGrader
+    from models import AlertClassification, InvestigationState
     from scenarios.team_phishing_escalation import TeamPhishingEscalationScenario
-    from models import InvestigationState, AlertClassification
 
     scenario = TeamPhishingEscalationScenario(seed=42).generate()
     alert_id = scenario.alerts[0].alert_id
@@ -440,8 +444,8 @@ def test_red_team_grader_inverse_of_blue():
 # ---------------------------------------------------------------------------
 
 def test_red_team_generator_deterministic():
-    from scenarios.red_team_generator import RedTeamGenerator
     from models import RedTeamConfig
+    from scenarios.red_team_generator import RedTeamGenerator
 
     config = RedTeamConfig(difficulty_floor=0.5)
     g1 = RedTeamGenerator(config=config, seed=42)
@@ -453,8 +457,8 @@ def test_red_team_generator_deterministic():
 
 
 def test_red_team_generator_higher_difficulty_more_alerts():
-    from scenarios.red_team_generator import RedTeamGenerator
     from models import RedTeamConfig
+    from scenarios.red_team_generator import RedTeamGenerator
 
     low = RedTeamGenerator(config=RedTeamConfig(difficulty_floor=0.1), seed=42).generate()
     high = RedTeamGenerator(config=RedTeamConfig(difficulty_floor=0.9), seed=42).generate()
@@ -462,8 +466,8 @@ def test_red_team_generator_higher_difficulty_more_alerts():
 
 
 def test_red_team_adapt_difficulty_increases():
-    from scenarios.red_team_generator import RedTeamGenerator
     from models import RedTeamConfig
+    from scenarios.red_team_generator import RedTeamGenerator
 
     g = RedTeamGenerator(config=RedTeamConfig(difficulty_floor=0.5), seed=42)
     g2 = g.adapt_difficulty(blue_win_rate=0.8)  # high win rate → harder
@@ -471,8 +475,8 @@ def test_red_team_adapt_difficulty_increases():
 
 
 def test_red_team_adapt_difficulty_decreases():
-    from scenarios.red_team_generator import RedTeamGenerator
     from models import RedTeamConfig
+    from scenarios.red_team_generator import RedTeamGenerator
 
     g = RedTeamGenerator(config=RedTeamConfig(difficulty_floor=0.5), seed=42)
     g2 = g.adapt_difficulty(blue_win_rate=0.2)  # low win rate → easier

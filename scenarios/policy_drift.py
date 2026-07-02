@@ -10,7 +10,6 @@ Drift triggers are deterministic per (seed, schedule).
 from __future__ import annotations
 
 import random
-from typing import Dict, List, Optional
 
 from models import PolicyVersion
 
@@ -25,8 +24,8 @@ class PolicyDriftEngine:
 
     def __init__(self, seed: int = 0) -> None:
         self._rng = random.Random(seed)
-        self._versions: List[PolicyVersion] = [PolicyVersion()]
-        self._schedule: List[int] = []
+        self._versions: list[PolicyVersion] = [PolicyVersion()]
+        self._schedule: list[int] = []
 
     # ------------------------------------------------------------------
     # Setup
@@ -49,7 +48,7 @@ class PolicyDriftEngine:
     # ------------------------------------------------------------------
     # Step driver
     # ------------------------------------------------------------------
-    def maybe_drift(self, step: int) -> Optional[PolicyVersion]:
+    def maybe_drift(self, step: int) -> PolicyVersion | None:
         """If `step` is in the drift schedule, append a new PolicyVersion."""
         if step not in self._schedule:
             return None
@@ -93,13 +92,13 @@ class PolicyDriftEngine:
     def current(self) -> PolicyVersion:
         return self._versions[-1]
 
-    def history(self) -> List[PolicyVersion]:
+    def history(self) -> list[PolicyVersion]:
         return list(self._versions)
 
     # ------------------------------------------------------------------
     # Compliance check for grader
     # ------------------------------------------------------------------
-    def policy_compliance(self, action_log: List[Dict]) -> Dict[str, float]:
+    def policy_compliance(self, action_log: list[dict]) -> dict[str, float]:
         """
         Score an action log against policy constraints.
 
@@ -124,7 +123,7 @@ class PolicyDriftEngine:
             "total": total,
         }
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "schedule": list(self._schedule),
             "versions": [v.model_dump() for v in self._versions],

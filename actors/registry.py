@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import random
-from typing import List, Optional
 
 from models import ActorMessage, AgentRole
 
@@ -16,7 +15,7 @@ class BaseActor:
         self._rng = random.Random(seed)
         self._counter = 0
 
-    def on_step(self, step: int, ctx: Optional[dict] = None) -> Optional[ActorMessage]:
+    def on_step(self, step: int, ctx: dict | None = None) -> ActorMessage | None:
         return None
 
     def reset(self, seed: int = 0) -> None:
@@ -27,17 +26,17 @@ class BaseActor:
 class ActorRegistry:
     """Tracks active actors and collects messages per step."""
 
-    def __init__(self, actors: Optional[List[BaseActor]] = None) -> None:
-        self._actors: List[BaseActor] = list(actors or [])
-        self._outbox: List[ActorMessage] = []
+    def __init__(self, actors: list[BaseActor] | None = None) -> None:
+        self._actors: list[BaseActor] = list(actors or [])
+        self._outbox: list[ActorMessage] = []
 
     def reset(self, seed: int = 0) -> None:
         self._outbox.clear()
         for i, actor in enumerate(self._actors):
             actor.reset(seed=seed + i)
 
-    def tick(self, step: int, ctx: Optional[dict] = None) -> List[ActorMessage]:
-        produced: List[ActorMessage] = []
+    def tick(self, step: int, ctx: dict | None = None) -> list[ActorMessage]:
+        produced: list[ActorMessage] = []
         for actor in self._actors:
             msg = actor.on_step(step, ctx or {})
             if msg is not None:
@@ -45,10 +44,10 @@ class ActorRegistry:
                 self._outbox.append(msg)
         return produced
 
-    def inbox_for(self, role: AgentRole) -> List[ActorMessage]:
+    def inbox_for(self, role: AgentRole) -> list[ActorMessage]:
         return [m for m in self._outbox if m.to_role is None or m.to_role == role]
 
-    def all_messages(self) -> List[ActorMessage]:
+    def all_messages(self) -> list[ActorMessage]:
         return list(self._outbox)
 
 

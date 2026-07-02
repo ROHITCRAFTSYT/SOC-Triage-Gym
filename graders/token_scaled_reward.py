@@ -18,7 +18,6 @@ model rewards scale with token output" without allowing trivial farming.
 """
 from __future__ import annotations
 
-
 from models import RewardBlendConfig
 
 

@@ -10,14 +10,11 @@ Reward logic:
    0.00  if this exact pair was already correlated this episode
 """
 
-from typing import Dict, List, Optional, Tuple
-from models import (
-    AlertMeta, CorrelatedEvent, CorrelationType,
-    ScenarioConfig, InvestigationState
-)
+
+from models import AlertMeta, CorrelatedEvent, CorrelationType, InvestigationState, ScenarioConfig
 
 # Map indicator key names to CorrelationType enum values
-_INDICATOR_TO_CORRELATION_TYPE: Dict[str, CorrelationType] = {
+_INDICATOR_TO_CORRELATION_TYPE: dict[str, CorrelationType] = {
     "ip": CorrelationType.SOURCE_IP,
     "domain": CorrelationType.DOMAIN,
     "file_hash": CorrelationType.FILE_HASH,
@@ -30,10 +27,10 @@ _INDICATOR_TO_CORRELATION_TYPE: Dict[str, CorrelationType] = {
 
 def correlate_alerts(
     config: ScenarioConfig,
-    investigations: Dict[str, InvestigationState],
+    investigations: dict[str, InvestigationState],
     alert_id_a: str,
     alert_id_b: str,
-) -> Tuple[Optional[CorrelatedEvent], float, str]:
+) -> tuple[CorrelatedEvent | None, float, str]:
     """
     Check whether two alerts share any threat indicators.
 
@@ -109,7 +106,7 @@ def correlate_alerts(
     return event, reward, msg
 
 
-def _find_alert(config: ScenarioConfig, alert_id: str) -> Optional[AlertMeta]:
+def _find_alert(config: ScenarioConfig, alert_id: str) -> AlertMeta | None:
     """Find an alert in the config by ID."""
     for alert in config.alerts:
         if alert.alert_id == alert_id:
@@ -120,7 +117,7 @@ def _find_alert(config: ScenarioConfig, alert_id: str) -> Optional[AlertMeta]:
 def _find_shared_indicators(
     alert_a: AlertMeta,
     alert_b: AlertMeta,
-) -> List[Tuple[str, str]]:
+) -> list[tuple[str, str]]:
     """
     Return list of (indicator_type, shared_value) pairs that appear in both alerts.
     Sorted by indicator type priority (IPs and domains first).

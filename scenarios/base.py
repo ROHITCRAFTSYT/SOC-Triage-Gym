@@ -11,13 +11,9 @@ This guarantees same seed → same scenario → same grader results.
 import random
 import string
 from abc import ABC, abstractmethod
-from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional
+from datetime import UTC, datetime, timedelta
 
-from models import (
-    AssetInfo, EnrichmentResult,
-    IndicatorType, LogEntry, LogSource, ScenarioConfig, UserInfo
-)
+from models import AssetInfo, EnrichmentResult, IndicatorType, LogEntry, LogSource, ScenarioConfig, UserInfo
 
 
 class BaseScenario(ABC):
@@ -26,7 +22,7 @@ class BaseScenario(ABC):
     def __init__(self, seed: int) -> None:
         self.seed = seed
         self.rng = random.Random(seed)
-        self._base_time = datetime.now(timezone.utc) - timedelta(hours=2)
+        self._base_time = datetime.now(UTC) - timedelta(hours=2)
 
     @abstractmethod
     def generate(self) -> ScenarioConfig:
@@ -142,11 +138,11 @@ class BaseScenario(ABC):
         malicious: bool,
         confidence: float,
         threat_score: int,
-        threat_type: Optional[str] = None,
-        geo: Optional[str] = None,
-        tags: Optional[List[str]] = None,
-        malware: Optional[List[str]] = None,
-        whois: Optional[str] = None,
+        threat_type: str | None = None,
+        geo: str | None = None,
+        tags: list[str] | None = None,
+        malware: list[str] | None = None,
+        whois: str | None = None,
     ) -> EnrichmentResult:
         return EnrichmentResult(
             indicator=indicator,
@@ -167,13 +163,13 @@ class BaseScenario(ABC):
         source: LogSource,
         event_type: str,
         hours_ago: float = 0.5,
-        src_ip: Optional[str] = None,
-        dst_ip: Optional[str] = None,
-        user: Optional[str] = None,
-        hostname: Optional[str] = None,
-        action: Optional[str] = None,
-        severity: Optional[str] = None,
-        details: Optional[Dict] = None,
+        src_ip: str | None = None,
+        dst_ip: str | None = None,
+        user: str | None = None,
+        hostname: str | None = None,
+        action: str | None = None,
+        severity: str | None = None,
+        details: dict | None = None,
     ) -> LogEntry:
         return LogEntry(
             timestamp=self._timestamp(hours_ago=hours_ago),
@@ -240,9 +236,9 @@ class BaseScenario(ABC):
             recent_actions=[],
         )
 
-    def _empty_log_db(self, alert_ids: List[str]) -> Dict[str, Dict[str, List[LogEntry]]]:
+    def _empty_log_db(self, alert_ids: list[str]) -> dict[str, dict[str, list[LogEntry]]]:
         """Create an empty log DB structure for all sources and alert IDs."""
-        db: Dict[str, Dict[str, List[LogEntry]]] = {}
+        db: dict[str, dict[str, list[LogEntry]]] = {}
         for source in LogSource:
             db[source.value] = {aid: [] for aid in alert_ids}
         return db

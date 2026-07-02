@@ -11,9 +11,14 @@ Team-mode phishing scenario designed for Tier-1 + Tier-2 + Manager coordination.
 
 
 from models import (
-    AlertMeta, AlertSeverity, AlertClassification, ResponseActionType,
-    LogSource, IndicatorType,
-    AssetInfo, GroundTruth,
+    AlertClassification,
+    AlertMeta,
+    AlertSeverity,
+    AssetInfo,
+    GroundTruth,
+    IndicatorType,
+    LogSource,
+    ResponseActionType,
     ScenarioConfig,
 )
 from scenarios.base import BaseScenario

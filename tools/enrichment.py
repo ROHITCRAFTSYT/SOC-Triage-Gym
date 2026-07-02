@@ -11,8 +11,8 @@ Reward logic:
    0.00  for benign/neutral indicators not in the threat intel db
 """
 
-from typing import Tuple
-from models import EnrichmentResult, IndicatorType, ScenarioConfig, InvestigationState
+
+from models import EnrichmentResult, IndicatorType, InvestigationState, ScenarioConfig
 
 
 def enrich_indicator(
@@ -20,7 +20,7 @@ def enrich_indicator(
     investigation: InvestigationState,
     indicator: str,
     indicator_type: IndicatorType,
-) -> Tuple[EnrichmentResult, float, str]:
+) -> tuple[EnrichmentResult, float, str]:
     """
     Look up a threat indicator in the scenario's enrichment database.
 

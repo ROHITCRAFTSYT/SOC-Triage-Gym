@@ -10,10 +10,9 @@ Weights:
   response        0.2  — appropriate containment recommended
 """
 
-from typing import Dict
 
-from models import AlertClassification, InvestigationState, ScenarioConfig
 from graders.base import BaseGrader
+from models import AlertClassification, InvestigationState, ScenarioConfig
 
 
 class PhishingGrader(BaseGrader):
@@ -22,7 +21,7 @@ class PhishingGrader(BaseGrader):
     def grade(
         self,
         config: ScenarioConfig,
-        investigations: Dict[str, InvestigationState],
+        investigations: dict[str, InvestigationState],
         steps_used: int,
         max_steps: int,
     ) -> float:

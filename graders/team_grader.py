@@ -14,7 +14,6 @@ FP-dismissal-rate: fraction of FP alerts correctly classified as
 false_positive.
 """
 
-from typing import Dict, Tuple
 
 from graders.base import BaseGrader
 from models import AlertClassification, InvestigationState, ScenarioConfig
@@ -22,8 +21,8 @@ from models import AlertClassification, InvestigationState, ScenarioConfig
 
 def compute_team_metrics(
     config: ScenarioConfig,
-    investigations: Dict[str, InvestigationState],
-) -> Tuple[float, float, float]:
+    investigations: dict[str, InvestigationState],
+) -> tuple[float, float, float]:
     """Return (team_score, tp_containment_rate, fp_dismissal_rate)."""
     gt = config.ground_truth
 
@@ -66,7 +65,7 @@ def compute_team_metrics(
 
 def compute_team_f1(
     config: ScenarioConfig,
-    investigations: Dict[str, InvestigationState],
+    investigations: dict[str, InvestigationState],
 ) -> float:
     """
     Backward-compatible helper retained for callers.
@@ -82,7 +81,7 @@ class TeamGrader(BaseGrader):
     def grade(
         self,
         config: ScenarioConfig,
-        investigations: Dict[str, InvestigationState],
+        investigations: dict[str, InvestigationState],
         steps_used: int,
         max_steps: int,
     ) -> float:
@@ -104,7 +103,7 @@ class TeamGrader(BaseGrader):
     def grade_with_breakdown(
         self,
         config: ScenarioConfig,
-        investigations: Dict[str, InvestigationState],
+        investigations: dict[str, InvestigationState],
         steps_used: int,
         max_steps: int,
     ) -> tuple:

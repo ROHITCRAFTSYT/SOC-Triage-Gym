@@ -6,9 +6,8 @@ Covers Initial Access, Execution, Credential Access, Lateral Movement,
 Collection, Command & Control, and Exfiltration tactics.
 """
 
-from typing import Dict, List, Optional
 
-TECHNIQUES: Dict[str, Dict[str, str]] = {
+TECHNIQUES: dict[str, dict[str, str]] = {
     # Initial Access
     "T1566": {
         "name": "Phishing",
@@ -289,12 +288,12 @@ TACTIC_ORDER = [
 ]
 
 
-def get_technique(technique_id: str) -> Optional[Dict[str, str]]:
+def get_technique(technique_id: str) -> dict[str, str] | None:
     """Return technique metadata by ID, or None if not found."""
     return TECHNIQUES.get(technique_id)
 
 
-def get_techniques_for_tactic(tactic: str) -> List[str]:
+def get_techniques_for_tactic(tactic: str) -> list[str]:
     """Return all technique IDs for a given tactic."""
     return [tid for tid, data in TECHNIQUES.items() if data.get("tactic") == tactic]
 

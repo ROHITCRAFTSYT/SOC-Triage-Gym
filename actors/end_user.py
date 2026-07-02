@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import uuid
-from typing import Optional
 
 from actors.registry import BaseActor
 from models import ActorKind, ActorMessage, AgentRole
@@ -26,7 +25,7 @@ class EndUserReporterActor(BaseActor):
         "Payroll notification — action required",
     ]
 
-    def on_step(self, step: int, ctx: Optional[dict] = None) -> Optional[ActorMessage]:
+    def on_step(self, step: int, ctx: dict | None = None) -> ActorMessage | None:
         if step % 6 != 3:  # roughly one every 6 steps, offset so it doesn't collide
             return None
         self._counter += 1

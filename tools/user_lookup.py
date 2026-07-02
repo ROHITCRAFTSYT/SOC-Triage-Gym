@@ -10,15 +10,15 @@ Reward logic:
   -0.03  if user doesn't exist in DB and wasn't seen in any evidence
 """
 
-from typing import Optional, Tuple
-from models import UserInfo, ScenarioConfig, InvestigationState
+
+from models import InvestigationState, ScenarioConfig, UserInfo
 
 
 def lookup_user(
     config: ScenarioConfig,
     investigation: InvestigationState,
     username: str,
-) -> Tuple[Optional[UserInfo], float, str]:
+) -> tuple[UserInfo | None, float, str]:
     """
     Look up a user in the directory service.
 

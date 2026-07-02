@@ -17,8 +17,6 @@ because IDs include a monotonic counter rather than uuid4.
 """
 from __future__ import annotations
 
-from typing import Dict, List, Optional
-
 from models import AgentRole, TicketSLA
 
 
@@ -28,8 +26,8 @@ class TicketingSystem:
     PRIORITY_BUDGET = {"P1": 10, "P2": 20, "P3": 40, "P4": 80}
 
     def __init__(self) -> None:
-        self._tickets: Dict[str, TicketSLA] = {}
-        self._by_alert: Dict[str, List[str]] = {}
+        self._tickets: dict[str, TicketSLA] = {}
+        self._by_alert: dict[str, list[str]] = {}
         self._counter = 0
 
     # ------------------------------------------------------------------
@@ -59,7 +57,7 @@ class TicketingSystem:
         self._by_alert.setdefault(alert_id, []).append(tid)
         return ticket
 
-    def touch(self, ticket_id: str, app: str, note: str = "") -> Optional[TicketSLA]:
+    def touch(self, ticket_id: str, app: str, note: str = "") -> TicketSLA | None:
         t = self._tickets.get(ticket_id)
         if t is None:
             return None
@@ -69,7 +67,7 @@ class TicketingSystem:
             t.notes.append(note)
         return t
 
-    def resolve(self, ticket_id: str, note: str = "") -> Optional[TicketSLA]:
+    def resolve(self, ticket_id: str, note: str = "") -> TicketSLA | None:
         t = self._tickets.get(ticket_id)
         if t is None:
             return None
@@ -87,19 +85,19 @@ class TicketingSystem:
     # ------------------------------------------------------------------
     # Queries
     # ------------------------------------------------------------------
-    def get(self, ticket_id: str) -> Optional[TicketSLA]:
+    def get(self, ticket_id: str) -> TicketSLA | None:
         return self._tickets.get(ticket_id)
 
-    def by_alert(self, alert_id: str) -> List[TicketSLA]:
+    def by_alert(self, alert_id: str) -> list[TicketSLA]:
         return [self._tickets[i] for i in self._by_alert.get(alert_id, []) if i in self._tickets]
 
     def open_count(self) -> int:
         return sum(1 for t in self._tickets.values() if t.status in ("open", "in_progress"))
 
-    def sla_breaches(self) -> List[TicketSLA]:
+    def sla_breaches(self) -> list[TicketSLA]:
         return [t for t in self._tickets.values() if t.sla_steps_remaining <= 0 and t.status != "resolved"]
 
-    def all_tickets(self) -> List[TicketSLA]:
+    def all_tickets(self) -> list[TicketSLA]:
         return list(self._tickets.values())
 
     # ------------------------------------------------------------------
@@ -116,7 +114,7 @@ class TicketingSystem:
                 return True
         return False
 
-    def audit_summary(self) -> Dict:
+    def audit_summary(self) -> dict:
         return {
             "total_tickets": len(self._tickets),
             "open": self.open_count(),

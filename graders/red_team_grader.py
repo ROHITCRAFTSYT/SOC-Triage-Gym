@@ -15,7 +15,6 @@ measure how novel a scenario fingerprint is relative to a history of
 previously generated fingerprints.
 """
 
-from typing import Dict
 
 from graders.base import BaseGrader
 from graders.team_grader import TeamGrader
@@ -28,7 +27,7 @@ class RedTeamGrader(BaseGrader):
     def grade(
         self,
         config: ScenarioConfig,
-        investigations: Dict[str, InvestigationState],
+        investigations: dict[str, InvestigationState],
         steps_used: int,
         max_steps: int,
     ) -> float:
@@ -52,7 +51,7 @@ class RedTeamGrader(BaseGrader):
     def grade_with_breakdown(
         self,
         config: ScenarioConfig,
-        investigations: Dict[str, InvestigationState],
+        investigations: dict[str, InvestigationState],
         steps_used: int,
         max_steps: int,
     ) -> tuple:

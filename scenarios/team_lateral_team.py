@@ -22,9 +22,14 @@ Manager should flag ALT-TLT-004 (data staging often missed).
 
 
 from models import (
-    AlertMeta, AlertSeverity, AlertClassification, ResponseActionType,
-    LogSource, IndicatorType,
-    AssetInfo, GroundTruth,
+    AlertClassification,
+    AlertMeta,
+    AlertSeverity,
+    AssetInfo,
+    GroundTruth,
+    IndicatorType,
+    LogSource,
+    ResponseActionType,
     ScenarioConfig,
 )
 from scenarios.base import BaseScenario

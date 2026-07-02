@@ -10,8 +10,14 @@ The agent must triage all 20, dismiss FPs efficiently, and surface the real atta
 """
 
 from models import (
-    AlertClassification, AlertMeta, AlertSeverity, GroundTruth,
-    IndicatorType, LogSource, ResponseActionType, ScenarioConfig
+    AlertClassification,
+    AlertMeta,
+    AlertSeverity,
+    GroundTruth,
+    IndicatorType,
+    LogSource,
+    ResponseActionType,
+    ScenarioConfig,
 )
 from scenarios.base import BaseScenario
 

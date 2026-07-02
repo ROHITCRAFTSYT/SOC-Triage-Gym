@@ -11,10 +11,9 @@ Weights:
   efficiency      0.10  — steps used vs. budget
 """
 
-from typing import Dict
 
-from models import InvestigationState, ScenarioConfig
 from graders.base import BaseGrader
+from models import InvestigationState, ScenarioConfig
 
 
 class LateralMovementGrader(BaseGrader):
@@ -23,7 +22,7 @@ class LateralMovementGrader(BaseGrader):
     def grade(
         self,
         config: ScenarioConfig,
-        investigations: Dict[str, InvestigationState],
+        investigations: dict[str, InvestigationState],
         steps_used: int,
         max_steps: int,
     ) -> float:
@@ -89,7 +88,7 @@ class LateralMovementGrader(BaseGrader):
 
     def _chain_reconstruction_score(
         self,
-        investigations: Dict[str, InvestigationState],
+        investigations: dict[str, InvestigationState],
         kill_chain_order: list,
     ) -> float:
         """

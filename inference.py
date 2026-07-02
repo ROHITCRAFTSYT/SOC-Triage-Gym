@@ -20,12 +20,13 @@ import os
 import subprocess
 import sys
 import time
-from typing import Optional
 
 import httpx
+
 from baseline_agent import HeuristicBaselineAgent
+
 try:
-    from openai import OpenAI, APIError, APITimeoutError
+    from openai import APIError, APITimeoutError, OpenAI
 except ImportError:
     OpenAI = None  # type: ignore[assignment,misc]
     APIError = Exception  # type: ignore[assignment,misc]
@@ -162,7 +163,7 @@ def format_observation(obs: dict, step: int) -> str:
         if inv.get("classification")
     ]
     if classified_alerts:
-        parts.append(f"\n[CLASSIFICATIONS SO FAR]")
+        parts.append("\n[CLASSIFICATIONS SO FAR]")
         for aid, cls in classified_alerts:
             parts.append(f"  {aid}: {cls}")
 
@@ -262,14 +263,14 @@ def log_start(task: str, model: str) -> None:
     print(f"[START] task={task} env={ENV_NAME} model={model}", flush=True)
 
 
-def log_step(step: int, action: str, reward: float, done: bool, error: Optional[str] = None) -> None:
+def log_step(step: int, action: str, reward: float, done: bool, error: str | None = None) -> None:
     action_inline = action.replace("\n", " ").replace("\r", "")
     error_val = error if error else "null"
     done_val = str(done).lower()
     print(f"[STEP] step={step} action={action_inline} reward={reward:.2f} done={done_val} error={error_val}", flush=True)
 
 
-def log_team_step(step: int, role: str, phase: str, action: str, reward: float, done: bool, error: Optional[str] = None) -> None:
+def log_team_step(step: int, role: str, phase: str, action: str, reward: float, done: bool, error: str | None = None) -> None:
     action_inline = action.replace("\n", " ").replace("\r", "")
     error_val = error if error else "null"
     done_val = str(done).lower()
@@ -293,7 +294,7 @@ def log_end(success: bool, steps: int, score: float, rewards: list) -> None:
 def run_task(
     task_id: str,
     server_client: httpx.Client,
-    llm_client: Optional[OpenAI],
+    llm_client: OpenAI | None,
     seed: int = SEED,
     verbose: bool = True,
 ) -> float:
@@ -555,7 +556,7 @@ def _team_heuristic_action(obs: dict) -> dict:
 def run_team_task(
     task_id: str,
     server_client: httpx.Client,
-    llm_client: Optional[OpenAI],
+    llm_client: OpenAI | None,
     seed: int = SEED,
     verbose: bool = True,
 ) -> float:

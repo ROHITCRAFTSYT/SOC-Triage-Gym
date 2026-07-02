@@ -15,7 +15,6 @@ Outputs:
 import matplotlib.pyplot as plt
 import numpy as np
 
-
 VECTORS = [
     {
         "name": "NOOP team_f1 farming",

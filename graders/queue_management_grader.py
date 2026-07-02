@@ -11,10 +11,9 @@ Weights:
   response_score      0.15  — quality of response for actual TPs
 """
 
-from typing import Dict, Set
 
-from models import AlertClassification, InvestigationState, ScenarioConfig
 from graders.base import BaseGrader
+from models import AlertClassification, InvestigationState, ScenarioConfig
 
 
 class QueueManagementGrader(BaseGrader):
@@ -23,7 +22,7 @@ class QueueManagementGrader(BaseGrader):
     def grade(
         self,
         config: ScenarioConfig,
-        investigations: Dict[str, InvestigationState],
+        investigations: dict[str, InvestigationState],
         steps_used: int,
         max_steps: int,
     ) -> float:
@@ -82,7 +81,7 @@ class QueueManagementGrader(BaseGrader):
         if chain_score < 1.0:
             feedback_parts.append(f"Only {int(chain_score*100)}% of attack chains identified.")
         if missed_tp_score < 1.0:
-            feedback_parts.append(f"Missed true positives — high cost to SOC.")
+            feedback_parts.append("Missed true positives — high cost to SOC.")
 
         return final, {
             "f1_score": round(f1, 3),
@@ -94,12 +93,12 @@ class QueueManagementGrader(BaseGrader):
 
     def _compute_f1(
         self,
-        investigations: Dict[str, InvestigationState],
+        investigations: dict[str, InvestigationState],
         gt,
     ) -> float:
         """Compute F1 score treating TP+BTP as positive, FP as negative."""
-        actual_positives: Set[str] = set(gt.true_positive_ids + gt.benign_tp_ids)
-        actual_negatives: Set[str] = set(gt.false_positive_ids)
+        actual_positives: set[str] = set(gt.true_positive_ids + gt.benign_tp_ids)
+        actual_negatives: set[str] = set(gt.false_positive_ids)
 
         positive_classes = {AlertClassification.TRUE_POSITIVE, AlertClassification.BENIGN_TRUE_POSITIVE}
         negative_class = AlertClassification.FALSE_POSITIVE
@@ -137,7 +136,7 @@ class QueueManagementGrader(BaseGrader):
 
     def _attack_chain_score(
         self,
-        investigations: Dict[str, InvestigationState],
+        investigations: dict[str, InvestigationState],
         gt,
     ) -> float:
         """
@@ -167,7 +166,7 @@ class QueueManagementGrader(BaseGrader):
 
     def _missed_tp_score(
         self,
-        investigations: Dict[str, InvestigationState],
+        investigations: dict[str, InvestigationState],
         gt,
     ) -> float:
         """

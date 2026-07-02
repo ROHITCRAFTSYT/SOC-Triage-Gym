@@ -13,7 +13,6 @@ import sys
 from pathlib import Path
 from textwrap import wrap
 
-
 PAGE_WIDTH = 612
 PAGE_HEIGHT = 792
 LEFT_MARGIN = 48

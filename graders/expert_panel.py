@@ -17,12 +17,10 @@ the reward function itself rotates without the agent's input schema changing.
 """
 from __future__ import annotations
 
-from typing import Dict, List, Optional
-
 from models import ExpertProfile
 
 
-def build_standard_panel() -> List[ExpertProfile]:
+def build_standard_panel() -> list[ExpertProfile]:
     return [
         ExpertProfile(
             expert_id="dr_accuracy",
@@ -60,21 +58,21 @@ def build_standard_panel() -> List[ExpertProfile]:
 class ExpertPanel:
     """Panel that rotates across curriculum rounds."""
 
-    def __init__(self, panel: Optional[List[ExpertProfile]] = None) -> None:
-        self._panel: List[ExpertProfile] = panel or build_standard_panel()
+    def __init__(self, panel: list[ExpertProfile] | None = None) -> None:
+        self._panel: list[ExpertProfile] = panel or build_standard_panel()
 
     def for_round(self, round_index: int) -> ExpertProfile:
         if not self._panel:
             raise ValueError("ExpertPanel is empty")
         return self._panel[round_index % len(self._panel)]
 
-    def all_profiles(self) -> List[ExpertProfile]:
+    def all_profiles(self) -> list[ExpertProfile]:
         return list(self._panel)
 
     # ------------------------------------------------------------------
     # Scoring
     # ------------------------------------------------------------------
-    def score(self, signals: Dict[str, float], expert: ExpertProfile) -> Dict[str, float]:
+    def score(self, signals: dict[str, float], expert: ExpertProfile) -> dict[str, float]:
         """
         Blend raw agent signals with the active expert's preference weights.
 

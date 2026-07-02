@@ -11,8 +11,14 @@ Two variants depending on seed parity:
 """
 
 from models import (
-    AlertClassification, AlertMeta, AlertSeverity, GroundTruth,
-    IndicatorType, LogSource, ResponseActionType, ScenarioConfig
+    AlertClassification,
+    AlertMeta,
+    AlertSeverity,
+    GroundTruth,
+    IndicatorType,
+    LogSource,
+    ResponseActionType,
+    ScenarioConfig,
 )
 from scenarios.base import BaseScenario
 
@@ -84,7 +90,7 @@ class PhishingScenario(BaseScenario):
                 geo="Russia",
                 tags=["phishing-actor", "bulletproof-hosting"],
                 malware=["Emotet"],
-                whois=f"Registered 3 days ago. AS: BULLETPROOF-HOSTING-001",
+                whois="Registered 3 days ago. AS: BULLETPROOF-HOSTING-001",
             ),
             malicious_domain: self._make_enrichment_result(
                 malicious_domain, IndicatorType.DOMAIN, malicious=True,
@@ -325,7 +331,7 @@ class PhishingScenario(BaseScenario):
                 confidence=0.95, threat_score=2,
                 geo="United States",
                 tags=["legitimate-mailer", "mailchimp-sendgrid"],
-                whois=f"Registered 5+ years ago. Large legitimate email provider.",
+                whois="Registered 5+ years ago. Large legitimate email provider.",
             ),
             sender_domain: self._make_enrichment_result(
                 sender_domain, IndicatorType.DOMAIN, malicious=False,

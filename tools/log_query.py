@@ -11,8 +11,8 @@ Reward logic:
    0.00  if source is relevant but returns empty results
 """
 
-from typing import List, Tuple
-from models import LogEntry, LogSource, ScenarioConfig, InvestigationState
+
+from models import InvestigationState, LogEntry, LogSource, ScenarioConfig
 
 
 def query_logs(
@@ -21,7 +21,7 @@ def query_logs(
     log_source: LogSource,
     alert_id: str,
     time_window_hours: int = 24,
-) -> Tuple[List[LogEntry], float, str]:
+) -> tuple[list[LogEntry], float, str]:
     """
     Query a log source for events related to a specific alert.
 
@@ -44,7 +44,7 @@ def query_logs(
 
     # Fetch from log database
     source_db = config.log_db.get(source_key, {})
-    entries: List[LogEntry] = source_db.get(alert_id, [])
+    entries: list[LogEntry] = source_db.get(alert_id, [])
 
     # Determine reward
     relevant_sources = config.ground_truth.relevant_log_sources.get(alert_id, [])
