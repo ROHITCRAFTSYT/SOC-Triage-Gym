@@ -1,0 +1,23 @@
+# Install once:  pip install pre-commit && pre-commit install
+# Run on demand: pre-commit run --all-files
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.18
+    hooks:
+      - id: ruff          # lint (with autofix)
+        args: [--fix]
+      - id: ruff-format   # format
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+        exclude: '\.(md|svg)$'
+      - id: check-yaml
+      - id: check-toml
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+        exclude: '\.(png|pdf)$'
+      - id: mixed-line-ending
+        args: [--fix=lf]
