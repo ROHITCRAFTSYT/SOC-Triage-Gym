@@ -56,7 +56,23 @@ extend-exclude = ["*.ipynb", "uv.lock"]
 # intentionally relaxed: several modules define a module logger before their
 # imports, and many data-table lines are legitimately long.
 select = ["E", "F", "W", "I", "B", "UP"]
-ignore = ["E501", "E402"]
+# E501/E402 relaxed (see above). UP042 (str+Enum -> StrEnum) is skipped on
+# purpose: these enums are serialised across graders and tests, and StrEnum
+# changes str(member) from "Class.NAME" to the value, a behavioural change we
+# don't want silently applied.
+ignore = ["E501", "E402", "UP042"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's dependency markers are the intended call-in-default idiom.
+extend-immutable-calls = [
+    "fastapi.Body",
+    "fastapi.Query",
+    "fastapi.Path",
+    "fastapi.Header",
+    "fastapi.Depends",
+    "fastapi.Form",
+    "fastapi.File",
+]
 
 [tool.ruff.lint.per-file-ignores]
 # Tests favour readability over strict bugbear/import rules.
