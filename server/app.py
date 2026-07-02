@@ -496,10 +496,10 @@ def reset(request: ResetRequest | None = Body(default=None)):
             _actor_step = 0
             return obs
         except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e))
+            raise HTTPException(status_code=400, detail=str(e)) from e
         except Exception:
             logger.exception("Error in /reset")
-            raise HTTPException(status_code=500, detail="Internal server error.")
+            raise HTTPException(status_code=500, detail="Internal server error.") from None
 
 
 @app.post("/step", response_model=SOCObservation)
@@ -533,7 +533,7 @@ def step(action: SOCAction):
             return obs
         except Exception:
             logger.exception("Error in /step")
-            raise HTTPException(status_code=500, detail="Internal server error.")
+            raise HTTPException(status_code=500, detail="Internal server error.") from None
 
 
 @app.get("/state", response_model=EnvironmentState)
@@ -549,7 +549,7 @@ def state():
             return _env.state()
         except Exception:
             logger.exception("Error in /state")
-            raise HTTPException(status_code=500, detail="Internal server error.")
+            raise HTTPException(status_code=500, detail="Internal server error.") from None
 
 
 @app.get("/ui", response_class=HTMLResponse, include_in_schema=False)
@@ -648,7 +648,7 @@ def grader(request: ResetRequest | None = Body(default=None)):
             }
         except Exception:
             logger.exception("Error in /grader")
-            raise HTTPException(status_code=500, detail="Internal server error.")
+            raise HTTPException(status_code=500, detail="Internal server error.") from None
 
 
 @app.post("/baseline")
@@ -685,10 +685,10 @@ def baseline(request: ResetRequest | None = Body(default=None)):
                 "agent": "heuristic",
             }
         except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e))
+            raise HTTPException(status_code=400, detail=str(e)) from e
         except Exception:
             logger.exception("Error in /baseline")
-            raise HTTPException(status_code=500, detail="Internal server error.")
+            raise HTTPException(status_code=500, detail="Internal server error.") from None
 
 
 def _heuristic_baseline_action(env: "SOCEnvironment") -> SOCAction:
@@ -753,7 +753,7 @@ def inbox(role: str):
         try:
             parsed_role = AgentRole(role)
         except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc))
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         obs = _env._build_observation(role=parsed_role, reward=0.0)
         return {"role": role, "tickets": [ticket.model_dump() for ticket in obs.tickets]}
 
@@ -946,7 +946,7 @@ def actor_messages(role: str | None = Query(default=None)):
         try:
             parsed = AgentRole(role)
         except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc))
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         msgs = _actor_registry.inbox_for(parsed)
         return {"role": role, "count": len(msgs), "messages": [m.model_dump() for m in msgs]}
 

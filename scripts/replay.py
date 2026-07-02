@@ -35,7 +35,7 @@ def _read_jsonl(path: Path) -> list[dict]:
             try:
                 lines.append(json.loads(raw))
             except json.JSONDecodeError as exc:
-                raise SystemExit(f"[replay] {path}:{i}: invalid JSON ({exc})")
+                raise SystemExit(f"[replay] {path}:{i}: invalid JSON ({exc})") from exc
     return lines
 
 
@@ -65,8 +65,8 @@ def _replay_in_process(events: Iterable[dict]) -> list[float]:
 def _replay_http(events: Iterable[dict], base_url: str) -> list[float]:
     try:
         import urllib.request
-    except ImportError:  # pragma: no cover
-        raise SystemExit("urllib is required")
+    except ImportError as exc:  # pragma: no cover
+        raise SystemExit("urllib is required") from exc
 
     def _post(path: str, body: dict) -> dict:
         req = urllib.request.Request(

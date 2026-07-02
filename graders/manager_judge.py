@@ -150,7 +150,7 @@ Default to 0.5 when uncertain. A score of 1.0 should be rare."""
         try:
             client = openai.OpenAI(**client_kwargs)
         except Exception as exc:
-            raise RuntimeError(f"OpenAI client init failed: {exc}")
+            raise RuntimeError(f"OpenAI client init failed: {exc}") from exc
 
         investigation_summary = self._build_investigation_summary(
             investigations, config
