@@ -11,7 +11,7 @@ Reward logic:
    0.00  for benign/neutral indicators not in the threat intel db
 """
 
-from typing import Optional, Tuple
+from typing import Tuple
 from models import EnrichmentResult, IndicatorType, ScenarioConfig, InvestigationState
 
 

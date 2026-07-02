@@ -5,8 +5,6 @@ Client wrapper for interacting with the SOC-Triage-Gym server via HTTP.
 Suitable for use in inference scripts, evals, and testing.
 """
 
-import json
-from typing import Optional
 
 import httpx
 

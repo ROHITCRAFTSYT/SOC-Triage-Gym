@@ -14,7 +14,7 @@ if PROJECT_ROOT not in sys.path:
 import pytest
 from fastapi.testclient import TestClient
 
-from server.app import app, _env, _env_lock
+from server.app import app
 from server.environment import SOCEnvironment
 from scenarios.phishing import PhishingScenario
 from scenarios.lateral_movement import LateralMovementScenario

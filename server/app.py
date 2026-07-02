@@ -35,19 +35,16 @@ from actors import build_default_registry
 from actors.registry import ActorRegistry
 from baseline_agent import HeuristicBaselineAgent
 from graders.expert_panel import ExpertPanel
-from graders.token_scaled_reward import explain as explain_token_bonus, token_scaled_bonus
+from graders.token_scaled_reward import explain as explain_token_bonus
 from models import (
-    ActorMessage,
     AgentRole,
     AlertClassification,
     EnvironmentState,
     ExpertProfile,
-    PolicyVersion,
     RedTeamConfig,
     RewardBlendConfig,
     SOCAction,
     SOCObservation,
-    TicketSLA,
 )
 from scenarios.policy_drift import PolicyDriftEngine
 from scenarios.red_team_generator import RedTeamGenerator

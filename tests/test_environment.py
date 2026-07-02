@@ -2,9 +2,7 @@
 Tests for SOCEnvironment: reset, step, state, budget.
 """
 
-import pytest
 
-from server.environment import SOCEnvironment
 from models import (
     ActionType,
     AgentRole,

@@ -13,7 +13,7 @@ Weights:
 
 from typing import Dict
 
-from models import AlertClassification, CorrelatedEvent, InvestigationState, ScenarioConfig
+from models import InvestigationState, ScenarioConfig
 from graders.base import BaseGrader
 
 

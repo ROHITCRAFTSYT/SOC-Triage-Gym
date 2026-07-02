@@ -9,13 +9,11 @@ Team-mode phishing scenario designed for Tier-1 + Tier-2 + Manager coordination.
 - Manager reviews; no inconsistencies expected in this easy scenario
 """
 
-import random
-from datetime import datetime, timedelta, timezone
 
 from models import (
     AlertMeta, AlertSeverity, AlertClassification, ResponseActionType,
-    LogSource, LogEntry, EnrichmentResult, IndicatorType,
-    AssetInfo, UserInfo, GroundTruth,
+    LogSource, IndicatorType,
+    AssetInfo, GroundTruth,
     ScenarioConfig,
 )
 from scenarios.base import BaseScenario

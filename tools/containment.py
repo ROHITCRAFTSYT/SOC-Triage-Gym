@@ -12,7 +12,6 @@ from models import (
     ContainmentResult,
     ScenarioConfig,
     InvestigationState,
-    AlertClassification,
 )
 
 

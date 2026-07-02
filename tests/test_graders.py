@@ -2,16 +2,12 @@
 Tests for all graders: PhishingGrader, LateralMovementGrader, QueueManagementGrader.
 """
 
-import pytest
 
 from models import (
     AlertClassification,
     CorrelatedEvent,
     CorrelationType,
     InvestigationState,
-    LogEntry,
-    LogSource,
-    ResponseActionType,
 )
 from graders.phishing_grader import PhishingGrader
 from graders.lateral_movement_grader import LateralMovementGrader

@@ -2,8 +2,6 @@
 Tests for FastAPI endpoints: health, metadata, schema, mcp, reset, step, state, tasks, baseline.
 """
 
-import pytest
-from models import ActionType, AlertClassification
 
 
 class TestHealthEndpoint:

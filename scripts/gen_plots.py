@@ -18,7 +18,6 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from models import RedTeamConfig
 from scenarios.red_team_generator import RedTeamGenerator
 from train_grpo import oracle_action
 

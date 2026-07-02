@@ -13,7 +13,7 @@ Weights:
 
 from typing import Dict, Set
 
-from models import AlertClassification, InvestigationState, ResponseActionType, ScenarioConfig
+from models import AlertClassification, InvestigationState, ScenarioConfig
 from graders.base import BaseGrader
 
 

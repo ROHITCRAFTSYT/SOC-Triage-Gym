@@ -11,11 +11,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from actors import build_default_registry
-from actors.compliance import ComplianceOfficerActor
-from actors.end_user import EndUserReporterActor
-from actors.threat_intel import ThreatIntelFeedActor
 from graders.expert_panel import ExpertPanel, build_standard_panel
-from graders.token_scaled_reward import count_tokens, token_scaled_bonus
+from graders.token_scaled_reward import token_scaled_bonus
 from models import (
     ActorKind,
     AgentRole,

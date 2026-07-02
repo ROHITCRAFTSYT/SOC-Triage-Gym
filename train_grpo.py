@@ -32,9 +32,7 @@ import argparse
 import json
 import os
 import random
-import subprocess
 import sys
-import time
 from typing import List
 
 import httpx
@@ -872,7 +870,6 @@ def _compare_baselines(client, tasks, role, n_seeds: int = 10):
 
 def _dry_run_reward_curve(client, tasks, role):
     """Plot a reward curve using oracle rollouts (no model needed — for CI/demo)."""
-    import json
 
     print("\n--- Dry-run reward curve (oracle heuristic) ---")
     episode_scores = []

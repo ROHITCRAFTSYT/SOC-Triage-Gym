@@ -420,7 +420,7 @@ def test_red_team_grader_inverse_of_blue():
     from graders.red_team_grader import RedTeamGrader
     from graders.team_grader import TeamGrader
     from scenarios.team_phishing_escalation import TeamPhishingEscalationScenario
-    from models import InvestigationState, AlertClassification, ResponseActionType
+    from models import InvestigationState, AlertClassification
 
     scenario = TeamPhishingEscalationScenario(seed=42).generate()
     alert_id = scenario.alerts[0].alert_id

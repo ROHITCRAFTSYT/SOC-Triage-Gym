@@ -2,7 +2,6 @@
 Tests for scenario generation: alert counts, determinism, ground truth.
 """
 
-import pytest
 
 from scenarios.phishing import PhishingScenario
 from scenarios.lateral_movement import LateralMovementScenario

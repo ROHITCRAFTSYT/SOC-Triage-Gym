@@ -10,14 +10,13 @@ This guarantees same seed → same scenario → same grader results.
 
 import random
 import string
-import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 from models import (
-    AlertMeta, AlertSeverity, AssetInfo, EnrichmentResult,
-    GroundTruth, IndicatorType, LogEntry, LogSource, ScenarioConfig, UserInfo
+    AssetInfo, EnrichmentResult,
+    IndicatorType, LogEntry, LogSource, ScenarioConfig, UserInfo
 )
 
 

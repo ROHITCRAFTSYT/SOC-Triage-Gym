@@ -11,9 +11,9 @@ Weights:
   response_score      0.15  — quality of response for actual TPs
 """
 
-from typing import Dict, List, Set
+from typing import Dict, Set
 
-from models import AlertClassification, InvestigationState, ResponseActionType, ScenarioConfig
+from models import AlertClassification, InvestigationState, ScenarioConfig
 from graders.base import BaseGrader
 
 

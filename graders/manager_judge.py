@@ -22,7 +22,6 @@ Settings are read from environment variables:
 import hashlib
 import json
 import os
-from typing import Optional
 
 try:
     import openai as _openai_lib  # noqa: F401 — presence check only

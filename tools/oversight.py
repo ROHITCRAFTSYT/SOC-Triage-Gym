@@ -7,7 +7,6 @@ Each function returns (ManagerReviewResult, float reward, str message).
 
 from __future__ import annotations
 
-from typing import List
 from models import (
     ManagerReviewResult,
     ScenarioConfig,
@@ -15,7 +14,6 @@ from models import (
     AlertClassification,
     TicketMessage,
     TicketKind,
-    AgentRole,
 )
 from graders.manager_judge import ManagerJudge
 

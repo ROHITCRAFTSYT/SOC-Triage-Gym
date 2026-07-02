@@ -20,13 +20,11 @@ Tier-2 contains: disable_user (002), isolate_host (003), block_ioc (005).
 Manager should flag ALT-TLT-004 (data staging often missed).
 """
 
-import random
-from datetime import datetime, timedelta, timezone
 
 from models import (
     AlertMeta, AlertSeverity, AlertClassification, ResponseActionType,
-    LogSource, LogEntry, EnrichmentResult, IndicatorType,
-    AssetInfo, UserInfo, GroundTruth,
+    LogSource, IndicatorType,
+    AssetInfo, GroundTruth,
     ScenarioConfig,
 )
 from scenarios.base import BaseScenario

@@ -18,7 +18,7 @@ capability the long-horizon theme targets.
 """
 from __future__ import annotations
 
-from models import AlertClassification, GroundTruth, LogSource, ScenarioConfig
+from models import GroundTruth, ScenarioConfig
 from scenarios.base import BaseScenario
 from scenarios.insider_threat import InsiderThreatScenario
 from scenarios.lateral_movement import LateralMovementScenario

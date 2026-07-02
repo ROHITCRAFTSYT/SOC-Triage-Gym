@@ -9,7 +9,6 @@ Generates 20 alerts in shuffled order:
 The agent must triage all 20, dismiss FPs efficiently, and surface the real attacks.
 """
 
-import string
 from models import (
     AlertClassification, AlertMeta, AlertSeverity, GroundTruth,
     IndicatorType, LogSource, ResponseActionType, ScenarioConfig

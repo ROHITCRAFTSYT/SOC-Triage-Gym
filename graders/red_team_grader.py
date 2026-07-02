@@ -15,11 +15,11 @@ measure how novel a scenario fingerprint is relative to a history of
 previously generated fingerprints.
 """
 
-from typing import Dict, Optional
+from typing import Dict
 
 from graders.base import BaseGrader
 from graders.team_grader import TeamGrader
-from models import InvestigationState, RedTeamConfig, ScenarioConfig
+from models import InvestigationState, ScenarioConfig
 
 
 class RedTeamGrader(BaseGrader):
