@@ -173,6 +173,25 @@ class TestBaselineEndpoint:
         assert isinstance(data["score"], (int, float))
         assert 0.0 <= data["score"] <= 1.0
 
+    def test_heuristic_baseline_action_resolves_classification(self, test_client):
+        """Regression for the missing AlertClassification import.
+
+        server.app._heuristic_baseline_action references
+        AlertClassification.FALSE_POSITIVE as a fallback. Before the import
+        fix this raised NameError the moment it reached an unclassified
+        alert. Call the helper directly on a fresh episode (every alert
+        starts unclassified) to lock the fix in.
+        """
+        import server.app as app_mod
+        from models import AlertClassification, SOCAction
+
+        test_client.post("/reset", json={"task_id": "phishing", "seed": 42})
+        action = app_mod._heuristic_baseline_action(app_mod._env)
+
+        assert isinstance(action, SOCAction)
+        assert action.action_type == "classify_alert"
+        assert action.classification in set(AlertClassification)
+
 
 class TestLogsEndpoint:
     def test_logs_endpoint_returns_entries_for_alert_and_source(self, test_client):
