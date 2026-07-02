@@ -82,6 +82,12 @@ Team F1 uses delta (not sticky value) — NOOP-spamming after a correct classifi
 
 > **Scoring note for `red_team_generated`:** reward here is the *red-team* reward — the inverse of blue-team performance, plus a novelty bonus when blue lands in the trainable sweet spot `[0.35, 0.65]`. A low score means the blue oracle beat the generated scenario; a high score means the generator outsmarted the defender. See [graders/red_team_grader.py](graders/red_team_grader.py).
 
+The tasks span three orders of magnitude in episode horizon and two in queue size — a single agent has to scale from a one-alert triage to a 250-step campaign:
+
+![Task landscape — horizon × queue size × difficulty](assets/task_landscape.png)
+
+*Regenerate with `make plots` (`scripts/gen_readme_assets.py`) — every value is read from committed task metadata.*
+
 ---
 
 ## Team Mode
@@ -338,6 +344,10 @@ Dense step rewards for productive investigation. Final score on submit/phase_com
 | ≤ 90% | ×0.85 |
 | > 90% | ×0.70 |
 
+![Efficiency multiplier curve](assets/efficiency_curve.png)
+
+*Solve early and keep the full reward; drag the investigation past 90% of the step budget and the final score is taxed to ×0.70. Sourced from [`server/environment.py`](server/environment.py) `_efficiency_multiplier()`.*
+
 ---
 
 ## Test Coverage
@@ -398,6 +408,8 @@ The hackathon guide warns: "do not optimize a reward you have not tried to break
 ---
 
 ## Theme Coverage
+
+![Hackathon theme coverage matrix](assets/theme_coverage_matrix.png)
 
 | Theme / sub-theme | How we implement it | Evidence |
 |---|---|---|
