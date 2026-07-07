@@ -24,6 +24,14 @@ import time
 
 import httpx
 
+# Windows consoles default to cp1252 and crash on the Unicode glyphs (✓ → ①…)
+# printed below. Force UTF-8 so the demo runs identically everywhere.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
+    except (AttributeError, ValueError):
+        pass
+
 DEFAULT_SERVER = "http://localhost:7860"
 
 

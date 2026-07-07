@@ -43,18 +43,26 @@
 
 Run curls from **Git Bash** — single-quoted JSON breaks in PowerShell.
 
+> **Simplest path:** run `python demo_live.py` — it drives the whole five-act
+> demo, presenter-paced, with the correct payloads baked in. See
+> [DEMO_RUNBOOK.md](DEMO_RUNBOOK.md) for the slide-by-slide mapping. The raw
+> curls below are the fallback if you'd rather drive it by hand.
+
 ```bash
-# D1 — the whole story in one command (5 beats)
-python demo.py
+# D1 — the whole story, presenter-paced (recommended)
+python demo_live.py
 
-# D2 — team episode, deterministic
+# D2 — team episode, deterministic (note: flat action_type, not nested)
 curl -s -X POST localhost:7860/reset -H "Content-Type: application/json" \
-  -d '{"task_id":"team_lateral_team","seed":42,"mode":"team"}' | jq '.observation.alerts[0]'
+  -d '{"task_id":"team_lateral_team","seed":42,"mode":"team"}' | jq '.alert_queue[0]'
 
-# D3 — tier1 escalates → ticket appears on the bus
+# D3 — tier1 classifies + escalates → ticket appears on the bus
+#      (alert id is ALT-TLT-001 for this task/seed; action_type is top-level)
 curl -s -X POST localhost:7860/step -H "Content-Type: application/json" \
-  -d '{"action":{"action_type":"escalate_to_tier2","alert_id":"ALT-001","reason":"lateral movement confirmed"}}' | jq '.reward'
-curl -s localhost:7860/inbox/tier2 | jq
+  -d '{"action_type":"classify_alert","alert_id":"ALT-TLT-001","classification":"true_positive"}' | jq '.reward'
+curl -s -X POST localhost:7860/step -H "Content-Type: application/json" \
+  -d '{"action_type":"escalate_to_tier2","alert_id":"ALT-TLT-001","reason":"lateral movement confirmed"}' | jq '.reward'
+curl -s localhost:7860/inbox/tier2 | jq '.tickets[0]'
 
 # D4 — the machine-checkable safeguards manifest
 curl -s localhost:7860/themes/coverage | jq '.reward_hacking_defenses'
