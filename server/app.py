@@ -1140,9 +1140,19 @@ def create_app() -> FastAPI:
 
 
 def main():
-    """Entry point for the SOC-Triage-Gym server (used by [project.scripts])."""
+    """Entry point for the SOC-Triage-Gym server (used by [project.scripts]).
+
+    Host/port are read from the environment so the server can be pinned to
+    localhost in untrusted settings, while keeping 0.0.0.0:7860 as the default
+    for container / Hugging Face Spaces deployments (which require binding all
+    interfaces).
+    """
+    import os
     import uvicorn
-    uvicorn.run("server.app:app", host="0.0.0.0", port=7860, reload=False)
+
+    host = os.environ.get("SOC_TRIAGE_HOST", "0.0.0.0")  # noqa: S104 - deploy default
+    port = int(os.environ.get("SOC_TRIAGE_PORT", "7860"))
+    uvicorn.run("server.app:app", host=host, port=port, reload=False)
 
 
 if __name__ == "__main__":
