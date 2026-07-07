@@ -32,6 +32,14 @@ except ImportError:
     APIError = Exception  # type: ignore[assignment,misc]
     APITimeoutError = Exception  # type: ignore[assignment,misc]
 
+# Windows consoles default to cp1252 and crash on the Unicode glyphs printed
+# below; force UTF-8 so output is identical everywhere.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
+    except (AttributeError, ValueError):
+        pass
+
 # ---------------------------------------------------------------------------
 # Configuration (mandatory variable names per OpenEnv spec)
 # ---------------------------------------------------------------------------
@@ -1023,7 +1031,7 @@ def main():
     except Exception:
         print(f"[INFO] Server not reachable at {SERVER_URL}. Starting server subprocess...")
         server_process = subprocess.Popen(
-            [sys.executable, "-m", "uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "7860"],
+            [sys.executable, "-m", "uvicorn", "server.app:app", "--host", "127.0.0.1", "--port", "7860"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )

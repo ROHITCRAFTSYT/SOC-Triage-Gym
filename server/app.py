@@ -1148,6 +1148,7 @@ def main():
     interfaces).
     """
     import os
+
     import uvicorn
 
     host = os.environ.get("SOC_TRIAGE_HOST", "0.0.0.0")  # noqa: S104 - deploy default

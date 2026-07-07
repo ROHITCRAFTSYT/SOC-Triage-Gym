@@ -18,7 +18,7 @@ tags:
 
 # SOC-Triage-Gym v3
 
-[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ROHITCRAFTSYT/-Metas-OpenEnv-2/blob/main/soc_triage_gym_v2_training.ipynb)
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ROHITCRAFTSYT/SOC-Triage-Gym/blob/main/soc_triage_gym_v2_training.ipynb)
 [![HF Space](https://img.shields.io/badge/🤗%20Space-rohitcraftsyt%2Fopenenv2-yellow)](https://huggingface.co/spaces/rohitcraftsyt/openenv2)
 [![Trained Model](https://img.shields.io/badge/🤗%20Model-rohitcraftsyt%2Fsoc--grpo--tier1-blue)](https://huggingface.co/rohitcraftsyt/soc-grpo-tier1)
 [![Tests](https://img.shields.io/badge/tests-111%20passing-brightgreen)](tests/)
@@ -275,7 +275,7 @@ A **minimal** GRPO run on Kaggle T4 (1 epoch × 15 seeds × 1 task × group=4 �
 
 ### Reproducing the trained-model curve
 
-The training loop is packaged as a one-click Colab notebook — [**`soc_triage_gym_v2_training.ipynb`**](soc_triage_gym_v2_training.ipynb) ([open in Colab](https://colab.research.google.com/github/ROHITCRAFTSYT/-Metas-OpenEnv-2/blob/main/soc_triage_gym_v2_training.ipynb)) — so the judge never needs to rebuild the stack manually:
+The training loop is packaged as a one-click Colab notebook — [**`soc_triage_gym_v2_training.ipynb`**](soc_triage_gym_v2_training.ipynb) ([open in Colab](https://colab.research.google.com/github/ROHITCRAFTSYT/SOC-Triage-Gym/blob/main/soc_triage_gym_v2_training.ipynb)) — so the judge never needs to rebuild the stack manually:
 
 | Step | Cell | What happens | Wall time on T4 |
 | --- | --- | --- | --- |
@@ -376,7 +376,7 @@ soc-triage-gym/
   graders/          Task graders + ManagerJudge + ExpertPanel + token-scaled reward + apt_campaign grader
   tools/            enrichment, log query, correlation, containment, oversight, ticketing (SLA)
   actors/           External NPC actors: ThreatIntelFeed, ComplianceOfficer, EndUserReporter
-  tests/            108 tests (incl. test_themes_coverage.py regression pack)
+  tests/            111 tests (incl. test_themes_coverage.py regression pack)
   scripts/          gen_plots.py (reward curves), replay.py (deterministic CLI)
   models.py         Pydantic v2 types (incl. ActorMessage, PolicyVersion, RewardBlendConfig, ExpertProfile, TicketSLA)
   train_grpo.py     Per-step GRPO training script (Unsloth merged-16bit save path)
@@ -447,6 +447,22 @@ No submission wins by overclaiming. Here's what this one *doesn't* do:
 5. **APT campaign narrative grader is length-sensitive**, not semantics-sensitive. Token-length cap limits abuse but a smart agent could still hit the cap with padding. We note this as a known limit; fixing it requires an LLM semantic judge in the narrative grader, which we skipped to keep `demo.py` dependency-free.
 
 If any of these surprise a judge, we'd rather have said so first.
+
+---
+
+## Presentation Kit
+
+Everything used to present this project live (BLR5 CCCL × SurrealDB — Memory,
+Context & Agents, Bengaluru):
+
+| Artifact | What it is |
+|---|---|
+| [`site/index.html`](site/index.html) | Self-contained presentation website (immersive scroll build; serve with `python -m http.server 8765 --directory site`) |
+| [`site/classic.html`](site/classic.html) | Flat fallback version of the site |
+| [`demo_live.py`](demo_live.py) | Presenter-paced five-act live demo — `python demo_live.py` (Enter to advance, `--auto` to rehearse, `--train` for the no-GPU dry-run) |
+| [`DEMO_RUNBOOK.md`](DEMO_RUNBOOK.md) | Two-terminal setup, slide-by-slide mapping, failure playbook |
+| [`TALK_PLAN.md`](TALK_PLAN.md) | 10-minute run of show with timing checkpoints |
+| [`DESIGN_ARCHITECTURE.md`](DESIGN_ARCHITECTURE.md) | Design notes for the website's interaction system |
 
 ---
 

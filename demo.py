@@ -50,7 +50,7 @@ def _ensure_server(url: str):
         print(f"→ Starting server subprocess on {url} ...")
         proc = subprocess.Popen(
             [sys.executable, "-m", "uvicorn", "server.app:app",
-             "--host", "0.0.0.0", "--port", "7860"],
+             "--host", "127.0.0.1", "--port", "7860"],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         )
         for _ in range(30):

@@ -7,6 +7,12 @@ loosely follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- `demo_live.py` — presenter-paced five-act live demo (reset → ticket bus →
+  grader breakdown → learnable gap → safeguards) with `--auto` rehearsal and
+  `--train` dry-run modes; used for the BLR5 CCCL × SurrealDB meetup.
+- `site/` — self-contained presentation website (immersive scroll build in
+  `index.html`, flat fallback in `classic.html`) plus `TALK_PLAN.md`,
+  `DEMO_RUNBOOK.md`, and `DESIGN_ARCHITECTURE.md`.
 - GitHub Actions CI: `ruff` lint + `pytest` on a Python 3.11 / 3.12 matrix.
 - `Makefile` task runner (`install`, `lint`, `fmt`, `test`, `serve`, `demo`, `plots`).
 - `scripts/gen_readme_assets.py` — reproducible README charts from committed
@@ -16,6 +22,21 @@ loosely follows [Semantic Versioning](https://semver.org/).
 - Regression test for the `_heuristic_baseline_action` classification fallback.
 
 ### Fixed
+- **Windows console crash**: every CLI entry point (`demo.py`, `inference.py`,
+  `benchmark.py`, `train_grpo.py`, `scripts/replay.py`,
+  `scripts/train_and_evaluate.py`) raised `UnicodeEncodeError` on stock cp1252
+  consoles when printing Unicode glyphs (✓ → ①). All now force UTF-8 stdout/stderr.
+- **Lint**: stdlib/third-party import separation in `server/app.py:main()`
+  (`ruff` I001) that failed `ruff check .` in CI.
+- **Local server exposure**: the auto-start convenience path in `demo.py`,
+  `inference.py`, `benchmark.py`, and `scripts/train_and_evaluate.py` bound
+  uvicorn to `0.0.0.0` while only ever connecting to localhost; now binds
+  `127.0.0.1` (deployments keep `0.0.0.0` via `server.app:main` /
+  `SOC_TRIAGE_HOST`).
+- **Stale links**: Colab badge/links and the judges' clone command pointed at
+  the pre-rename `-Metas-OpenEnv-2` repository; now point at `SOC-Triage-Gym`.
+  `JUDGES_START_HERE.md` also referenced a nonexistent `requirements.txt`
+  (→ `pip install -e ".[dev]"`) and an outdated test count.
 - **Build backend**: `pyproject.toml` used an invalid PEP 517 backend
   (`setuptools.backends.legacy:build`); corrected to `setuptools.build_meta`,
   which unblocks `pip install -e .`.
