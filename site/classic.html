@@ -1,0 +1,1301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOC-Triage-Gym — Train AI Agents as a Coordinated SOC Team</title>
+<meta name="description" content="The first OpenEnv environment that trains and evaluates AI agents as a coordinated Security Operations Center team — 8 tasks, 3 roles, 250-step campaigns, GRPO training, reward-hacking defenses.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;600;700;800&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#06090f;
+  --bg2:#090e17;
+  --panel:#0c1320;
+  --panel2:#101928;
+  --line:#1b2534;
+  --line2:#25334a;
+  --ink:#e9eef6;
+  --dim:#8fa0b5;
+  --faint:#5c6b80;
+  --red:#ff4d5e;
+  --red-dim:#ff4d5e33;
+  --amber:#ffb454;
+  --green:#3ce8b0;
+  --green-dim:#3ce8b022;
+  --cyan:#5ec4ff;
+  --mono:'IBM Plex Mono',ui-monospace,'Cascadia Code',Consolas,monospace;
+  --sans:'IBM Plex Sans',system-ui,sans-serif;
+  --disp:'Big Shoulders Display','Arial Narrow',system-ui,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-size:16px;
+  line-height:1.6;
+  overflow-x:hidden;
+}
+::selection{background:var(--red);color:#fff}
+
+/* ---- atmosphere ---- */
+body::before{
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:
+    linear-gradient(var(--line) 1px,transparent 1px),
+    linear-gradient(90deg,var(--line) 1px,transparent 1px);
+  background-size:56px 56px;
+  opacity:.22;
+  mask-image:radial-gradient(ellipse 90% 70% at 50% 0%,#000 0%,transparent 75%);
+  -webkit-mask-image:radial-gradient(ellipse 90% 70% at 50% 0%,#000 0%,transparent 75%);
+}
+body::after{
+  content:"";position:fixed;inset:0;z-index:99;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent 0 2px,rgba(0,0,0,.11) 2px 4px);
+  opacity:.35;
+}
+
+main{position:relative;z-index:1}
+a{color:var(--cyan);text-decoration:none}
+a:hover{text-decoration:underline}
+code,kbd{font-family:var(--mono)}
+
+/* ---- classification bar ---- */
+.classbar{
+  position:sticky;top:0;z-index:50;
+  display:flex;align-items:center;gap:1.25rem;
+  padding:.45rem 1.25rem;
+  background:linear-gradient(180deg,#0b1220f2,#0b1220e6);
+  backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--line2);
+  font-family:var(--mono);font-size:.68rem;letter-spacing:.12em;
+  color:var(--dim);text-transform:uppercase;
+  white-space:nowrap;overflow-x:auto;scrollbar-width:none;
+}
+.classbar::-webkit-scrollbar{display:none}
+.classbar .dot{width:7px;height:7px;border-radius:50%;background:var(--green);flex:none;
+  box-shadow:0 0 8px var(--green);animation:blink 2.2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+.classbar b{color:var(--ink);font-weight:600}
+.classbar nav{margin-left:auto;display:flex;gap:1.1rem}
+.classbar nav a{color:var(--dim);transition:color .2s}
+.classbar nav a:hover{color:var(--green);text-decoration:none}
+.classbar nav a.on{color:var(--red)}
+.classbar nav a.on::before{content:"▸ "}
+
+/* ---- shared layout ---- */
+.wrap{max-width:1180px;margin:0 auto;padding:0 2rem}
+section{padding:6.5rem 0 3rem}
+.sechead{display:flex;align-items:baseline;gap:1.2rem;margin-bottom:2.6rem;border-bottom:1px solid var(--line);padding-bottom:1.1rem;flex-wrap:wrap}
+.secnum{font-family:var(--mono);font-size:.75rem;letter-spacing:.18em;color:var(--red);white-space:nowrap}
+.sechead h2{
+  font-family:var(--disp);font-weight:700;font-size:clamp(2.1rem,4.5vw,3.4rem);
+  letter-spacing:.02em;text-transform:uppercase;line-height:1;
+}
+.sechead .tag{margin-left:auto;font-family:var(--mono);font-size:.68rem;color:var(--faint);letter-spacing:.14em}
+.lede{max-width:56ch;color:var(--dim);font-size:1.06rem;margin-bottom:2.2rem}
+.lede strong{color:var(--ink)}
+
+/* reveal on scroll */
+.rv{opacity:0;transform:translateY(26px);filter:blur(7px);
+  transition:opacity .8s cubic-bezier(.2,.7,.3,1),transform .8s cubic-bezier(.2,.7,.3,1),filter .8s cubic-bezier(.2,.7,.3,1)}
+.rv.in{opacity:1;transform:none;filter:blur(0)}
+
+/* ---- scroll progress ---- */
+#progress{position:fixed;top:0;left:0;height:2px;width:0;z-index:60;
+  background:linear-gradient(90deg,var(--red),var(--amber),var(--green));
+  box-shadow:0 0 12px var(--red-dim)}
+
+/* ---- infinite slider (marquee) ---- */
+.marquee{
+  border-top:1px solid var(--line2);border-bottom:1px solid var(--line2);
+  background:var(--bg2);overflow:hidden;position:relative;
+  padding:.85rem 0;
+  mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);
+}
+.marquee-track{display:flex;width:max-content;gap:0;animation:mq var(--mq-dur,38s) linear infinite}
+.marquee.rev .marquee-track{animation-direction:reverse}
+.marquee:hover .marquee-track{animation-play-state:paused}
+@keyframes mq{to{transform:translateX(-50%)}}
+.mq-item{
+  display:inline-flex;align-items:center;gap:.7rem;
+  font-family:var(--mono);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--dim);padding:0 1.6rem;white-space:nowrap;
+}
+.mq-item .sep{color:var(--faint)}
+.mq-item .sev{color:var(--red)}
+.mq-item .sev.ok{color:var(--green)}
+.mq-item .sev.warn{color:var(--amber)}
+.mq-item b{color:var(--ink);font-weight:500}
+
+/* ---- editorial statement (word reveal) ---- */
+.statement{padding:8rem 0 7rem;position:relative;overflow:hidden}
+.statement .idxmark{
+  position:absolute;right:-1rem;top:1.5rem;font-family:var(--disp);font-weight:800;
+  font-size:clamp(8rem,22vw,20rem);line-height:1;color:transparent;
+  -webkit-text-stroke:1px var(--line2);pointer-events:none;user-select:none;
+}
+.statement h2{
+  font-family:var(--disp);font-weight:800;text-transform:uppercase;
+  font-size:clamp(2.6rem,7.5vw,6.4rem);line-height:1.02;letter-spacing:.01em;
+  max-width:18ch;
+}
+.statement .w{
+  display:inline-block;opacity:0;transform:translateY(.5em) skewY(3deg);filter:blur(10px);
+  transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1),filter .7s cubic-bezier(.2,.7,.2,1);
+  transition-delay:calc(var(--i)*90ms);
+}
+.statement.in .w{opacity:1;transform:none;filter:blur(0)}
+.statement .w.hl{color:var(--red)}
+.statement .w.ol{color:transparent;-webkit-text-stroke:1.5px var(--green)}
+.statement p{margin-top:2rem;max-width:52ch;color:var(--dim);font-size:1.05rem}
+
+/* ---- hero load choreography ---- */
+@keyframes riseIn{from{opacity:0;transform:translateY(28px);filter:blur(8px)}to{opacity:1;transform:none;filter:blur(0)}}
+.hero .kicker,.hero .sub,.hero .badges,.hero .heroctas{opacity:0;animation:riseIn .9s cubic-bezier(.2,.7,.2,1) forwards}
+.hero .kicker{animation-delay:.1s}
+.hero .sub{animation-delay:.55s}
+.hero .badges{animation-delay:.7s}
+.hero .heroctas{animation-delay:.85s}
+.hero h1 .ch{
+  display:inline-block;opacity:0;transform:translateY(.45em) rotate(4deg);filter:blur(12px);
+  animation:chIn .7s cubic-bezier(.2,.7,.2,1) forwards;
+  animation-delay:calc(.18s + var(--i)*.035s);
+}
+@keyframes chIn{to{opacity:1;transform:none;filter:blur(0)}}
+
+/* ---- spotlight glow cards (cursor-tracking) ---- */
+.card,.abox,.beat,.limit,.mca{position:relative}
+.glow::before{
+  content:"";position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .35s;
+  background:radial-gradient(220px circle at var(--mx,50%) var(--my,50%),var(--glow-c,#3ce8b01f),transparent 70%);
+  z-index:0;
+}
+.glow:hover::before{opacity:1}
+.glow>*{position:relative;z-index:1}
+
+/* ---- hero ---- */
+.hero{padding:5rem 0 4rem;position:relative}
+.hero .kicker{
+  display:inline-flex;align-items:center;gap:.6rem;
+  font-family:var(--mono);font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--amber);border:1px solid #ffb45440;padding:.4rem .9rem;
+  background:#ffb4540d;margin-bottom:1.8rem;
+}
+.hero h1{
+  font-family:var(--disp);font-weight:800;text-transform:uppercase;
+  font-size:clamp(3.4rem,10vw,8.2rem);line-height:.92;letter-spacing:.01em;
+  margin-bottom:1.4rem;
+}
+.hero h1 .r{color:var(--red)}
+.hero .sub{max-width:62ch;color:var(--dim);font-size:1.15rem;margin-bottom:2.4rem}
+.hero .sub b{color:var(--ink);font-weight:600}
+.badges{display:flex;flex-wrap:wrap;gap:.6rem;margin-bottom:3rem}
+.badge{
+  font-family:var(--mono);font-size:.7rem;letter-spacing:.08em;
+  padding:.35rem .75rem;border:1px solid var(--line2);color:var(--dim);
+  background:var(--panel);
+}
+.badge em{font-style:normal;color:var(--green)}
+.heroctas{display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:3.5rem}
+.btn{
+  font-family:var(--mono);font-size:.8rem;letter-spacing:.1em;text-transform:uppercase;
+  padding:.85rem 1.6rem;border:1px solid var(--red);color:var(--red);
+  background:transparent;transition:.25s;position:relative;
+}
+.btn:hover{background:var(--red);color:#0a0a0a;text-decoration:none;box-shadow:0 0 26px var(--red-dim)}
+.btn.alt{border-color:var(--line2);color:var(--dim)}
+.btn.alt:hover{background:var(--panel2);color:var(--ink);border-color:var(--faint);box-shadow:none}
+
+/* terminal */
+.term{
+  border:1px solid var(--line2);background:#070b13;
+  box-shadow:0 30px 80px -30px rgba(0,0,0,.9),0 0 0 1px #000;
+  font-family:var(--mono);font-size:.82rem;line-height:1.75;
+}
+.term-bar{
+  display:flex;align-items:center;gap:.5rem;padding:.6rem 1rem;
+  border-bottom:1px solid var(--line);background:var(--panel);
+  font-size:.68rem;color:var(--faint);letter-spacing:.1em;
+}
+.term-bar .c{width:10px;height:10px;border-radius:50%}
+.term-bar .c1{background:#ff5f57}.term-bar .c2{background:#febc2e}.term-bar .c3{background:#28c840}
+.term-bar span{margin-left:.6rem}
+.term-body{padding:1.2rem 1.4rem;min-height:270px}
+.term-body .ln{white-space:pre-wrap;word-break:break-word}
+.term-body .p{color:var(--green)}
+.term-body .cmd{color:var(--ink)}
+.term-body .out{color:var(--dim)}
+.term-body .ok{color:var(--green)}
+.term-body .warn{color:var(--amber)}
+.term-body .err{color:var(--red)}
+.cursor{display:inline-block;width:8px;height:15px;background:var(--green);vertical-align:-2px;animation:blink 1s steps(1) infinite}
+
+/* stat row */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);margin-top:3.5rem}
+.stat{background:var(--bg2);padding:1.5rem 1.4rem;position:relative;overflow:hidden}
+.stat:hover .statbg{transform:scaleX(1)}
+.statbg{position:absolute;inset:0;background:var(--green-dim);transform:scaleX(0);transform-origin:left;transition:.4s}
+.stat .n{font-family:var(--disp);font-weight:700;font-size:2.7rem;line-height:1;color:var(--ink);position:relative}
+.stat .l{font-family:var(--mono);font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin-top:.5rem;position:relative}
+.stat .n em{font-style:normal;color:var(--green);font-size:1.4rem;vertical-align:.9rem}
+
+/* ---- problem section ---- */
+.split{display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:start}
+.prose p{color:var(--dim);margin-bottom:1.1rem}
+.prose p strong{color:var(--ink)}
+.callout{
+  border-left:2px solid var(--red);background:linear-gradient(90deg,#ff4d5e10,transparent 70%);
+  padding:1.2rem 1.5rem;margin:1.6rem 0;font-size:1.02rem;color:var(--ink);
+}
+.callout .cite{display:block;margin-top:.5rem;font-family:var(--mono);font-size:.68rem;color:var(--faint);letter-spacing:.1em}
+.ticklist{list-style:none;display:grid;gap:.9rem}
+.ticklist li{
+  display:grid;grid-template-columns:auto 1fr;gap:.9rem;align-items:start;
+  padding:1rem 1.2rem;border:1px solid var(--line);background:var(--panel);
+  transition:border-color .25s;
+}
+.ticklist li:hover{border-color:var(--line2)}
+.ticklist .glyph{font-family:var(--mono);color:var(--green);font-size:.85rem;padding-top:.1rem}
+.ticklist b{display:block;color:var(--ink);font-weight:600;margin-bottom:.15rem}
+.ticklist span{color:var(--dim);font-size:.92rem}
+
+/* ---- architecture ---- */
+.arch{border:1px solid var(--line2);background:var(--bg2);padding:2.2rem;position:relative;overflow-x:auto}
+.arch-title{position:absolute;top:-1px;left:-1px;font-family:var(--mono);font-size:.62rem;letter-spacing:.16em;
+  color:var(--faint);background:var(--panel);border:1px solid var(--line2);padding:.3rem .8rem;text-transform:uppercase}
+.arch-grid{min-width:860px;display:grid;grid-template-columns:1fr auto 1fr auto 1.4fr;gap:0;align-items:stretch;margin-top:1rem}
+.acol{display:flex;flex-direction:column;gap:.9rem;justify-content:center}
+.aconn{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 .6rem;gap:.4rem}
+.aconn .arrow{font-family:var(--mono);color:var(--faint);font-size:1.1rem}
+.aconn .lbl{font-family:var(--mono);font-size:.58rem;letter-spacing:.1em;color:var(--faint);writing-mode:vertical-rl;text-orientation:mixed}
+.abox{
+  border:1px solid var(--line2);background:var(--panel);padding:1rem 1.1rem;position:relative;
+  transition:border-color .25s, box-shadow .25s;
+}
+.abox:hover{border-color:var(--green);box-shadow:0 0 22px -8px var(--green)}
+.abox.red:hover{border-color:var(--red);box-shadow:0 0 22px -8px var(--red)}
+.abox.amber:hover{border-color:var(--amber);box-shadow:0 0 22px -8px var(--amber)}
+.abox .t{font-family:var(--mono);font-size:.78rem;font-weight:600;letter-spacing:.06em;color:var(--ink);margin-bottom:.35rem}
+.abox .t::before{content:"▪ ";color:var(--green)}
+.abox.red .t::before{color:var(--red)}
+.abox.amber .t::before{color:var(--amber)}
+.abox .d{font-size:.78rem;color:var(--dim);line-height:1.5}
+.abox .file{display:block;margin-top:.45rem;font-family:var(--mono);font-size:.62rem;color:var(--faint);letter-spacing:.04em}
+.arch-feeders{min-width:860px;display:grid;grid-template-columns:repeat(3,1fr);gap:.9rem;margin-top:.9rem;padding-top:.9rem;border-top:1px dashed var(--line2)}
+.feednote{min-width:860px;font-family:var(--mono);font-size:.62rem;color:var(--faint);letter-spacing:.1em;text-align:center;margin-top:.6rem}
+
+/* reward formula */
+.formula{
+  margin:2.4rem 0;padding:1.8rem 2rem;border:1px solid var(--line2);
+  background:linear-gradient(135deg,var(--panel),var(--bg2));
+  font-family:var(--mono);text-align:center;font-size:clamp(.85rem,2.4vw,1.25rem);
+  letter-spacing:.03em;
+}
+.formula .op{color:var(--faint)}
+.formula .a{color:var(--cyan)}
+.formula .b{color:var(--amber)}
+.formula .r{color:var(--green)}
+.formula small{display:block;margin-top:.9rem;font-size:.68rem;color:var(--faint);letter-spacing:.12em}
+
+/* ---- pipeline (team mode) ---- */
+.pipeline{border:1px solid var(--line2);background:var(--bg2);padding:2.4rem 2rem 2rem;overflow-x:auto}
+.pipe-track{min-width:760px;display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:0;align-items:stretch;position:relative}
+.role{
+  border:1px solid var(--line2);background:var(--panel);padding:1.3rem 1.3rem 1.1rem;position:relative;
+}
+.role::before{content:attr(data-phase);position:absolute;top:-.7rem;left:1rem;background:var(--bg2);
+  font-family:var(--mono);font-size:.6rem;letter-spacing:.16em;color:var(--amber);padding:0 .5rem}
+.role h3{font-family:var(--disp);font-size:1.55rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.2rem}
+.role .who{font-family:var(--mono);font-size:.65rem;color:var(--faint);letter-spacing:.1em;margin-bottom:.8rem}
+.role .acts{display:flex;flex-wrap:wrap;gap:.35rem}
+.role .acts code{font-size:.62rem;padding:.2rem .45rem;border:1px solid var(--line);color:var(--dim);background:var(--bg);white-space:nowrap}
+.role .acts code.hot{color:var(--green);border-color:#3ce8b044}
+.pipe-link{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 .9rem;gap:.3rem}
+.pipe-link .wire{width:100%;min-width:52px;height:2px;background:repeating-linear-gradient(90deg,var(--green) 0 6px,transparent 6px 12px);position:relative;animation:flow 1.2s linear infinite}
+@keyframes flow{to{background-position:12px 0}}
+.pipe-link .lbl{font-family:var(--mono);font-size:.58rem;color:var(--green);letter-spacing:.1em;white-space:nowrap}
+.f1meter{min-width:760px;margin-top:2rem;border-top:1px dashed var(--line2);padding-top:1.3rem;display:flex;align-items:center;gap:1.2rem}
+.f1meter .lbl{font-family:var(--mono);font-size:.65rem;letter-spacing:.14em;color:var(--faint);white-space:nowrap}
+.f1meter .bar{flex:1;height:8px;background:var(--panel);border:1px solid var(--line2);overflow:hidden}
+.f1meter .fill{height:100%;width:0;background:linear-gradient(90deg,var(--green),var(--cyan));transition:width 2.2s cubic-bezier(.2,.7,.2,1)}
+.f1meter .val{font-family:var(--mono);font-size:.8rem;color:var(--green);min-width:6ch;text-align:right}
+
+/* ---- tables ---- */
+.tblwrap{overflow-x:auto;border:1px solid var(--line2)}
+table{width:100%;border-collapse:collapse;font-size:.88rem;min-width:640px}
+thead th{
+  font-family:var(--mono);font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--faint);text-align:left;padding:.8rem 1.1rem;background:var(--panel);
+  border-bottom:1px solid var(--line2);white-space:nowrap;
+}
+tbody td{padding:.75rem 1.1rem;border-bottom:1px solid var(--line);color:var(--dim);vertical-align:top}
+tbody tr:last-child td{border-bottom:none}
+tbody tr{transition:background .2s}
+tbody tr:hover{background:#101928aa}
+td code{font-size:.78rem;color:var(--ink)}
+td .pos{color:var(--green)}
+td .neg{color:var(--red)}
+.diff{font-family:var(--mono);font-size:.62rem;letter-spacing:.1em;padding:.18rem .55rem;border:1px solid;white-space:nowrap}
+.diff.easy{color:var(--green);border-color:#3ce8b044}
+.diff.med{color:var(--cyan);border-color:#5ec4ff44}
+.diff.hard{color:var(--amber);border-color:#ffb45444}
+.diff.expert{color:#ff8a5c;border-color:#ff8a5c44}
+.diff.super{color:var(--red);border-color:#ff4d5e55}
+.diff.adaptive{color:#c792ea;border-color:#c792ea44}
+.modechip{font-family:var(--mono);font-size:.66rem;color:var(--faint)}
+.modechip.team{color:var(--amber)}
+
+/* ---- cards grid ---- */
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1rem}
+.card{
+  border:1px solid var(--line);background:var(--panel);padding:1.5rem 1.5rem 1.3rem;
+  position:relative;transition:.3s;overflow:hidden;
+}
+.card::after{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--line2);transition:.3s}
+.card:hover{border-color:var(--line2);transform:translateY(-3px)}
+.card:hover::after{background:var(--red)}
+.card.g:hover::after{background:var(--green)}
+.card.a:hover::after{background:var(--amber)}
+.card.c:hover::after{background:var(--cyan)}
+.card .idx{font-family:var(--mono);font-size:.62rem;letter-spacing:.16em;color:var(--faint);margin-bottom:.9rem;display:flex;justify-content:space-between}
+.card .idx .co{color:var(--red)}
+.card h3{font-family:var(--disp);font-size:1.5rem;font-weight:700;text-transform:uppercase;letter-spacing:.03em;margin-bottom:.55rem}
+.card p{font-size:.9rem;color:var(--dim)}
+.card .file{display:block;margin-top:1rem;font-family:var(--mono);font-size:.62rem;color:var(--faint)}
+
+/* ---- defense table rows ---- */
+.defrow td:first-child{font-family:var(--mono);color:var(--red);font-size:.75rem;white-space:nowrap}
+
+/* ---- charts ---- */
+.chartpair{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:2rem}
+.chart{border:1px solid var(--line2);background:var(--bg2);padding:1.8rem}
+.chart h4{font-family:var(--mono);font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin-bottom:1.4rem}
+.hbar{margin-bottom:1.3rem}
+.hbar .lab{display:flex;justify-content:space-between;font-family:var(--mono);font-size:.7rem;margin-bottom:.4rem}
+.hbar .lab .v{color:var(--ink)}
+.hbar .rail{height:14px;background:var(--panel);border:1px solid var(--line)}
+.hbar .fill{height:100%;width:0;transition:width 1.6s cubic-bezier(.2,.7,.2,1)}
+.hbar.oracle .fill{background:linear-gradient(90deg,#3ce8b0,#5ec4ff)}
+.hbar.random .fill{background:#ff4d5e}
+.gapnote{font-family:var(--mono);font-size:.72rem;color:var(--green);border-top:1px dashed var(--line2);padding-top:1rem;margin-top:.4rem}
+.gapnote b{font-size:1.1rem}
+svg text{font-family:var(--mono)}
+
+/* ---- code blocks ---- */
+pre.code{
+  border:1px solid var(--line2);background:#070b13;padding:1.3rem 1.5rem;
+  font-family:var(--mono);font-size:.8rem;line-height:1.8;overflow-x:auto;color:var(--dim);
+  position:relative;
+}
+pre.code .cm{color:var(--faint)}
+pre.code .k{color:var(--red)}
+pre.code .s{color:var(--amber)}
+pre.code .fn{color:var(--cyan)}
+pre.code .ok{color:var(--green)}
+pre.code::before{
+  content:attr(data-label);position:absolute;top:0;right:0;
+  font-size:.58rem;letter-spacing:.14em;color:var(--faint);
+  background:var(--panel);border-left:1px solid var(--line2);border-bottom:1px solid var(--line2);
+  padding:.25rem .7rem;text-transform:uppercase;
+}
+
+/* ---- demo beats ---- */
+.beats{counter-reset:beat;display:grid;gap:1rem}
+.beat{
+  display:grid;grid-template-columns:auto 1fr;gap:1.4rem;
+  border:1px solid var(--line);background:var(--panel);padding:1.4rem 1.6rem;
+  transition:border-color .25s;
+}
+.beat:hover{border-color:var(--amber)}
+.beat .num{
+  counter-increment:beat;font-family:var(--disp);font-weight:800;font-size:2.6rem;line-height:1;
+  color:transparent;-webkit-text-stroke:1px var(--amber);min-width:2.2rem;
+}
+.beat .num::before{content:"0" counter(beat)}
+.beat h3{font-family:var(--mono);font-size:.85rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:.4rem;color:var(--ink)}
+.beat p{font-size:.88rem;color:var(--dim);margin-bottom:.7rem}
+.beat code.inline{display:inline-block;font-size:.74rem;color:var(--green);background:#070b13;border:1px solid var(--line);padding:.35rem .8rem}
+
+/* ---- meetup band ---- */
+.band{
+  margin:5rem 0 0;border-top:1px solid var(--line2);border-bottom:1px solid var(--line2);
+  background:
+    radial-gradient(ellipse 60% 100% at 20% 50%,#ff4d5e0d,transparent),
+    radial-gradient(ellipse 60% 100% at 80% 50%,#3ce8b00d,transparent),
+    var(--bg2);
+  padding:4.5rem 0;
+}
+.band .wrap{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:2.5rem}
+.mca h3{font-family:var(--disp);font-size:2rem;font-weight:700;text-transform:uppercase;margin-bottom:.7rem;letter-spacing:.03em}
+.mca h3 span{color:var(--green)}
+.mca p{color:var(--dim);font-size:.93rem}
+.mca .pin{font-family:var(--mono);font-size:.62rem;letter-spacing:.16em;color:var(--red);text-transform:uppercase;margin-bottom:1rem;display:block}
+
+/* ---- limitations ---- */
+.limits{display:grid;gap:.8rem}
+.limit{display:grid;grid-template-columns:auto 1fr;gap:1rem;padding:1rem 1.3rem;border:1px dashed var(--line2);background:transparent}
+.limit .no{font-family:var(--mono);color:var(--amber);font-size:.75rem;padding-top:.15rem}
+.limit p{font-size:.9rem;color:var(--dim)}
+.limit p b{color:var(--ink)}
+
+/* ---- footer ---- */
+footer{margin-top:6rem;border-top:1px solid var(--line2);background:var(--bg2);padding:3.5rem 0 2.5rem}
+.foot{display:flex;flex-wrap:wrap;gap:3rem;justify-content:space-between;align-items:flex-start}
+.foot .brand{font-family:var(--disp);font-weight:800;font-size:1.9rem;text-transform:uppercase;line-height:1}
+.foot .brand span{color:var(--red)}
+.foot .links{display:grid;gap:.45rem;font-family:var(--mono);font-size:.78rem}
+.foot .links a{color:var(--dim)}
+.foot .links a:hover{color:var(--green)}
+.foot .fine{width:100%;margin-top:2.5rem;padding-top:1.4rem;border-top:1px solid var(--line);
+  font-family:var(--mono);font-size:.64rem;letter-spacing:.1em;color:var(--faint);display:flex;justify-content:space-between;flex-wrap:wrap;gap:.8rem}
+
+@media(max-width:840px){
+  .split{grid-template-columns:1fr}
+  .chartpair{grid-template-columns:1fr}
+  section{padding:4.5rem 0 2rem}
+  .wrap{padding:0 1.2rem}
+}
+</style>
+</head>
+<body>
+
+<div id="progress"></div>
+<div class="classbar">
+  <span class="dot"></span>
+  <span><b>SOC-TRIAGE-GYM</b> // OPENENV ENVIRONMENT</span>
+  <span>STATUS: <b style="color:var(--green)">OPERATIONAL</b></span>
+  <span>TLP:CLEAR</span>
+  <nav>
+    <a href="#brief">Brief</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#team">Team&nbsp;Mode</a>
+    <a href="#tasks">Tasks</a>
+    <a href="#reward">Reward</a>
+    <a href="#training">Training</a>
+    <a href="#api">API</a>
+    <a href="#demo">Demo</a>
+  </nav>
+</div>
+
+<main>
+
+<!-- ============ HERO ============ -->
+<header class="hero">
+  <div class="wrap">
+    <div class="kicker">▲ Reinforcement-learning environment · Multi-agent · Cybersecurity</div>
+    <h1>SOC-Triage<span class="r">-Gym</span></h1>
+    <p class="sub">
+      The first OpenEnv environment that trains and evaluates AI agents as a
+      <b>coordinated Security Operations Center team</b> — not a single analyst.
+      Eight tasks from one phishing alert to a <b>250-step APT campaign</b>, three
+      cooperating roles, verifiable programmatic rewards, and an adversarial
+      red-team curriculum that co-evolves with the defender.
+    </p>
+    <div class="badges">
+      <span class="badge">tests <em>111 passing</em></span>
+      <span class="badge">training <em>GRPO · per-step</em></span>
+      <span class="badge">paradigm <em>RLVR + RLVE</em></span>
+      <span class="badge">framework <em>MITRE ATT&amp;CK</em></span>
+      <span class="badge">api <em>OpenEnv /reset /step /state</em></span>
+      <span class="badge">license <em>MIT</em></span>
+    </div>
+    <div class="heroctas">
+      <a class="btn" href="#demo">Run the demo ↗</a>
+      <a class="btn alt" href="https://github.com/ROHITCRAFTSYT/SOC-Triage-Gym" target="_blank" rel="noopener">GitHub</a>
+      <a class="btn alt" href="https://huggingface.co/spaces/rohitcraftsyt/openenv2" target="_blank" rel="noopener">🤗 Live Space</a>
+    </div>
+
+    <div class="term rv">
+      <div class="term-bar">
+        <span class="c c1"></span><span class="c c2"></span><span class="c c3"></span>
+        <span>soc-triage-gym — uvicorn :7860</span>
+      </div>
+      <div class="term-body" id="term"></div>
+    </div>
+
+    <div class="stats">
+      <div class="stat rv"><div class="statbg"></div><div class="n"><span data-count="8">0</span></div><div class="l">Tasks</div></div>
+      <div class="stat rv"><div class="statbg"></div><div class="n"><span data-count="3">0</span><em>+3</em></div><div class="l">Team roles + NPC actors</div></div>
+      <div class="stat rv"><div class="statbg"></div><div class="n"><span data-count="250">0</span></div><div class="l">Max steps / episode</div></div>
+      <div class="stat rv"><div class="statbg"></div><div class="n"><span data-count="60">0</span>+</div><div class="l">Alerts in APT campaign</div></div>
+      <div class="stat rv"><div class="statbg"></div><div class="n"><span data-count="6">0</span></div><div class="l">Reward-hack defenses</div></div>
+      <div class="stat rv"><div class="statbg"></div><div class="n"><span data-count="111">0</span></div><div class="l">Tests passing</div></div>
+    </div>
+  </div>
+</header>
+
+<!-- ============ ALERT FEED — INFINITE SLIDER ============ -->
+<div class="marquee" aria-hidden="true" style="--mq-dur:42s">
+  <div class="marquee-track" data-mq>
+    <span class="mq-item"><span class="sev">SEV:HIGH</span> T1566.001 <b>SPEARPHISHING ATTACHMENT</b><span class="sep">▪</span></span>
+    <span class="mq-item"><span class="sev warn">SEV:MED</span> T1021.002 <b>SMB / ADMIN$ SHARES</b><span class="sep">▪</span></span>
+    <span class="mq-item"><span class="sev">SEV:CRIT</span> T1078 <b>VALID ACCOUNTS</b><span class="sep">▪</span></span>
+    <span class="mq-item"><span class="sev ok">BUS</span> TICKET <b>#T-0042</b> → TIER-2 INBOX<span class="sep">▪</span></span>
+    <span class="mq-item"><span class="sev warn">DRIFT</span> POLICY <b>v2</b> NOW ACTIVE<span class="sep">▪</span></span>
+    <span class="mq-item"><span class="sev">SEV:HIGH</span> T1055 <b>PROCESS INJECTION</b><span class="sep">▪</span></span>
+    <span class="mq-item"><span class="sev ok">JUDGE</span> EXPERT: <b>DR. ACCURACY</b> ON ROTATION<span class="sep">▪</span></span>
+    <span class="mq-item"><span class="sev">SEV:CRIT</span> T1041 <b>EXFILTRATION OVER C2</b><span class="sep">▪</span></span>
+    <span class="mq-item"><span class="sev warn">ACTOR</span> ENDUSER: <b>"I CLICKED A LINK…"</b><span class="sep">▪</span></span>
+    <span class="mq-item"><span class="sev ok">DEF</span> 6/6 REWARD-HACK DEFENSES <b>ACTIVE</b><span class="sep">▪</span></span>
+    <span class="mq-item"><span class="sev">SEV:HIGH</span> T1547 <b>BOOT PERSISTENCE</b><span class="sep">▪</span></span>
+    <span class="mq-item"><span class="sev ok">ENV</span> SEED 42 <b>DETERMINISTIC</b><span class="sep">▪</span></span>
+  </div>
+</div>
+
+<!-- ============ 01 BRIEF ============ -->
+<section id="brief">
+  <div class="wrap">
+    <div class="sechead rv">
+      <span class="secnum">01 / THREAT BRIEF</span>
+      <h2>Why this exists</h2>
+      <span class="tag">THE PROBLEM</span>
+    </div>
+    <div class="split">
+      <div class="prose rv">
+        <p>
+          A real Security Operations Center drowns in alerts. Analysts triage thousands of
+          signals a day; most are noise, a few are live intrusions, and the cost of getting
+          it wrong is asymmetric in both directions — miss a true positive and you're breached,
+          isolate a healthy host and you've taken down production.
+        </p>
+        <p>
+          <strong>LLM agents are an obvious fit for triage</strong> — but almost every RL
+          environment trains a <strong>single agent in isolation</strong>. Real SOCs don't
+          work that way. They have tiers, escalation paths, audit oversight, ticketing SLAs,
+          policies that change mid-shift, and users who email in "this looks weird" at the
+          worst possible moment.
+        </p>
+        <div class="callout">
+          If you want agents that operate inside a real security workflow, you have to train
+          them inside one — team structure, ticket bus, drifting policies and all.
+          <span class="cite">// DESIGN THESIS</span>
+        </div>
+        <p>
+          SOC-Triage-Gym models the full workflow: <strong>Tier-1 triages and escalates,
+          Tier-2 contains confirmed threats, a Manager audits the team</strong> — with a
+          reward signal that punishes any agent maximizing personal score at the team's expense.
+        </p>
+      </div>
+      <ul class="ticklist rv">
+        <li><span class="glyph">[✓]</span><div><b>Team, not solo</b><span>Three cooperating roles with a live ticket bus and a phase state machine — the reward blends individual performance with team F1.</span></div></li>
+        <li><span class="glyph">[✓]</span><div><b>Verifiable rewards (RLVR)</b><span>6+ layered programmatic graders. No LLM-only scoring — every reward component is a deterministic, testable check.</span></div></li>
+        <li><span class="glyph">[✓]</span><div><b>Adaptive environment (RLVE)</b><span>A Red-Team Generator co-evolves scenario difficulty with the agent, holding the blue-team win rate near 50% — the learning zone.</span></div></li>
+        <li><span class="glyph">[✓]</span><div><b>Hostile to reward hacking</b><span>Six named exploit vectors were found, fixed, and locked in as regression tests. NOOP-spam, duplicate closes, escalation flooding — all patched.</span></div></li>
+        <li><span class="glyph">[✓]</span><div><b>Reproducible by design</b><span>Same seed → same episode → same score. Deterministic replay is what makes per-step GRPO training possible at all.</span></div></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ STATEMENT ============ -->
+<div class="statement" id="statement">
+  <span class="idxmark">SOC</span>
+  <div class="wrap">
+    <h2 data-words>Train the <span class="hl">team,</span> not the <span class="ol">analyst.</span></h2>
+    <p>One policy per seat is how real security teams fail. The unit of intelligence in a SOC
+    is the team — so the unit of training should be too.</p>
+  </div>
+</div>
+
+<!-- ============ 02 ARCHITECTURE ============ -->
+<section id="architecture">
+  <div class="wrap">
+    <div class="sechead rv">
+      <span class="secnum">02 / SYSTEM MAP</span>
+      <h2>Architecture</h2>
+      <span class="tag">FASTAPI · PYDANTIC V2 · OPENENV SPEC</span>
+    </div>
+    <p class="lede rv">
+      A standard OpenEnv REST contract on the outside; a stateful SOC simulation on the inside.
+      The agent never sees the simulator directly — every interaction flows through
+      <strong>/reset → /step → /state</strong>, which is exactly what makes the environment
+      swappable under any training loop.
+    </p>
+
+    <div class="arch rv">
+      <span class="arch-title">DATA FLOW — ONE STEP</span>
+      <div class="arch-grid">
+        <div class="acol">
+          <div class="abox">
+            <div class="t">AGENT / POLICY</div>
+            <div class="d">LLM under GRPO training, scripted oracle, or a random floor policy. Emits one JSON action per step.</div>
+            <span class="file">train_grpo.py · inference.py</span>
+          </div>
+          <div class="abox">
+            <div class="t">TRAINING LOOP</div>
+            <div class="d">Unsloth 4-bit QLoRA + TRL GRPO. Reward function replays the env deterministically to the step index.</div>
+            <span class="file">train_grpo.py · benchmark.py</span>
+          </div>
+        </div>
+        <div class="aconn"><span class="arrow">⟶</span><span class="lbl">HTTP · JSON</span><span class="arrow">⟵</span></div>
+        <div class="acol">
+          <div class="abox">
+            <div class="t">OPENENV API</div>
+            <div class="d">FastAPI server. <code>/reset</code> <code>/step</code> <code>/state</code> <code>/grader</code> plus 12 more endpoints for inboxes, policy history, tickets, expert panels.</div>
+            <span class="file">server/app.py</span>
+          </div>
+        </div>
+        <div class="aconn"><span class="arrow">⟶</span><span class="lbl">ACTION / OBS</span><span class="arrow">⟵</span></div>
+        <div class="acol">
+          <div class="abox">
+            <div class="t">SOC ENVIRONMENT</div>
+            <div class="d">Alert queue · phase state machine (TRIAGE → RESPONSE → OVERSIGHT) · ticket bus · efficiency budget · blended step reward.</div>
+            <span class="file">server/environment.py</span>
+          </div>
+          <div class="abox">
+            <div class="t">TOOL LAYER — 4 LOGICAL APPS</div>
+            <div class="d">SIEM (log query, correlation) · EDR (containment, forensics) · IAM (user lookup, disable) · Ticketing (SLA clocks, P1/P2 rules).</div>
+            <span class="file">tools/</span>
+          </div>
+          <div class="abox">
+            <div class="t">GRADER STACK</div>
+            <div class="d">8 per-task programmatic graders + team grader + LLM manager judge (with deterministic fallback) + token-scaled bonus + rotating expert panel.</div>
+            <span class="file">graders/</span>
+          </div>
+        </div>
+      </div>
+      <div class="arch-feeders">
+        <div class="abox red">
+          <div class="t">RED-TEAM GENERATOR</div>
+          <div class="d">Generates adversarial scenarios; adapts difficulty each curriculum round to hold blue win rate near 0.5.</div>
+          <span class="file">scenarios/red_team_generator.py</span>
+        </div>
+        <div class="abox amber">
+          <div class="t">POLICY DRIFT ENGINE</div>
+          <div class="d">Injects mid-episode rule changes — field renames, severity thresholds, "admins must escalate". Graders honour the policy active at action time.</div>
+          <span class="file">scenarios/policy_drift.py</span>
+        </div>
+        <div class="abox amber">
+          <div class="t">NPC ACTORS</div>
+          <div class="d">ThreatIntelFeed, ComplianceOfficer, EndUserReporter push unsolicited messages into role inboxes mid-episode.</div>
+          <span class="file">actors/</span>
+        </div>
+      </div>
+      <div class="feednote">▲ THREE PRESSURE SOURCES INJECT INTO THE ENVIRONMENT WHILE THE AGENT WORKS ▲</div>
+    </div>
+
+    <div class="formula rv">
+      <span class="r">step_reward</span> <span class="op">=</span>
+      <span class="a">0.6 × role_specific_reward</span> <span class="op">+</span>
+      <span class="b">0.4 × Δ team_F1</span>
+      <small>TEAM F1 IS DELTA-BASED, NOT STICKY — NOOP-SPAMMING AFTER A CORRECT CALL EARNS EXACTLY ZERO</small>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 03 TEAM MODE ============ -->
+<section id="team">
+  <div class="wrap">
+    <div class="sechead rv">
+      <span class="secnum">03 / MULTI-AGENT</span>
+      <h2>Team Mode</h2>
+      <span class="tag">TICKET BUS · PHASE FSM</span>
+    </div>
+    <p class="lede rv">
+      A team episode runs through three phases, each with its own step budget. Inter-role
+      communication is <strong>explicit and observable</strong>: escalation creates a ticket
+      on the bus (<code>POST /step</code> with <code>escalate_to_tier2</code>), and the next
+      role pulls it from its inbox (<code>GET /inbox/{role}</code>).
+    </p>
+
+    <div class="pipeline rv">
+      <div class="pipe-track">
+        <div class="role" data-phase="PHASE 1 · TRIAGE">
+          <h3>Tier-1 Analyst</h3>
+          <div class="who">TRIAGE &amp; CLASSIFY</div>
+          <div class="acts">
+            <code>enrich_indicator</code><code>query_logs</code><code>correlate_alerts</code>
+            <code>check_asset</code><code>check_user</code><code class="hot">classify_alert</code>
+            <code>map_technique</code><code>recommend_action</code><code class="hot">escalate_to_tier2</code>
+          </div>
+        </div>
+        <div class="pipe-link"><span class="lbl">TICKET →</span><div class="wire"></div></div>
+        <div class="role" data-phase="PHASE 2 · RESPONSE">
+          <h3>Tier-2 Responder</h3>
+          <div class="who">CONTAIN &amp; REMEDIATE</div>
+          <div class="acts">
+            <code>forensic_timeline</code><code>sandbox_detonate</code><code>memory_analysis</code>
+            <code class="hot">isolate_host</code><code class="hot">disable_user</code><code>block_ioc</code>
+            <code>close_case</code>
+          </div>
+        </div>
+        <div class="pipe-link"><span class="lbl">AUDIT →</span><div class="wire"></div></div>
+        <div class="role" data-phase="PHASE 3 · OVERSIGHT">
+          <h3>Manager</h3>
+          <div class="who">AUDIT THE TEAM</div>
+          <div class="acts">
+            <code class="hot">review_decision</code><code>override_classification</code>
+            <code class="hot">flag_inconsistency</code><code>explain_team_behavior</code>
+          </div>
+        </div>
+      </div>
+      <div class="f1meter">
+        <span class="lbl">TEAM F1 REWARD</span>
+        <div class="bar"><div class="fill" id="f1fill"></div></div>
+        <span class="val" id="f1val">0.00</span>
+      </div>
+    </div>
+
+    <div class="grid3" style="margin-top:2.5rem">
+      <div class="card a rv">
+        <div class="idx"><span>EXTERNAL PRESSURE</span><span class="co">ACTORS</span></div>
+        <h3>NPC Actors</h3>
+        <p>Three non-player actors push unsolicited messages into role inboxes: a ThreatIntelFeed drops fresh IOCs, a ComplianceOfficer demands justifications, an EndUserReporter emails "I clicked a link". The agent must discover, triage and respond — mid-investigation.</p>
+        <span class="file">actors/ · GET /actors/messages</span>
+      </div>
+      <div class="card a rv">
+        <div class="idx"><span>CONTEXT SHIFT</span><span class="co">DRIFT</span></div>
+        <h3>Policy Drift</h3>
+        <p>The rulebook changes mid-episode — a field gets renamed, a severity threshold moves, admin accounts suddenly require escalation. Graders honour the policy version <em>active at action time</em>, so rules that changed at step 30 can't retroactively re-score step 1.</p>
+        <span class="file">scenarios/policy_drift.py · GET /policy/history</span>
+      </div>
+      <div class="card a rv">
+        <div class="idx"><span>SHIFTING RUBRIC</span><span class="co">JUDGES</span></div>
+        <h3>Rotating Experts</h3>
+        <p>A rotating expert panel — Dr. Accuracy, Speedy Sam, Thorough Thea — scores episodes with drifting rubric weights. The agent is hinted which expert is judging and must adapt its style: precision, speed, or depth.</p>
+        <span class="file">graders/expert_panel.py · GET /experts/current</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 04 TASKS ============ -->
+<section id="tasks">
+  <div class="wrap">
+    <div class="sechead rv">
+      <span class="secnum">04 / SCENARIOS</span>
+      <h2>Eight Tasks</h2>
+      <span class="tag">3 ORDERS OF MAGNITUDE IN HORIZON</span>
+    </div>
+    <p class="lede rv">
+      The task ladder spans three orders of magnitude in episode horizon and two in queue size.
+      The same agent has to scale from a one-alert triage to a five-phase APT campaign —
+      initial access → persistence → lateral movement → exfiltration → cleanup — with sparse,
+      delayed narrative rewards.
+    </p>
+    <div class="tblwrap rv">
+      <table>
+        <thead><tr><th>Task</th><th>Mode</th><th>Alerts</th><th>Max steps</th><th>Difficulty</th><th>What it stresses</th></tr></thead>
+        <tbody>
+          <tr><td><code>phishing</code></td><td><span class="modechip">SOLO</span></td><td>1</td><td>15</td><td><span class="diff easy">EASY</span></td><td>Single-alert triage fundamentals</td></tr>
+          <tr><td><code>lateral_movement</code></td><td><span class="modechip">SOLO</span></td><td>5</td><td>30</td><td><span class="diff med">MEDIUM</span></td><td>Correlating alerts into one intrusion</td></tr>
+          <tr><td><code>queue_management</code></td><td><span class="modechip">SOLO</span></td><td>20</td><td>60</td><td><span class="diff hard">HARD</span></td><td>Prioritisation under alert fatigue</td></tr>
+          <tr><td><code>insider_threat</code></td><td><span class="modechip">SOLO</span></td><td>30</td><td>80</td><td><span class="diff expert">EXPERT</span></td><td>Low-signal behavioural detection</td></tr>
+          <tr><td><code>team_phishing_escalation</code></td><td><span class="modechip team">TEAM</span></td><td>1</td><td>68</td><td><span class="diff easy">EASY</span></td><td>Full T1 → T2 → Manager handoff</td></tr>
+          <tr><td><code>team_lateral_team</code></td><td><span class="modechip team">TEAM</span></td><td>8</td><td>68</td><td><span class="diff med">MEDIUM</span></td><td>Coordination under load</td></tr>
+          <tr><td><code>apt_campaign</code></td><td><span class="modechip">SOLO</span></td><td>60+</td><td><b style="color:var(--red)">250</b></td><td><span class="diff super">SUPER-HARD</span></td><td>Long-horizon planning, sparse delayed reward</td></tr>
+          <tr><td><code>red_team_generated</code></td><td><span class="modechip team">TEAM</span></td><td>dynamic</td><td>30–250</td><td><span class="diff adaptive">ADAPTIVE</span></td><td>Generalisation vs. an evolving adversary</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 05 REWARD ============ -->
+<section id="reward">
+  <div class="wrap">
+    <div class="sechead rv">
+      <span class="secnum">05 / SIGNAL DESIGN</span>
+      <h2>Reward &amp; Integrity</h2>
+      <span class="tag">RLVR — VERIFIABLE BY CONSTRUCTION</span>
+    </div>
+    <p class="lede rv">
+      Dense step rewards pay for productive investigation; the final score on submit is the
+      grader score (0–1) scaled by an efficiency multiplier. Solve early and keep everything;
+      drag past 90% of the step budget and the score is taxed to ×0.70.
+      <strong>A reward function is only as good as the exploits it can't be farmed by</strong> —
+      six exploit vectors were found, patched, and locked in as regression tests.
+    </p>
+
+    <div class="split">
+      <div class="tblwrap rv">
+        <table>
+          <thead><tr><th>Action</th><th>Reward</th></tr></thead>
+          <tbody>
+            <tr><td>Correct indicator enrichment</td><td><span class="pos">+0.08</span></td></tr>
+            <tr><td>Correct classification</td><td><span class="pos">+0.15</span></td></tr>
+            <tr><td>Escalate true positive</td><td><span class="pos">+0.10</span></td></tr>
+            <tr><td>Host isolation — true positive</td><td><span class="pos">+0.20</span></td></tr>
+            <tr><td>Legitimate <code>flag_inconsistency</code></td><td><span class="pos">+0.15</span></td></tr>
+            <tr><td>Escalate false positive</td><td><span class="neg">−0.05</span></td></tr>
+            <tr><td>Over-escalation (&gt;25% of alerts)</td><td><span class="neg">−0.08</span></td></tr>
+            <tr><td>Host isolation — false positive</td><td><span class="neg">−0.15</span></td></tr>
+            <tr><td>Spurious <code>flag_inconsistency</code></td><td><span class="neg">−0.15</span></td></tr>
+            <tr><td>Duplicate <code>close_case</code></td><td><span class="neg">−0.02</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="tblwrap rv">
+        <table>
+          <thead><tr><th>#</th><th>Exploit vector</th><th>Fix — locked by regression test</th></tr></thead>
+          <tbody>
+            <tr class="defrow"><td>VEC-01</td><td>NOOP team-F1 farming</td><td>Team F1 is delta-based; consumed once on classification</td></tr>
+            <tr class="defrow"><td>VEC-02</td><td>Duplicate <code>close_case</code></td><td>Repeat close on the same alert is penalized</td></tr>
+            <tr class="defrow"><td>VEC-03</td><td>Over-escalation flooding</td><td>&gt;25% escalation rate → per-step role penalty</td></tr>
+            <tr class="defrow"><td>VEC-04</td><td>Phase-complete short-circuit</td><td>Empty <code>phase_complete</code> ends the episode at zero</td></tr>
+            <tr class="defrow"><td>VEC-05</td><td>Spurious manager flags</td><td>Flagging consistent decisions is penalized</td></tr>
+            <tr class="defrow"><td>VEC-06</td><td>Judge-fallback bypass</td><td>API-free heuristic fallback bounded to (0.001, 0.999)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="chartpair">
+      <div class="chart rv">
+        <h4>Efficiency multiplier — step budget tax</h4>
+        <svg viewBox="0 0 420 190" width="100%" role="img" aria-label="Efficiency multiplier step chart">
+          <line x1="40" y1="20" x2="40" y2="150" stroke="#25334a" stroke-width="1"/>
+          <line x1="40" y1="150" x2="400" y2="150" stroke="#25334a" stroke-width="1"/>
+          <text x="12" y="34" fill="#5c6b80" font-size="10">×1.0</text>
+          <text x="12" y="90" fill="#5c6b80" font-size="10">×0.85</text>
+          <text x="12" y="128" fill="#5c6b80" font-size="10">×0.70</text>
+          <path d="M40 30 H310 V78 H364 V118 H400" fill="none" stroke="#3ce8b0" stroke-width="2.5" stroke-dasharray="600" stroke-dashoffset="600">
+            <animate attributeName="stroke-dashoffset" from="600" to="0" dur="1.6s" fill="freeze" begin="0s"/>
+          </path>
+          <text x="150" y="172" fill="#5c6b80" font-size="10">≤75% budget</text>
+          <text x="306" y="172" fill="#ffb454" font-size="10">≤90%</text>
+          <text x="368" y="172" fill="#ff4d5e" font-size="10">&gt;90%</text>
+        </svg>
+      </div>
+      <div class="chart rv">
+        <h4>Red-team curriculum — win-rate equilibrium (theme: self-improvement)</h4>
+        <svg viewBox="0 0 420 190" width="100%" role="img" aria-label="Curriculum oscillation around 0.5 win rate">
+          <line x1="40" y1="20" x2="40" y2="150" stroke="#25334a" stroke-width="1"/>
+          <line x1="40" y1="150" x2="400" y2="150" stroke="#25334a" stroke-width="1"/>
+          <line x1="40" y1="85" x2="400" y2="85" stroke="#5c6b80" stroke-width="1" stroke-dasharray="4 4"/>
+          <text x="8" y="89" fill="#5c6b80" font-size="10">0.50</text>
+          <text x="8" y="26" fill="#5c6b80" font-size="10">0.75</text>
+          <text x="8" y="152" fill="#5c6b80" font-size="10">0.25</text>
+          <path d="M40 40 C70 40 75 120 105 120 C135 120 140 60 170 60 C200 60 205 105 235 105 C265 105 270 72 300 72 C330 72 335 95 365 95 C380 95 390 88 400 87"
+            fill="none" stroke="#ff4d5e" stroke-width="2.5" stroke-dasharray="700" stroke-dashoffset="700">
+            <animate attributeName="stroke-dashoffset" from="700" to="0" dur="2.4s" fill="freeze"/>
+          </path>
+          <text x="140" y="172" fill="#5c6b80" font-size="10">blue &gt;75% → harder · blue &lt;45% → easier</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 06 TRAINING ============ -->
+<section id="training">
+  <div class="wrap">
+    <div class="sechead rv">
+      <span class="secnum">06 / LEARNING LOOP</span>
+      <h2>GRPO Training</h2>
+      <span class="tag">PER-STEP · NOT TRAJECTORY-AVERAGED</span>
+    </div>
+    <p class="lede rv">
+      Training uses <strong>real per-step GRPO</strong>. Each dataset row is a single decision
+      point; the reward function replays the environment deterministically to that step
+      (same seed → same state), applies the model's one action, and returns the environment's
+      immediate blended reward. No full-episode oracle rollouts, no averaged trajectories.
+    </p>
+
+    <div class="split">
+      <div class="rv">
+        <pre class="code" data-label="train_grpo.py — core idea"><span class="cm"># one dataset row = one decision point</span>
+row    = (observation@step_index, task_id, seed, step_index)
+
+<span class="cm"># reward = replay env to step_index, apply model action</span>
+env.reset(task_id, seed)
+replay_to(step_index)              <span class="cm"># deterministic</span>
+reward = env.step(model_action).reward   <span class="ok">← immediate signal</span>
+
+<span class="cm"># train on Colab / Kaggle T4</span>
+$ python train_grpo.py --role tier1 \
+    --model <span class="s">Qwen/Qwen2.5-0.5B</span> --unsloth
+
+<span class="cm"># dry-run oracle baseline, no GPU needed</span>
+$ python train_grpo.py --role tier1 --dry-run</pre>
+        <p style="color:var(--dim);font-size:.9rem;margin-top:1.1rem">
+          Stack: <strong style="color:var(--ink)">Unsloth 4-bit QLoRA · TRL GRPO · Qwen2.5-0.5B</strong>.
+          The trained tier-1 adapter is published at
+          <a href="https://huggingface.co/rohitcraftsyt/soc-grpo-tier1" target="_blank" rel="noopener">huggingface.co/rohitcraftsyt/soc-grpo-tier1</a>
+          and the full walkthrough is a one-click
+          <a href="https://colab.research.google.com/github/ROHITCRAFTSYT/-Metas-OpenEnv-2/blob/main/soc_triage_gym_v2_training.ipynb" target="_blank" rel="noopener">Colab notebook</a>.
+        </p>
+      </div>
+      <div class="chart rv">
+        <h4>The learnable gap — tier-1, 20 episodes</h4>
+        <div class="hbar random">
+          <div class="lab"><span>RANDOM POLICY — UNTRAINED FLOOR</span><span class="v">0.063</span></div>
+          <div class="rail"><div class="fill" data-w="6.3%"></div></div>
+        </div>
+        <div class="hbar oracle">
+          <div class="lab"><span>SCRIPTED ORACLE — CEILING</span><span class="v">0.900</span></div>
+          <div class="rail"><div class="fill" data-w="90%"></div></div>
+        </div>
+        <div class="gapnote">Δ = <b>+0.836</b> — the measurable headroom an RL policy can close. Every training claim lives inside this band.</div>
+        <p style="color:var(--dim);font-size:.85rem;margin-top:1.4rem">
+          The environment bounds the problem on both sides: a uniform-random policy is the floor
+          an untrained LLM competes against; the scripted oracle is the ceiling a trained one
+          should approach. Both curves are committed to the repo and regenerate deterministically.
+        </p>
+      </div>
+    </div>
+
+    <h3 style="font-family:var(--disp);font-size:1.7rem;text-transform:uppercase;margin:3rem 0 1.2rem" class="rv">Honest limitations</h3>
+    <div class="limits rv">
+      <div class="limit"><span class="no">LIM-01</span><p><b>Only tier-1 is RL-trained end-to-end.</b> Tier-2 and Manager are played by the scripted oracle during tier-1 GRPO — a staged curriculum, by design.</p></div>
+      <div class="limit"><span class="no">LIM-02</span><p><b>The published run underfit.</b> 27 optimizer steps on a free T4 wasn't enough to move a small model off its baseline. The loss decreases, the checkpoint reloads, the eval is deterministic — the pipeline is ready; the compute wasn't. A10G projects ~5h for the full config.</p></div>
+      <div class="limit"><span class="no">LIM-03</span><p><b>The manager-judge fallback is a keyword heuristic.</b> The LLM path is primary; the fallback is bounded and tested, but not production-grade.</p></div>
+      <div class="limit"><span class="no">LIM-04</span><p><b>The narrative grader is length-sensitive, not semantics-sensitive.</b> Token caps limit abuse, but a semantic LLM judge is future work.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ MEETUP BAND ============ -->
+<div class="band">
+  <div class="wrap">
+    <div class="mca rv">
+      <span class="pin">// WHY IT FITS THIS MEETUP</span>
+      <h3><span>Memory</span></h3>
+      <p>Episode state, the ticket bus, and <code>/policy/history</code> are explicit, queryable memory. Nothing lives in a prompt — an agent that forgets what Tier-1 escalated, or which policy version was active at step 12, pays for it in reward.</p>
+    </div>
+    <div class="mca rv">
+      <span class="pin">// WHY IT FITS THIS MEETUP</span>
+      <h3><span>Context</span></h3>
+      <p>Context isn't static here — it drifts. Mid-episode policy changes, unsolicited NPC messages, and 250-step horizons force agents to manage context windows the way real analysts manage a shift: triage what matters, discard what doesn't.</p>
+    </div>
+    <div class="mca rv">
+      <span class="pin">// WHY IT FITS THIS MEETUP</span>
+      <h3><span>Agents</span></h3>
+      <p>Not one agent — a team of three with an adversary underneath. Coordination is rewarded, selfishness is penalized, and the red-team generator is itself an agent learning to break the defenders.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 07 API ============ -->
+<section id="api">
+  <div class="wrap">
+    <div class="sechead rv">
+      <span class="secnum">07 / SURFACE</span>
+      <h2>API Reference</h2>
+      <span class="tag">EVERY CLAIM IS AN ENDPOINT</span>
+    </div>
+    <p class="lede rv">
+      Everything the environment claims is machine-checkable over HTTP — including the theme
+      coverage manifest and the list of active reward-hacking defenses.
+    </p>
+    <div class="tblwrap rv">
+      <table>
+        <thead><tr><th>Endpoint</th><th>Method</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><code>/health</code></td><td>GET</td><td>Liveness check</td></tr>
+          <tr><td><code>/tasks</code></td><td>GET</td><td>Task catalogue</td></tr>
+          <tr><td><code>/reset</code></td><td>POST</td><td>Start an episode (task_id, seed, mode)</td></tr>
+          <tr><td><code>/step</code></td><td>POST</td><td>Submit one action, receive obs + reward</td></tr>
+          <tr><td><code>/state</code></td><td>GET</td><td>Current environment state</td></tr>
+          <tr><td><code>/grader</code></td><td>POST</td><td>Per-component reward breakdown</td></tr>
+          <tr><td><code>/baseline</code></td><td>POST</td><td>Run the scripted oracle</td></tr>
+          <tr><td><code>/generate_scenario</code></td><td>POST</td><td>Generate an adversarial red-team scenario</td></tr>
+          <tr><td><code>/inbox/{role}</code></td><td>GET</td><td>Ticket inbox for tier1 / tier2 / manager</td></tr>
+          <tr><td><code>/actors/messages</code></td><td>GET</td><td>External NPC actor inbox</td></tr>
+          <tr><td><code>/policy/current</code> · <code>/policy/history</code></td><td>GET</td><td>Active policy version &amp; drift history</td></tr>
+          <tr><td><code>/reward/config</code> · <code>/reward/token_bonus</code></td><td>GET/POST</td><td>Token-scaled reward preview</td></tr>
+          <tr><td><code>/experts/current</code> · <code>/experts/rotate</code> · <code>/experts/panel</code></td><td>GET/POST</td><td>Rotating expert judge panel</td></tr>
+          <tr><td><code>/tickets</code> · <code>/tickets/open</code> · <code>/tickets/{id}/resolve</code></td><td>GET/POST</td><td>Enterprise ticketing with SLA clocks</td></tr>
+          <tr><td><code>/tickets/can_disable_user</code></td><td>GET</td><td>Cross-app rule: <code>disable_user</code> requires an open P1/P2 ticket</td></tr>
+          <tr><td><code>/themes/coverage</code></td><td>GET</td><td>Machine-checkable coverage + defense manifest</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 08 DEMO ============ -->
+<section id="demo">
+  <div class="wrap">
+    <div class="sechead rv">
+      <span class="secnum">08 / LIVE DEMO</span>
+      <h2>Run It Yourself</h2>
+      <span class="tag">~60 SECONDS TO FIRST EPISODE</span>
+    </div>
+
+    <div class="split" style="margin-bottom:2.5rem">
+      <div class="rv">
+        <pre class="code" data-label="quickstart"><span class="cm"># install + run the full 5-beat demo in one command</span>
+$ pip install -e <span class="s">".[dev]"</span>
+$ python demo.py
+
+<span class="cm"># or start the server and drive it manually</span>
+$ uvicorn server.app:app --port 7860
+
+<span class="cm"># start a team episode — deterministic, seed 42</span>
+$ curl -X POST localhost:7860/reset \
+    -d <span class="s">'{"task_id":"team_lateral_team",
+        "seed":42, "mode":"team"}'</span></pre>
+      </div>
+      <div class="rv prose">
+        <p>
+          The demo script hits five beats in sequence — the same arc as a live presentation:
+          establish the baseline, open up the grader, show the trained policy, measure the
+          delta, and prove the safeguards are on.
+        </p>
+        <p>
+          Everything is deterministic: <strong>same seed, same episode, same score</strong> —
+          so the demo you rehearse is the demo you give.
+        </p>
+      </div>
+    </div>
+
+    <div class="beats rv">
+      <div class="beat">
+        <div class="num"></div>
+        <div><h3>Baseline attempt</h3><p>Run the scripted oracle on the phishing task — establishes the ceiling behaviour.</p>
+        <code class="inline">python inference.py --task phishing --seed 42</code></div>
+      </div>
+      <div class="beat">
+        <div class="num"></div>
+        <div><h3>Verifier breakdown</h3><p>Inspect per-component rewards straight from the grader — the score is decomposable, not a black box.</p>
+        <code class="inline">curl -X POST localhost:7860/grader -d '{"task_id":"phishing"}'</code></div>
+      </div>
+      <div class="beat">
+        <div class="num"></div>
+        <div><h3>Trained attempt</h3><p>Load the GRPO-trained checkpoint and run the exact same seed.</p>
+        <code class="inline">FastLanguageModel.from_pretrained("rohitcraftsyt/soc-grpo-tier1")</code></div>
+      </div>
+      <div class="beat">
+        <div class="num"></div>
+        <div><h3>Measurable delta</h3><p>Compare rewards end-to-end on the same deterministic episode.</p>
+        <code class="inline">python benchmark.py --task phishing --seed 42</code></div>
+      </div>
+      <div class="beat">
+        <div class="num"></div>
+        <div><h3>Safeguards on display</h3><p>View the active reward-hacking defenses and the machine-checkable theme manifest.</p>
+        <code class="inline">curl localhost:7860/themes/coverage | jq</code></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ENDPOINT MARQUEE ============ -->
+<div class="marquee rev" aria-hidden="true" style="--mq-dur:34s;margin-top:6rem">
+  <div class="marquee-track" data-mq>
+    <span class="mq-item"><span class="sev ok">POST</span> <b>/reset</b><span class="sep">▪</span></span>
+    <span class="mq-item"><span class="sev ok">POST</span> <b>/step</b><span class="sep">▪</span></span>
+    <span class="mq-item"><span class="sev warn">GET</span> <b>/state</b><span class="sep">▪</span></span>
+    <span class="mq-item"><span class="sev ok">POST</span> <b>/grader</b><span class="sep">▪</span></span>
+    <span class="mq-item"><span class="sev warn">GET</span> <b>/inbox/{role}</b><span class="sep">▪</span></span>
+    <span class="mq-item"><span class="sev warn">GET</span> <b>/actors/messages</b><span class="sep">▪</span></span>
+    <span class="mq-item"><span class="sev warn">GET</span> <b>/policy/history</b><span class="sep">▪</span></span>
+    <span class="mq-item"><span class="sev ok">POST</span> <b>/generate_scenario</b><span class="sep">▪</span></span>
+    <span class="mq-item"><span class="sev warn">GET</span> <b>/experts/current</b><span class="sep">▪</span></span>
+    <span class="mq-item"><span class="sev warn">GET</span> <b>/tickets/can_disable_user</b><span class="sep">▪</span></span>
+    <span class="mq-item"><span class="sev warn">GET</span> <b>/themes/coverage</b><span class="sep">▪</span></span>
+  </div>
+</div>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <div class="wrap foot">
+    <div>
+      <div class="brand">SOC-Triage<span>-Gym</span></div>
+      <p style="font-family:var(--mono);font-size:.7rem;color:var(--faint);margin-top:.7rem;letter-spacing:.08em">
+        TRAIN THE TEAM, NOT THE ANALYST.
+      </p>
+    </div>
+    <div class="links">
+      <a href="https://github.com/ROHITCRAFTSYT/SOC-Triage-Gym" target="_blank" rel="noopener">↗ GitHub — source</a>
+      <a href="https://huggingface.co/spaces/rohitcraftsyt/openenv2" target="_blank" rel="noopener">↗ HuggingFace Space — live env</a>
+      <a href="https://huggingface.co/rohitcraftsyt/soc-grpo-tier1" target="_blank" rel="noopener">↗ Trained model — soc-grpo-tier1</a>
+      <a href="https://colab.research.google.com/github/ROHITCRAFTSYT/-Metas-OpenEnv-2/blob/main/soc_triage_gym_v2_training.ipynb" target="_blank" rel="noopener">↗ Colab — training notebook</a>
+    </div>
+    <div class="links">
+      <span style="color:var(--faint);font-size:.66rem;letter-spacing:.12em">STACK</span>
+      <span style="color:var(--dim)">Python · FastAPI · Pydantic v2</span>
+      <span style="color:var(--dim)">TRL GRPO · Unsloth QLoRA</span>
+      <span style="color:var(--dim)">MITRE ATT&amp;CK · OpenEnv spec</span>
+      <span style="color:var(--dim)">Docker · HF Spaces</span>
+    </div>
+    <div class="fine">
+      <span>MIT LICENSE // 111 TESTS PASSING // DETERMINISTIC BY DESIGN</span>
+      <span>PRESENTED AT CCCL × SURREALDB — MEMORY, CONTEXT &amp; AGENTS · BENGALURU</span>
+    </div>
+  </div>
+</footer>
+
+</main>
+
+<script>
+/* ---- hero title: per-letter reveal ---- */
+(function(){
+  const h1 = document.querySelector('.hero h1');
+  let i = 0;
+  function split(node){
+    [...node.childNodes].forEach(n=>{
+      if(n.nodeType === 3){
+        const frag = document.createDocumentFragment();
+        [...n.textContent].forEach(ch=>{
+          if(ch === ' '){ frag.appendChild(document.createTextNode(' ')); return; }
+          const s = document.createElement('span');
+          s.className = 'ch'; s.style.setProperty('--i', i++); s.textContent = ch;
+          frag.appendChild(s);
+        });
+        node.replaceWith ? n.replaceWith(frag) : null;
+      } else if(n.nodeType === 1){ split(n); }
+    });
+  }
+  split(h1);
+})();
+
+/* ---- infinite slider: duplicate track for seamless loop ---- */
+document.querySelectorAll('[data-mq]').forEach(track=>{
+  track.innerHTML += track.innerHTML;
+});
+
+/* ---- statement: word-by-word scroll reveal ---- */
+(function(){
+  const st = document.getElementById('statement');
+  if(!st) return;
+  const h = st.querySelector('[data-words]');
+  let w = 0;
+  function splitWords(node){
+    [...node.childNodes].forEach(n=>{
+      if(n.nodeType === 3){
+        const frag = document.createDocumentFragment();
+        n.textContent.split(/(\s+)/).forEach(part=>{
+          if(!part.trim()){ frag.appendChild(document.createTextNode(' ')); return; }
+          const s = document.createElement('span');
+          s.className = 'w'; s.style.setProperty('--i', w++); s.textContent = part;
+          frag.appendChild(s);
+        });
+        n.replaceWith(frag);
+      } else if(n.nodeType === 1){
+        n.classList.add('w'); n.style.setProperty('--i', w++);
+      }
+    });
+  }
+  splitWords(h);
+  new IntersectionObserver((es,o)=>{
+    es.forEach(e=>{ if(e.isIntersecting){ st.classList.add('in'); o.disconnect(); } });
+  },{threshold:.35}).observe(st);
+})();
+
+/* ---- animated count-up numbers ---- */
+const cntio = new IntersectionObserver(es=>{
+  es.forEach(e=>{
+    if(!e.isIntersecting) return;
+    cntio.unobserve(e.target);
+    const el = e.target, target = +el.dataset.count, t0 = performance.now(), dur = 1400;
+    (function tick(now){
+      const p = Math.min((now - t0)/dur, 1), ease = 1 - Math.pow(1-p, 3);
+      el.textContent = Math.round(target * ease);
+      if(p < 1) requestAnimationFrame(tick);
+    })(t0);
+  });
+},{threshold:.5});
+document.querySelectorAll('[data-count]').forEach(el=>cntio.observe(el));
+
+/* ---- spotlight glow: cursor-tracking cards ---- */
+document.querySelectorAll('.card,.abox,.beat,.limit,.stat,.mca').forEach(el=>{
+  el.classList.add('glow');
+  if(el.classList.contains('abox') && el.classList.contains('red')) el.style.setProperty('--glow-c','#ff4d5e1f');
+  else if(el.classList.contains('abox') && el.classList.contains('amber')) el.style.setProperty('--glow-c','#ffb4541c');
+  el.addEventListener('mousemove', ev=>{
+    const r = el.getBoundingClientRect();
+    el.style.setProperty('--mx', (ev.clientX - r.left) + 'px');
+    el.style.setProperty('--my', (ev.clientY - r.top) + 'px');
+  });
+});
+
+/* ---- scroll progress + active nav ---- */
+const prog = document.getElementById('progress');
+const navLinks = [...document.querySelectorAll('.classbar nav a')];
+const secByHash = {};
+navLinks.forEach(a=>{ const s = document.querySelector(a.getAttribute('href')); if(s) secByHash[a.getAttribute('href')] = {a, s}; });
+addEventListener('scroll', ()=>{
+  const h = document.documentElement;
+  prog.style.width = (h.scrollTop / (h.scrollHeight - h.clientHeight) * 100) + '%';
+  let cur = null;
+  Object.values(secByHash).forEach(({a,s})=>{ if(s.getBoundingClientRect().top < innerHeight*.4) cur = a; });
+  navLinks.forEach(a=>a.classList.toggle('on', a === cur));
+},{passive:true});
+
+/* ---- scroll reveal ---- */
+const io = new IntersectionObserver(es=>{
+  es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} });
+},{threshold:.12});
+document.querySelectorAll('.rv').forEach(el=>io.observe(el));
+
+/* ---- hero terminal typing ---- */
+const LINES = [
+  {t:'$ ', c:'p', cmd:'python demo.py', type:true},
+  {t:'[boot]  SOC-Triage-Gym v3 — uvicorn on :7860', c:'out'},
+  {t:'[reset] task=team_lateral_team seed=42 mode=team', c:'out'},
+  {t:'[phase] TRIAGE — tier1 online · 8 alerts in queue', c:'warn'},
+  {t:'[step]  tier1 → enrich_indicator(185.220.x.x)   reward +0.08', c:'out'},
+  {t:'[step]  tier1 → classify_alert(TRUE_POSITIVE)   reward +0.15', c:'out'},
+  {t:'[bus]   ticket #T-0042 → tier2 inbox', c:'ok'},
+  {t:'[phase] RESPONSE — tier2 online', c:'warn'},
+  {t:'[step]  tier2 → isolate_host(WS-114)            reward +0.20', c:'out'},
+  {t:'[actor] EndUserReporter: "hey, I clicked a link…"', c:'err'},
+  {t:'[phase] OVERSIGHT — manager audit', c:'warn'},
+  {t:'[done]  episode score 0.90 · team_F1 0.87 · defenses: 6/6 active', c:'ok'},
+];
+const term = document.getElementById('term');
+let li = 0;
+function nextLine(){
+  if(li >= LINES.length){
+    const p = document.createElement('div');
+    p.className='ln';
+    p.innerHTML = '<span class="p">$ </span><span class="cursor"></span>';
+    term.appendChild(p);
+    return;
+  }
+  const L = LINES[li++];
+  const div = document.createElement('div');
+  div.className = 'ln';
+  term.appendChild(div);
+  if(L.type){
+    div.innerHTML = '<span class="p">'+L.t+'</span><span class="cmd"></span><span class="cursor"></span>';
+    const tgt = div.querySelector('.cmd');
+    let i = 0;
+    const iv = setInterval(()=>{
+      tgt.textContent = L.cmd.slice(0, ++i);
+      if(i >= L.cmd.length){ clearInterval(iv); div.querySelector('.cursor').remove(); setTimeout(nextLine, 300); }
+    }, 55);
+  } else {
+    div.innerHTML = '<span class="'+L.c+'">'+L.t+'</span>';
+    setTimeout(nextLine, 240 + Math.random()*260);
+  }
+}
+setTimeout(nextLine, 700);
+
+/* ---- team F1 meter ---- */
+const f1io = new IntersectionObserver(es=>{
+  es.forEach(e=>{
+    if(!e.isIntersecting) return;
+    f1io.disconnect();
+    const fill = document.getElementById('f1fill');
+    const val  = document.getElementById('f1val');
+    fill.style.width = '87%';
+    const t0 = performance.now();
+    (function tick(now){
+      const p = Math.min((now - t0)/2200, 1);
+      val.textContent = (0.87 * (1-Math.pow(1-p,3))).toFixed(2);
+      if(p < 1) requestAnimationFrame(tick);
+    })(t0);
+  });
+},{threshold:.4});
+const f1el = document.getElementById('f1fill');
+if(f1el) f1io.observe(f1el.closest('.f1meter'));
+
+/* ---- gap chart bars ---- */
+const bario = new IntersectionObserver(es=>{
+  es.forEach(e=>{
+    if(!e.isIntersecting) return;
+    e.target.querySelectorAll('.fill[data-w]').forEach(f=>{ f.style.width = f.dataset.w; });
+    bario.unobserve(e.target);
+  });
+},{threshold:.4});
+document.querySelectorAll('.chart').forEach(c=>bario.observe(c));
+</script>
+</body>
+</html>
