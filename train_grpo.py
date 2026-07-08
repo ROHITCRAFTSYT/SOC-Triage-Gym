@@ -43,6 +43,14 @@ import httpx
 SERVER_URL = os.getenv("SERVER_URL", "http://localhost:7860")
 HF_TOKEN = os.getenv("HF_TOKEN")
 
+# Windows consoles default to cp1252 and crash on the Unicode glyphs printed
+# below; force UTF-8 so output is identical everywhere.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
+    except (AttributeError, ValueError):
+        pass
+
 # Team tasks ordered by complexity — train easier first.
 # Overridable via SOC_TRAIN_TASKS env var (comma-separated) for quick-mode training
 # on T4 where the full 2-task curriculum would take >10 hours per role.

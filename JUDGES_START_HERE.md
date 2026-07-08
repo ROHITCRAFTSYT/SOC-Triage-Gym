@@ -14,8 +14,8 @@ Every other submission trains one policy. This one trains a **team** with a tick
 
 ```bash
 # 1. Clone + start env (port 7860)
-git clone https://github.com/ROHITCRAFTSYT/-Metas-OpenEnv-2.git && cd -Metas-OpenEnv-2
-pip install -r requirements.txt
+git clone https://github.com/ROHITCRAFTSYT/SOC-Triage-Gym.git && cd SOC-Triage-Gym
+pip install -e ".[dev]"
 uvicorn server.app:app --port 7860 &
 
 # 2. Machine-checkable theme manifest — every claim is code-backed
@@ -42,7 +42,7 @@ python demo.py
 
 ### Verifiable facts
 
-- **108 tests passing.** `pytest tests/ -q`. Includes 21 theme-coverage regression tests.
+- **111 tests passing (1 skipped).** `pytest tests/ -q`. Includes 21 theme-coverage regression tests.
 - **Reward-hacking defenses** are asserted as tests, not just claimed: see [tests/test_themes_coverage.py](tests/test_themes_coverage.py).
 - **Deterministic**: same seed → same score. Verified in [benchmark.py](benchmark.py).
 - **Trained artifacts shipped**: [trained_vs_baseline.png](trained_vs_baseline.png), [training_summary.json](training_summary.json), LoRA adapter in `checkpoints/soc_grpo_tier1/`.

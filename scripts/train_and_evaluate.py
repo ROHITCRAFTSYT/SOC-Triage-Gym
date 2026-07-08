@@ -26,6 +26,14 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 os.chdir(ROOT)
 
+# Windows consoles default to cp1252 and crash on the Unicode glyphs printed
+# below; force UTF-8 so output is identical everywhere.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
+    except (AttributeError, ValueError):
+        pass
+
 
 def _check_deps() -> None:
     # Import order matters: unsloth MUST be imported before trl/peft/transformers
@@ -82,7 +90,7 @@ def ensure_server() -> subprocess.Popen | None:
     print(f"[server] starting uvicorn on {SERVER_URL} ...")
     proc = subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "server.app:app",
-         "--host", "0.0.0.0", "--port", "7860"],
+         "--host", "127.0.0.1", "--port", "7860"],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
     )
     for _ in range(30):

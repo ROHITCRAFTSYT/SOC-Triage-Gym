@@ -24,6 +24,14 @@ import time
 
 import httpx
 
+# Windows consoles default to cp1252 and crash on the Unicode glyphs (✓ → ①…)
+# printed below. Force UTF-8 so the demo runs identically everywhere.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
+    except (AttributeError, ValueError):
+        pass
+
 DEFAULT_SERVER = "http://localhost:7860"
 
 
@@ -42,7 +50,7 @@ def _ensure_server(url: str):
         print(f"→ Starting server subprocess on {url} ...")
         proc = subprocess.Popen(
             [sys.executable, "-m", "uvicorn", "server.app:app",
-             "--host", "0.0.0.0", "--port", "7860"],
+             "--host", "127.0.0.1", "--port", "7860"],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         )
         for _ in range(30):

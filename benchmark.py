@@ -17,6 +17,14 @@ import time
 
 import httpx
 
+# Windows consoles default to cp1252 and crash on the Unicode glyphs printed
+# below; force UTF-8 so output is identical everywhere.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
+    except (AttributeError, ValueError):
+        pass
+
 TASKS = ["phishing", "lateral_movement", "queue_management", "insider_threat", "apt_campaign"]
 DEFAULT_SEEDS = [42, 123, 256, 789, 1024]
 DEFAULT_SERVER = "http://localhost:7860"
@@ -34,7 +42,7 @@ def ensure_server(server_url: str) -> subprocess.Popen | None:
 
     print(f"[INFO] Starting server subprocess on {server_url} ...")
     proc = subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "7860"],
+        [sys.executable, "-m", "uvicorn", "server.app:app", "--host", "127.0.0.1", "--port", "7860"],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
@@ -62,6 +70,10 @@ def run_baseline(client: httpx.Client, task_id: str, seed: int) -> float:
 
 def main():
     parser = argparse.ArgumentParser(description="SOC-Triage-Gym reproducibility benchmark")
+    parser.add_argument("--task", type=str, default=None, choices=TASKS,
+                        help="Benchmark a single task instead of all five")
+    parser.add_argument("--seed", type=int, default=None,
+                        help="Single-seed shorthand (overrides --seeds)")
     parser.add_argument("--seeds", type=str, default=None,
                         help="Comma-separated seed list (default: 42,123,256,789,1024)")
     parser.add_argument("--server", type=str, default=DEFAULT_SERVER,
@@ -70,23 +82,27 @@ def main():
                         help="How many times to repeat each (task, seed) for determinism check (default: 2)")
     args = parser.parse_args()
 
-    seeds = [int(s) for s in args.seeds.split(",")] if args.seeds else DEFAULT_SEEDS
+    tasks = [args.task] if args.task else TASKS
+    if args.seed is not None:
+        seeds = [args.seed]
+    else:
+        seeds = [int(s) for s in args.seeds.split(",")] if args.seeds else DEFAULT_SEEDS
     server_url = args.server
     repeats = args.repeat
 
     server_proc = ensure_server(server_url)
 
     # results[task][seed] = [score_run1, score_run2, ...]
-    results: dict[str, dict[int, list[float]]] = {t: {s: [] for s in seeds} for t in TASKS}
+    results: dict[str, dict[int, list[float]]] = {t: {s: [] for s in seeds} for t in tasks}
 
-    total_runs = len(TASKS) * len(seeds) * repeats
+    total_runs = len(tasks) * len(seeds) * repeats
     run_idx = 0
     t0 = time.time()
 
     try:
         with httpx.Client(base_url=server_url, timeout=120) as client:
             for rep in range(repeats):
-                for task in TASKS:
+                for task in tasks:
                     for seed in seeds:
                         run_idx += 1
                         score = run_baseline(client, task, seed)
@@ -112,7 +128,7 @@ def main():
     print(f"|{'---|' * (len(seeds) + 2)}")
 
     task_means = []
-    for task in TASKS:
+    for task in tasks:
         cells = []
         row_scores = []
         for seed in seeds:
@@ -132,7 +148,7 @@ def main():
     print("## Determinism Check")
     print()
     all_deterministic = True
-    for task in TASKS:
+    for task in tasks:
         for seed in seeds:
             scores = results[task][seed]
             if len(set(round(s, 10) for s in scores)) > 1:
@@ -140,7 +156,7 @@ def main():
                 all_deterministic = False
 
     if all_deterministic:
-        print(f"  PASS: All {len(TASKS)*len(seeds)} (task, seed) pairs produced identical scores across {repeats} runs.")
+        print(f"  PASS: All {len(tasks)*len(seeds)} (task, seed) pairs produced identical scores across {repeats} runs.")
     else:
         print("  FAIL: Non-deterministic results detected!")
 
