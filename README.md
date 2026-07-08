@@ -177,6 +177,9 @@ pip install -e ".[dev]"
 # Fastest path — runs server + hits all 5 §19 judge-demo beats in one command:
 python demo.py
 
+# Presenting live? The presenter-paced five-act demo (Enter to advance):
+python demo_live.py          # --auto to rehearse · --train for the no-GPU dry-run
+
 # Or start the server and drive it manually:
 uvicorn server.app:app --host 0.0.0.0 --port 7860
 ```
@@ -297,7 +300,7 @@ The notebook is designed so **cells 1-7 run on free-tier Colab in ~8 minutes and
 | Environment Innovation | 40 % | 8 tasks, 3-role team with ticket bus + phase FSM, 250-step APT campaign, rotating expert judges, mid-episode schema drift, adaptive red-team curriculum | [`server/app.py`](server/app.py), [`server/environment.py`](server/environment.py), [`scenarios/red_team_generator.py`](scenarios/red_team_generator.py) |
 | Storytelling | 30 % | This README, dossier-styled landing page, `/ui/themes`, `/ui/metadata`, one-command `demo.py` | [live Space](https://huggingface.co/spaces/rohitcraftsyt/openenv2), [`demo.py`](demo.py) |
 | Showing Improvement | 20 % | Oracle ceiling (0.90) + random floor (0.063) committed; Δ=+0.836 learnable gap; Colab notebook produces the trained line on the same axes | `reward_comparison_baseline_tier1.png`, notebook cell 4b / cell 11 |
-| Reward & pipeline | 10 % | 6 layered programmatic graders, 108 pytest assertions including 6 named reward-hacking regressions, per-step GRPO (not trajectory-averaged) | [`graders/`](graders/), [`tests/`](tests/), [`train_grpo.py`](train_grpo.py) |
+| Reward & pipeline | 10 % | 6 layered programmatic graders, 111 pytest assertions including 6 named reward-hacking regressions, per-step GRPO (not trajectory-averaged) | [`graders/`](graders/), [`tests/`](tests/), [`train_grpo.py`](train_grpo.py) |
 
 ---
 
@@ -306,7 +309,7 @@ The notebook is designed so **cells 1-7 run on free-tier Colab in ~8 minutes and
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
 | `/health` | GET | Liveness check |
-| `/tasks` | GET | All 7 tasks |
+| `/tasks` | GET | All 8 tasks |
 | `/reset` | POST | Start episode |
 | `/step` | POST | Submit action |
 | `/state` | GET | Current state |
@@ -383,6 +386,8 @@ soc-triage-gym/
   inference.py      Scripted oracle baseline
   benchmark.py      Multi-seed determinism + score benchmark across 5 solo tasks
   demo.py           One-command judge demo (guide §19 format)
+  demo_live.py      Presenter-paced five-act live demo (see DEMO_RUNBOOK.md)
+  site/             Self-contained presentation website (index.html + classic.html)
   openenv.yaml      OpenEnv metadata
 ```
 
