@@ -168,7 +168,7 @@ const CUES = [
     h:"Train the team, not the analyst",
     do:"Scroll to the giant statement. Point at it. Stop there.",
     bullets:[
-      "3 tiers: <b>T1 triage · T2 contain · Manager audit</b>",
+      "3 roles: <b>T1 triage · T2 contain · Manager audit</b>",
       "between them: tickets, SLAs, drifting policies, “I clicked a link”",
       "<b>8 tasks</b> — 1 phishing alert (15 steps) → <b>250-step APT campaign</b>",
     ],
@@ -182,7 +182,7 @@ const CUES = [
     bullets:[
       "agent only sees the <b>REST API</b> → any training loop plugs in",
       "inside: phase FSM · ticket bus · 4 apps (SIEM/EDR/IAM/tickets)",
-      "“can't disable a user without a P1 ticket — <b>sound familiar?</b>”",
+      "“can't disable a user without a P1/P2 ticket — <b>sound familiar?</b>”",
       "grader <b>stack</b> — verifiable rewards, <b>no vibes</b>",
       "3 pressure boxes: red-team · policy drift · NPC actors",
     ],
@@ -219,16 +219,17 @@ const CUES = [
     next:"→ back to browser · scroll to Memory/Context/Agents"
   },
   {
-    lbl:"MEETUP FIT", time:"6:50 – 7:50",
-    h:"Memory · Context · Agents",
-    do:"Scroll to the 3-panel band. One line each.",
+    lbl:"BLR6 FIT · securing agents", time:"6:50 – 7:50",
+    h:"Securing AI Agents",
+    do:"Scroll UP to Reward Integrity — the 6-exploit table behind you.",
     bullets:[
-      "<b>Memory</b>: ticket bus + policy history = queryable, versioned",
-      "SurrealDB fit: tickets=<b>docs</b>, correlation=<b>graph</b>, drift=<b>time-versioned</b>",
-      "<b>Context</b>: it <b>drifts</b> — rules change, NPCs interrupt, 250-step horizons",
-      "<b>Agents</b>: a team of three + an adversary that co-evolves",
+      "tonight's theme runs <b>both directions</b>",
+      "agents <b>FOR</b> security: the AI SOC team",
+      "securing <b>THE AGENTS</b>: 6 reward exploits = <b>agent security</b>",
+      "red-team generator = adversary attacking the training",
+      "NPC inbox messages = <b>injection surface</b> · drift = shifting ground truth",
     ],
-    say:"Agents have to triage their context the way analysts triage alerts.",
+    say:"Deploy an agent never trained under attack, and the attack is simply scheduled for production.",
     next:"→ scroll to the outro “Train the team ↗”"
   },
   {
@@ -236,7 +237,7 @@ const CUES = [
     h:"Land it. Stand still.",
     do:"Outro screen. Slow down. Don't rush the last 4 lines.",
     bullets:[
-      "“11 years ago the right alert died in a handoff — <b>this city</b> → Minneapolis”",
+      "“13 years ago the right alert died in a handoff — <b>this city</b> → Minneapolis”",
       "“detection was never the failure. <b>The handoff was.</b>”",
       "“and as of now — the handoff is <b>trainable.</b>”",
       "“open · MIT · one repo · one command: <b>python demo.py</b>”",

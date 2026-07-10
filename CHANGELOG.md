@@ -9,7 +9,7 @@ loosely follows [Semantic Versioning](https://semver.org/).
 ### Added
 - `demo_live.py` — presenter-paced five-act live demo (reset → ticket bus →
   grader breakdown → learnable gap → safeguards) with `--auto` rehearsal and
-  `--train` dry-run modes; used for the BLR5 CCCL × SurrealDB meetup.
+  `--train` dry-run modes; used for the CCCL BLR6 (Securing AI Agents) meetup.
 - `site/` — self-contained presentation website (immersive scroll build in
   `index.html`, flat fallback in `classic.html`) plus `TALK_PLAN.md`,
   `DEMO_RUNBOOK.md`, and `DESIGN_ARCHITECTURE.md`.

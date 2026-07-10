@@ -457,8 +457,8 @@ If any of these surprise a judge, we'd rather have said so first.
 
 ## Presentation Kit
 
-Everything used to present this project live (BLR5 CCCL × SurrealDB — Memory,
-Context & Agents, Bengaluru):
+Everything used to present this project live (CCCL BLR6 — Securing AI Agents,
+Bengaluru):
 
 | Artifact | What it is |
 |---|---|
