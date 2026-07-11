@@ -1,5 +1,6 @@
 # STAGE SCRIPT: 10 Minutes, Word for Word
 
+**Talk title:** Train the Team, Not the Analyst: An RL Gym for Securing AI SOC Agents
 **Event:** Bengaluru | CCCL BLR6 — Securing AI Agents (Claude Community Events)
 **When/where:** Sun 12 Jul, 6:00–8:30 pm · WeWork Roshni Tech Hub, Marathahalli
 **Assets:** Website fullscreen (`http://localhost:8765`), Terminal B (`python demo_live.py`)

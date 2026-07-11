@@ -1,5 +1,6 @@
 # 10-Minute Talk Plan
 
+**Talk title:** Train the Team, Not the Analyst: An RL Gym for Securing AI SOC Agents
 **Event:** Bengaluru | CCCL BLR6 — Securing AI Agents (Claude Community Events)
 **Slot:** 10 minutes total (talk + live demo; assume Q&A is separate — if not, cut per §5)
 **Visual aid:** `site/index.html` fullscreen in a browser (serve with `python -m http.server 8765 --directory site`)
