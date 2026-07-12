@@ -1016,12 +1016,25 @@ def _heuristic_action(obs: dict, step: int) -> dict:
 # ---------------------------------------------------------------------------
 
 def main():
-    """Run baseline agent against all 3 tasks and print summary scores."""
+    """Run the baseline agent and print summary scores.
+
+    Default: all six solo+team tasks. --task limits to one; --seed overrides
+    the SEED env var.
+    """
+    import argparse
+
+    ap = argparse.ArgumentParser(description="SOC-Triage-Gym scripted baseline inference")
+    ap.add_argument("--task", default=None,
+                    help="run a single task_id instead of the full suite")
+    ap.add_argument("--seed", type=int, default=None,
+                    help=f"episode seed (default: SEED env var = {SEED})")
+    args = ap.parse_args()
+    seed = SEED if args.seed is None else args.seed
 
     print("SOC-Triage-Gym Baseline Inference")
     print(f"Server: {SERVER_URL}")
     print(f"Model: {MODEL_NAME or 'heuristic (no LLM configured)'}")
-    print(f"Seed: {SEED}")
+    print(f"Seed: {seed}")
 
     # Verify server is reachable; if not, start it as a subprocess
     server_process = None
@@ -1071,6 +1084,8 @@ def main():
         "team_phishing_escalation",
         "team_lateral_team",
     ]
+    if args.task:
+        tasks = [args.task]
     results = {}
     total_start = time.time()
 
@@ -1082,7 +1097,7 @@ def main():
                 task_id=task_id,
                 server_client=server_client,
                 llm_client=llm_client,
-                seed=SEED,
+                seed=seed,
                 verbose=True,
             )
             results[task_id] = task_score
