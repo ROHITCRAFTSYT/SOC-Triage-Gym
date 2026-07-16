@@ -186,7 +186,8 @@ class TestBaselineEndpoint:
         from models import AlertClassification, SOCAction
 
         test_client.post("/reset", json={"task_id": "phishing", "seed": 42})
-        action = app_mod._heuristic_baseline_action(app_mod._env)
+        default_env = app_mod._sessions.get_or_create().env
+        action = app_mod._heuristic_baseline_action(default_env)
 
         assert isinstance(action, SOCAction)
         assert action.action_type == "classify_alert"
