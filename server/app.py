@@ -74,7 +74,7 @@ from server.sessions import DEFAULT_SESSION_ID, SessionManager, SessionState
 _sessions = SessionManager()
 _baseline_agent = HeuristicBaselineAgent()
 
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 
 
 def get_session(

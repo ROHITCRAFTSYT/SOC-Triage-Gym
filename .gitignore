@@ -16,6 +16,8 @@ env/
 !.env.example
 *.log
 logs/
+runs/
+checkpoints/
 .DS_Store
 Thumbs.db
 .claude/
