@@ -162,6 +162,8 @@ soc-gym tasks                                     # task catalog
 soc-gym demo                                      # 5-beat guided demo
 soc-gym benchmark --task phishing --seeds 42,123  # deterministic benchmark
 soc-gym validate --url https://gym.example.com --api-key "$KEY"
+soc-gym train --role tier1 --curriculum --parallel-rewards 4   # see docs/TRAINING.md
+soc-gym runs                                      # list structured training runs
 ```
 
 ## Scaling notes
