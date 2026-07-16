@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "soc-triage-gym"
-version = "0.1.0"
+version = "0.2.0"
 description = "A reinforcement learning environment simulating a Security Operations Center (SOC) analyst workflow"
 requires-python = ">=3.11"
 authors = [
@@ -40,6 +40,7 @@ dev = [
 [project.scripts]
 server = "server.app:main"
 soc-triage-gym = "server.app:main"
+soc-gym = "cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
