@@ -42,7 +42,7 @@ python demo.py
 
 ### Verifiable facts
 
-- **137 tests passing (1 skipped).** `pytest tests/ -q`. Includes 21 theme-coverage regression tests.
+- **162 tests passing (1 skipped).** `pytest tests/ -q`. Includes 21 theme-coverage regression tests.
 - **Reward-hacking defenses** are asserted as tests, not just claimed: see [tests/test_themes_coverage.py](tests/test_themes_coverage.py).
 - **Deterministic**: same seed → same score. Verified in [benchmark.py](benchmark.py).
 - **Trained artifacts shipped**: [trained_vs_baseline.png](trained_vs_baseline.png), [training_summary.json](training_summary.json), LoRA adapter in `checkpoints/soc_grpo_tier1/`.

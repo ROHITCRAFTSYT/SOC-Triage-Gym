@@ -8,6 +8,46 @@ loosely follows [Semantic Versioning](https://semver.org/).
 
 _Nothing yet._
 
+## [0.3.0] — 2026-07-16 — Training toolkit
+
+GRPO training grows a production-grade harness: staged curriculum learning,
+session-parallel reward scoring, structured run storage, held-out
+evaluation, and early stopping. All opt-in; the original single-shot
+training path is byte-compatible. Guide: [docs/TRAINING.md](docs/TRAINING.md).
+
+### Added
+- **`training/` package** — CPU-importable toolkit (no torch/trl needed):
+  - `training/curriculum.py` — 3-stage easy→hard task ladder with rolling
+    reward promotion gates; final stage regenerates adaptive
+    `red_team_generated` scenarios each round (automated RLVE loop).
+  - `training/rewards.py` — parse-quality classification, action extraction,
+    per-completion scoring, and `ParallelRewardEvaluator`: scores GRPO
+    completion groups concurrently across isolated server sessions
+    (`X-Session-ID: grpo-worker-N`) for a near-linear reward-latency speedup.
+  - `training/run_manager.py` — structured `runs/<run_id>/` storage:
+    config + git provenance, append-only `metrics.jsonl`, best-checkpoint
+    tracking, auto-generated `MODEL_CARD.md`, final `MANIFEST.json`.
+  - `training/evaluation.py` — held-out policy evaluation on disjoint seeds
+    (100+) with per-task breakdowns.
+  - `training/callbacks.py` — TRL callback streaming trainer logs into the
+    run manager and applying reward-plateau early stopping.
+- **`train_grpo.py` flags**: `--curriculum`, `--parallel-rewards N`,
+  `--runs-dir`, `--eval-episodes N`, `--early-stop-patience N`,
+  `--lr-scheduler`, `--warmup-ratio`; trainer config now applies cosine LR +
+  warmup, gradient clipping, `save_total_limit=3`, and automatic bf16
+  (all guarded for older TRL versions).
+- **CLI**: `soc-gym train` (wraps train_grpo with the new flags) and
+  `soc-gym runs` (lists structured runs with best eval scores).
+- 25 new CPU-only tests (`tests/test_training.py`) — suite now 162 passing.
+
+### Changed
+- `train_grpo.py` parsing/shaping helpers moved to `training/rewards.py`
+  (`parse_action_from_text` re-exported for script compatibility);
+  `train()` without the ML stack now degrades to the oracle dry-run *and*
+  still finalizes the run manifest instead of crashing on missing `peft`.
+- `runs/` and `checkpoints/` added to `.gitignore`.
+- Version bumped to 0.3.0.
+
 ## [0.2.0] — 2026-07-16 — Production hardening
 
 The release that turns the hackathon environment into a service a company
