@@ -6,7 +6,54 @@ loosely follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.2.0] — 2026-07-16 — Production hardening
+
+The release that turns the hackathon environment into a service a company
+can run: multi-tenant, authenticated, observable, and auditable. Everything
+is opt-in and backward compatible with stock OpenEnv clients. Deployment
+guide: [docs/PRODUCTION.md](docs/PRODUCTION.md).
+
 ### Added
+- **Multi-session concurrency** (`server/sessions.py`): per-tenant isolated
+  environments (episode + NPC actors + policy drift + ticketing + expert
+  rotation + reward blend, each behind its own lock), selected via the
+  `X-Session-ID` header or `session_id` field on `POST /reset`. TTL and LRU
+  eviction (`SOC_GYM_SESSION_TTL`, `SOC_GYM_MAX_SESSIONS`); admin endpoints
+  `GET /sessions` and `DELETE /sessions/{id}`.
+- **API-key auth + rate limiting** (`server/security.py`): opt-in via
+  `SOC_GYM_API_KEY` (constant-time compare; `Bearer` or `X-API-Key`) and
+  `SOC_GYM_RATE_LIMIT` (token bucket per client, `429` + `Retry-After`).
+  Health, landing pages, and API docs stay open.
+- **Prometheus metrics** (`server/metrics.py`, `GET /metrics`): request
+  counts/latency by route template, episodes started/completed, steps, and
+  reward accumulators per task, active-session gauge — no new dependencies.
+- **Episode audit trail** (`server/audit.py`): every reset/step recorded
+  (action, reward, running total, role, timestamp); `GET /episodes`,
+  `GET /episodes/{id}/trace` (JSON or JSONL for SIEM export); bounded window
+  (`SOC_GYM_AUDIT_MAX_EPISODES`) plus optional durable JSONL export
+  (`SOC_GYM_AUDIT_DIR`).
+- **`soc-gym` CLI** (`cli.py`): `serve`, `demo`, `benchmark`, `tasks`,
+  `validate` (deploy smoke test probing all production endpoints).
+- **SDK upgrade** (`client.py`): automatic retries with exponential backoff
+  on connection errors/429/5xx, session + API-key wiring, `run_episode()`
+  policy driver, and accessors for grader/tasks/audit/metrics.
+- **Deployment**: `docker-compose.yml` (healthcheck, read-only root FS,
+  audit volume, env-driven config); Dockerfile now runs as a non-root user;
+  `.env.example` documents every `SOC_GYM_*` knob.
+- 26 new tests (`tests/test_production.py`) covering session isolation and
+  eviction, auth on/off, rate limiting, metrics format, audit replay, CLI,
+  and SDK wiring — suite now 137 passing.
+
+### Changed
+- `server/app.py` refactored from module-global environment state to the
+  session registry; `/reset`, `/step`, `/state`, MCP tools, and all v3 theme
+  endpoints are session-aware (default session preserves the original
+  single-tenant behaviour exactly).
+- Version bumped to 0.2.0 (`pyproject.toml`, `/health`, `/metadata`, OpenAPI).
+
+### Added (presentation & developer experience, landed pre-0.2.0)
 - `demo_live.py` — presenter-paced five-act live demo (reset → ticket bus →
   grader breakdown → learnable gap → safeguards) with `--auto` rehearsal and
   `--train` dry-run modes; used for the CCCL BLR6 (Securing AI Agents) meetup.
