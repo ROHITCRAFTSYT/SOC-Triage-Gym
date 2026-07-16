@@ -70,6 +70,48 @@ def _cmd_tasks(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_train(args: argparse.Namespace) -> int:
+    argv = ["train_grpo.py", "--role", args.role]
+    if args.model:
+        argv += ["--model", args.model]
+    if args.epochs is not None:
+        argv += ["--epochs", str(args.epochs)]
+    if args.curriculum:
+        argv.append("--curriculum")
+    if args.parallel_rewards:
+        argv += ["--parallel-rewards", str(args.parallel_rewards)]
+    if args.eval_episodes:
+        argv += ["--eval-episodes", str(args.eval_episodes)]
+    if args.unsloth:
+        argv.append("--unsloth")
+    if args.dry_run:
+        argv.append("--dry-run")
+    sys.argv = argv
+    from train_grpo import main as train_main
+
+    train_main()
+    return 0
+
+
+def _cmd_runs(args: argparse.Namespace) -> int:
+    from training.run_manager import TrainingRunManager
+
+    runs = TrainingRunManager.list_runs(args.runs_dir)
+    if args.json:
+        print(json.dumps(runs, indent=2))
+        return 0
+    if not runs:
+        print(f"No training runs found under {args.runs_dir}/.")
+        return 0
+    print(f"{'RUN ID':<45} {'ROLE':<8} {'BEST EVAL':>9}  STATUS")
+    for r in runs:
+        best = r.get("best_eval_reward")
+        best_s = f"{best:.3f}" if isinstance(best, (int, float)) else "-"
+        status = "finalized" if r.get("finalized") else "in-progress"
+        print(f"{r['run_id']:<45} {r.get('role', '?'):<8} {best_s:>9}  {status}")
+    return 0
+
+
 def _cmd_validate(args: argparse.Namespace) -> int:
     """Probe a running server and report which capabilities are live."""
     import httpx
@@ -139,6 +181,26 @@ def build_parser() -> argparse.ArgumentParser:
     p_val.add_argument("--url", default="http://localhost:7860")
     p_val.add_argument("--api-key", default=None)
     p_val.set_defaults(func=_cmd_validate)
+
+    p_train = sub.add_parser("train", help="GRPO-train a SOC role against the environment.")
+    p_train.add_argument("--role", choices=["tier1", "tier2", "manager"], default="tier1")
+    p_train.add_argument("--model", default=None, help="HF model name (default: Qwen2.5-1.5B-Instruct)")
+    p_train.add_argument("--epochs", type=int, default=None)
+    p_train.add_argument("--curriculum", action="store_true",
+                         help="Staged easy→hard curriculum with promotion gates")
+    p_train.add_argument("--parallel-rewards", type=int, default=0, metavar="N",
+                         help="Concurrent reward scoring across N server sessions")
+    p_train.add_argument("--eval-episodes", type=int, default=0,
+                         help="Held-out eval episodes per task after training")
+    p_train.add_argument("--unsloth", action="store_true")
+    p_train.add_argument("--dry-run", action="store_true",
+                         help="No model — just plot the oracle reward curve")
+    p_train.set_defaults(func=_cmd_train)
+
+    p_runs = sub.add_parser("runs", help="List structured training runs and their results.")
+    p_runs.add_argument("--runs-dir", default="runs")
+    p_runs.add_argument("--json", action="store_true")
+    p_runs.set_defaults(func=_cmd_runs)
 
     return parser
 
