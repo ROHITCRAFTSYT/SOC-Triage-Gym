@@ -1,0 +1,43 @@
+# SOC-Triage-Gym — production compose file
+#
+#   docker compose up -d          # start the environment server
+#   docker compose logs -f        # follow logs
+#   soc-gym validate --url http://localhost:7860   # verify it's healthy
+#
+# Copy .env.example to .env to configure auth, rate limits, and audit export.
+
+services:
+  soc-gym:
+    build: .
+    image: soc-triage-gym:latest
+    container_name: soc-gym
+    ports:
+      - "${SOC_TRIAGE_PORT:-7860}:7860"
+    environment:
+      # Optional API key — when set, clients must send
+      # "Authorization: Bearer <key>" or "X-API-Key: <key>".
+      SOC_GYM_API_KEY: "${SOC_GYM_API_KEY:-}"
+      # Optional requests/minute cap per client (0 = unlimited).
+      SOC_GYM_RATE_LIMIT: "${SOC_GYM_RATE_LIMIT:-0}"
+      # Session pool sizing.
+      SOC_GYM_MAX_SESSIONS: "${SOC_GYM_MAX_SESSIONS:-64}"
+      SOC_GYM_SESSION_TTL: "${SOC_GYM_SESSION_TTL:-3600}"
+      # Durable audit-trail export (JSONL per episode) into the mounted volume.
+      SOC_GYM_AUDIT_DIR: /data/audit
+      SOC_GYM_AUDIT_MAX_EPISODES: "${SOC_GYM_AUDIT_MAX_EPISODES:-200}"
+    volumes:
+      - audit-data:/data/audit
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7860/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    # Defense in depth: read-only root FS; the audit volume stays writable.
+    read_only: true
+    tmpfs:
+      - /tmp
+
+volumes:
+  audit-data:

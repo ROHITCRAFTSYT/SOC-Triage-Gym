@@ -1,6 +1,7 @@
-# BLR5 CCCL × SurrealDB — 10-Minute Talk Plan
+# 10-Minute Talk Plan
 
-**Event:** Bengaluru | BLR5 CCCL × SurrealDB — Memory, Context & Agents
+**Talk title:** Train the Team, Not the Analyst: An RL Gym for Securing AI SOC Agents
+**Event:** Bengaluru | CCCL BLR6 — Securing AI Agents (Claude Community Events)
 **Slot:** 10 minutes total (talk + live demo; assume Q&A is separate — if not, cut per §5)
 **Visual aid:** `site/index.html` fullscreen in a browser (serve with `python -m http.server 8765 --directory site`)
 **Demo surface:** one terminal, font ≥ 18 pt, dark theme
@@ -17,7 +18,7 @@
 | 3:30–4:30 | **Team mode + pressure sources** | Pipeline diagram + 3 cards (Actors / Drift / Experts) | Talking |
 | 4:30–7:00 | **LIVE DEMO** | Terminal: `python demo.py`, then ticket-bus curl | Typing (pre-staged commands) |
 | 7:00–8:15 | **Reward integrity + training reality** | Defense table → gap chart → limitations | Talking |
-| 8:15–9:15 | **Memory / Context / Agents + close** | Meetup band → footer links | Talking |
+| 8:15–9:15 | **Securing AI Agents tie-in + close** | Reward Integrity table → footer links | Talking |
 | 9:15–10:00 | **Buffer** | Footer | Absorbs overruns; else invite first question |
 
 **Hard checkpoints:** at **4:30 you must be in the terminal**; at **7:00 you must be out of it.** Everything else flexes.
@@ -112,7 +113,7 @@ Calibrated to ~140 words/min. Section word counts are the budget — if you're o
 
 > "Here's a team episode. Tier-1 owns triage — enrich indicators, query logs, classify, and critically: **escalate**. That escalation is a real object — a ticket on a bus — not a line in a shared prompt. Tier-2 pulls it from its inbox and owns containment: isolate hosts, disable users, block IOCs. Then the manager phase audits everything — and can flag inconsistencies or override classifications.
 >
-> Every hand-off is observable and queryable over HTTP. Which matters for a meetup about memory and context — the team's shared state lives in the *environment*, versioned and inspectable, not trapped in anyone's context window.
+> Every hand-off is observable and queryable over HTTP. The team's shared state lives in the *environment*, versioned and inspectable, not trapped in any single agent's context window.
 >
 > Let me show you it running."
 
@@ -147,11 +148,11 @@ Calibrated to ~140 words/min. Section word counts are the budget — if you're o
 >
 > Full honesty — it's on the website too: our published checkpoint **underfit**. Twenty-seven optimizer steps on a free Colab T4 doesn't move a small model. The pipeline is proven; the compute wasn't. That's a rental-GPU problem, not a design problem."
 
-### 8:15–9:15 · Meetup tie-in + close (~140 words)
+### 8:15–9:15 · Why it matters + close (~140 words)
 
 *Scroll to the Memory / Context / Agents band, then the footer.*
 
-> "This event is about memory, context, and agents — this project is accidentally a case study in all three.
+> "For everyone here who's lived a SOC shift, this comes down to three things — memory, context, and agents.
 > **Memory**: episode state, the ticket bus, policy history — explicit, queryable, versioned. An agent that forgets which policy version was active at step twelve pays for it in reward.
 > **Context**: context here isn't static, it *drifts* — mid-episode rule changes, unsolicited NPC messages, 250-step horizons. Agents have to triage their context like analysts triage alerts.
 > **Agents**: not one — a team of three, plus an adversary underneath that co-evolves with them.
@@ -164,7 +165,7 @@ Calibrated to ~140 words/min. Section word counts are the budget — if you're o
 
 `demo.py` Beat 3 reads `training_summary.json` if present. That file holds the **honest underfit numbers** (trained_avg = 0.001), so Beat 4's delta will print **≈ +0.1 pp** — which looks like failure to an audience that missed the nuance.
 
-**Option A — recommended for a meetup:** temporarily move the file so Beat 3 uses the oracle proxy:
+**Option A — recommended for a live audience:** temporarily move the file so Beat 3 uses the oracle proxy:
 
 ```bash
 mv training_summary.json training_summary.json.bak   # before the talk
@@ -211,7 +212,7 @@ Either way, **rehearse the option you pick.** Don't discover the difference on s
 4. **"Why GRPO over PPO?"** — Group-relative advantage needs no value network — right fit for LLM policies on small compute; and per-step replay gives dense signal without trajectory-averaging away credit assignment.
 5. **"Real SOC data?"** — Synthetic but MITRE ATT&CK-grounded scenarios. Deterministic generation is the point: reproducible training and eval. Real-telemetry adapters are future work.
 6. **"Why did the trained model underperform?"** — 27 optimizer steps on a free T4 — an honest compute limitation, published as such. The learnable gap (0.06 → 0.90) is committed and reproducible; the pipeline is what's proven.
-7. **"Where would SurrealDB fit?"** *(their event — expect this)* — The ticket bus, policy history, and actor inboxes are exactly a multi-model store's job: documents (tickets) + graph (alert correlation) + time-versioned records (policy drift, active-at semantics). Today it's in-memory Pydantic state; a persistent backend is a natural evolution.
+7. **"Could this persist to a real database / scale beyond one process?"** — The ticket bus, policy history, and actor inboxes map cleanly onto a multi-model store: documents (tickets) + graph (alert correlation) + time-versioned records (policy drift, active-at semantics). Today it's in-memory Pydantic state; a persistent backend is a natural evolution.
 8. **"Can I train tier-2 / the manager?"** — Architecture supports it; currently tier-1 trains while the others run scripted oracle — staged curriculum, next on the roadmap.
 9. **"Multi-turn tool use or single actions?"** — One JSON action per step, 15–250 steps per episode — the long horizon *is* the multi-turn structure, and it's what makes credit assignment interesting.
 10. **"What's OpenEnv?"** — A standard REST contract for RL environments (`/reset`, `/step`, `/state`) so any training loop can drive any environment. This is a fully conformant implementation.

@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Stage Cues — hold this in your hand</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🗒️%3C/text%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#05070a; --card:#0b111c; --line:#1e2a3c;
+    --ink:#f2f6fc; --dim:#8ba0bb; --faint:#5c6b80;
+    --red:#ff5566; --grn:#42e8b4; --amb:#ffc061;
+    --mono:'SF Mono',ui-monospace,'Cascadia Code',Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);
+    font-family:var(--sans);overscroll-behavior:none}
+  body{display:flex;flex-direction:column;user-select:none}
+
+  /* top bar */
+  .top{display:flex;align-items:center;gap:.6rem;padding:.7rem 1rem;
+    border-bottom:1px solid var(--line);background:#070b12;flex:none}
+  .top .beat{font-family:var(--mono);font-size:.72rem;letter-spacing:.12em;
+    color:var(--faint);text-transform:uppercase}
+  .top .clock{margin-left:auto;font-family:var(--mono);font-size:.9rem;color:var(--grn);
+    font-variant-numeric:tabular-nums}
+  .top .clock.run{color:var(--amb)}
+  .dots{display:flex;gap:5px;padding:.5rem 1rem;border-bottom:1px solid var(--line);
+    background:#070b12;flex:none;flex-wrap:wrap}
+  .dot{width:100%;height:4px;flex:1;background:var(--line);border-radius:2px;transition:.3s}
+  .dot.on{background:var(--red)}
+  .dot.done{background:var(--grn)}
+
+  /* card area */
+  .stage{flex:1;position:relative;overflow:hidden}
+  .card{position:absolute;inset:0;padding:1.5rem 1.4rem 1rem;display:none;
+    flex-direction:column;overflow-y:auto;overscroll-behavior:contain}
+  .card.show{display:flex;animation:in .25s ease}
+  @keyframes in{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
+
+  .lbl{font-family:var(--mono);font-size:.68rem;letter-spacing:.18em;color:var(--red);
+    text-transform:uppercase;margin-bottom:.2rem}
+  .time{font-family:var(--mono);font-size:.62rem;color:var(--faint);letter-spacing:.1em;margin-bottom:1rem}
+  h1{font-size:1.9rem;line-height:1.05;font-weight:800;letter-spacing:-.01em;margin-bottom:1.1rem}
+  .do{font-family:var(--mono);font-size:.7rem;letter-spacing:.06em;color:var(--amb);
+    background:#ffc0610f;border:1px solid #ffc06133;border-radius:8px;
+    padding:.55rem .7rem;margin-bottom:1.1rem;line-height:1.5}
+  .do b{color:var(--ink)}
+
+  ul{list-style:none;display:flex;flex-direction:column;gap:.7rem;margin-bottom:1.1rem}
+  li{display:flex;gap:.6rem;font-size:1.06rem;line-height:1.35;color:var(--dim)}
+  li::before{content:"";flex:none;width:7px;height:7px;border-radius:50%;
+    background:var(--faint);margin-top:.5rem}
+  li b{color:var(--ink);font-weight:600}
+  li.pause{color:var(--red);font-weight:600}
+  li.pause::before{background:var(--red);box-shadow:0 0 8px var(--red)}
+
+  .say{border-left:3px solid var(--grn);background:linear-gradient(90deg,#42e8b414,transparent);
+    padding:.7rem .9rem;border-radius:0 8px 8px 0;margin-top:auto;margin-bottom:.4rem}
+  .say .k{font-family:var(--mono);font-size:.58rem;letter-spacing:.16em;color:var(--grn);
+    text-transform:uppercase;display:block;margin-bottom:.3rem}
+  .say p{font-size:1.12rem;line-height:1.32;color:var(--ink);font-weight:600}
+  .next{font-family:var(--mono);font-size:.66rem;color:var(--faint);letter-spacing:.04em;
+    padding-top:.7rem;border-top:1px dashed var(--line)}
+  .next b{color:var(--dim)}
+
+  /* command card style */
+  .cmd{font-family:var(--mono);font-size:.86rem;background:#070b12;border:1px solid var(--line);
+    border-radius:8px;padding:.7rem .8rem;color:var(--grn);margin-bottom:.9rem;line-height:1.7}
+  .cmd .c{color:var(--faint)}
+
+  /* nav */
+  .nav{display:flex;flex:none;border-top:1px solid var(--line);background:#070b12}
+  .nav button{flex:1;padding:1.1rem;background:none;border:none;color:var(--dim);
+    font-family:var(--mono);font-size:.8rem;letter-spacing:.1em;text-transform:uppercase;
+    display:flex;align-items:center;justify-content:center;gap:.5rem}
+  .nav button:active{background:#111a28;color:var(--ink)}
+  .nav .mid{flex:0 0 96px;border-left:1px solid var(--line);border-right:1px solid var(--line);
+    font-size:.66rem;color:var(--faint);flex-direction:column;gap:.15rem}
+  .nav .mid b{color:var(--grn);font-size:1rem}
+
+  /* tap hint zones (invisible, left/right of card) */
+  .tapz{position:absolute;top:0;bottom:0;width:32%;z-index:5}
+  .tapz.l{left:0}.tapz.r{right:0}
+
+  /* panic */
+  #panicBtn{position:absolute;top:.55rem;right:1rem;z-index:20;font-family:var(--mono);
+    font-size:.6rem;letter-spacing:.14em;color:var(--red);border:1px solid #ff556655;
+    background:#ff55660d;border-radius:6px;padding:.3rem .55rem}
+  #panic{position:fixed;inset:0;z-index:50;background:#0a0e14f2;backdrop-filter:blur(6px);
+    display:none;flex-direction:column;justify-content:center;padding:2rem 1.6rem}
+  #panic.show{display:flex}
+  #panic h2{color:var(--red);font-size:1.5rem;margin-bottom:1.4rem;font-weight:800}
+  #panic ol{list-style:none;display:flex;flex-direction:column;gap:1.1rem;counter-reset:p}
+  #panic li{font-size:1.2rem;line-height:1.35;color:var(--ink);display:flex;gap:.8rem}
+  #panic li::before{counter-increment:p;content:counter(p);flex:none;width:1.9rem;height:1.9rem;
+    border-radius:50%;background:var(--red);color:#0a0a0a;font-weight:800;font-size:1rem;
+    display:flex;align-items:center;justify-content:center;font-family:var(--mono)}
+  #panic .close{margin-top:2rem;padding:1rem;text-align:center;border:1px solid var(--line);
+    border-radius:8px;color:var(--dim);font-family:var(--mono);letter-spacing:.1em;font-size:.8rem}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <span class="beat" id="beatLbl">CUE 1 / 8</span>
+  <span class="clock" id="clock" title="tap to start/stop">⏱ 0:00</span>
+</div>
+<div class="dots" id="dots"></div>
+
+<div class="stage" id="stage">
+  <div class="tapz l" id="tapL"></div>
+  <div class="tapz r" id="tapR"></div>
+  <button id="panicBtn">◇ BLANK?</button>
+  <!-- cards injected by JS -->
+</div>
+
+<div class="nav">
+  <button id="prev">‹ back</button>
+  <button class="mid" id="jump"><b id="jn">1</b><span>of 8</span></button>
+  <button id="next">next ›</button>
+</div>
+
+<div id="panic">
+  <h2>◇ Mind blank? Read this.</h2>
+  <ol>
+    <li>Stop. Look at the <b>big screen</b> — say what you literally see.</li>
+    <li>The section <b>heading</b> is your topic. Talk about that.</li>
+    <li>Breathe once. The demo <b>waits for your Enter</b> — nothing is running away.</li>
+    <li>Still stuck? <b>“Let me just show you”</b> → press Enter, let the terminal talk.</li>
+  </ol>
+  <div class="close" id="panicClose">tap to close · you've got this</div>
+</div>
+
+<script>
+const CUES = [
+  {
+    lbl:"HOOK · the story", time:"0:00 – 1:20",
+    h:"The Target breach",
+    do:"Stand still. First line to the <b>back row</b>. Screen: website hero.",
+    bullets:[
+      "“the most expensive <b>ignored notification</b> in history”",
+      "2013 · Target · 40M cards · <b>the tools worked</b>",
+      "caught by the team <b>in THIS city</b> — Bengaluru",
+      "escalated to Minneapolis HQ",
+      {pause:"‹PAUSE 2s› “And Minneapolis <b>closed the ticket.</b>”"},
+      "not a detection failure — a <b>HANDOFF</b> failure",
+    ],
+    say:"Everyone's fixing security with AI agents — and almost every RL environment has ONE agent, alone, with nobody to hand off to.",
+    next:"→ now you can say your name"
+  },
+  {
+    lbl:"INTRO · your name", time:"1:20 – 1:45",
+    h:"Who you are",
+    do:"NOW you introduce yourself — they already care.",
+    bullets:[
+      "“I'm <b>Rohit.</b> I build RL environments.”",
+      "“I built the one I wished existed…”",
+      "<b>SOC-Triage-Gym</b> — first OpenEnv env that trains a <b>team</b>, not a lone analyst",
+      "“Tonight I'll show it to you <b>live.</b>”",
+    ],
+    say:"one credibility line here if you have it — ONE sentence, not two.",
+    next:"→ scroll to “TRAIN THE TEAM” statement"
+  },
+  {
+    lbl:"THESIS · why", time:"1:45 – 2:40",
+    h:"Train the team, not the analyst",
+    do:"Scroll to the giant statement. Point at it. Stop there.",
+    bullets:[
+      "3 roles: <b>T1 triage · T2 contain · Manager audit</b>",
+      "between them: tickets, SLAs, drifting policies, “I clicked a link”",
+      "<b>8 tasks</b> — 1 phishing alert (15 steps) → <b>250-step APT campaign</b>",
+    ],
+    say:"If one agent maximizes its own score at the team's expense — the reward punishes it.",
+    next:"→ scroll to the Architecture system map"
+  },
+  {
+    lbl:"ARCHITECTURE", time:"2:40 – 3:50",
+    h:"How it works",
+    do:"Point <b>left → right</b> across the map. Numbers slowly.",
+    bullets:[
+      "agent only sees the <b>REST API</b> → any training loop plugs in",
+      "inside: phase FSM · ticket bus · 4 apps (SIEM/EDR/IAM/tickets)",
+      "“can't disable a user without a P1/P2 ticket — <b>sound familiar?</b>”",
+      "grader <b>stack</b> — verifiable rewards, <b>no vibes</b>",
+      "3 pressure boxes: red-team · policy drift · NPC actors",
+    ],
+    say:"60% your role, 40% DELTA team-F1 — spam no-ops, farm exactly zero.",
+    next:"→ scroll to the Team Mode pipeline"
+  },
+  {
+    lbl:"TEAM MODE", time:"3:50 – 4:20",
+    h:"The handoff, on screen",
+    do:"Pipeline diagram — the animated ticket wires.",
+    bullets:[
+      "T1 investigates → <b>escalates</b>",
+      "escalation = a <b>real object on a bus</b>, not a shared prompt",
+      "T2 pulls from inbox → contains · Manager audits",
+      "“every handoff is observable over HTTP”",
+    ],
+    say:"Remember Minneapolis? Let me show you the handoff — LIVE.",
+    next:"→ WALK TO TERMINAL · run: python demo_live.py"
+  },
+  {
+    lbl:"LIVE DEMO", time:"4:20 – 6:50",
+    h:"Run the demo",
+    cmd:"<span class='c'>$</span> python demo_live.py",
+    do:"Press <b>Enter</b> between acts. Let the terminal talk. Glance, don't stare.",
+    bullets:[
+      "<b>1 · reset</b> — real alert, seed 42, “deterministic — same seed, same episode”",
+      {pause:"2 · TICKET BUS — SLOW DOWN. +0.07, +0.18, escalate → Enter → inbox"},
+      "…“<b>this</b> is the handoff that failed in 2013 — now it's data, and it's graded”",
+      "<b>3 · grader</b> — glass-box, named checks, “RLVR”",
+      "<b>4 · gap</b> — random 0.063 → oracle 0.900 · honest: “checkpoint underfit on a free T4”",
+      "<b>5 · safeguards</b> — 6 exploits → 6 tests",
+    ],
+    say:"A reward function is only as good as the exploits it can't be farmed by.",
+    next:"→ back to browser · scroll to Memory/Context/Agents"
+  },
+  {
+    lbl:"BLR6 FIT · securing agents", time:"6:50 – 7:50",
+    h:"Securing AI Agents",
+    do:"Scroll UP to Reward Integrity — the 6-exploit table behind you.",
+    bullets:[
+      "tonight's theme runs <b>both directions</b>",
+      "agents <b>FOR</b> security: the AI SOC team",
+      "securing <b>THE AGENTS</b>: 6 reward exploits = <b>agent security</b>",
+      "red-team generator = adversary attacking the training",
+      "NPC inbox messages = <b>injection surface</b> · drift = shifting ground truth",
+    ],
+    say:"Deploy an agent never trained under attack, and the attack is simply scheduled for production.",
+    next:"→ scroll to the outro “Train the team ↗”"
+  },
+  {
+    lbl:"CLOSE", time:"7:50 – 8:40",
+    h:"Land it. Stand still.",
+    do:"Outro screen. Slow down. Don't rush the last 4 lines.",
+    bullets:[
+      "“13 years ago the right alert died in a handoff — <b>this city</b> → Minneapolis”",
+      "“detection was never the failure. <b>The handoff was.</b>”",
+      "“and as of now — the handoff is <b>trainable.</b>”",
+      "“open · MIT · one repo · one command: <b>python demo.py</b>”",
+    ],
+    say:"Train the team. Not the analyst. Thank you.  ‹hold 2s› → “I'll take questions.”",
+    next:"✓ done — breathe. Q&A answers are in TALK_PLAN.md §7"
+  },
+];
+
+const stage = document.getElementById('stage');
+const dotsEl = document.getElementById('dots');
+let i = 0;
+
+// build dots
+CUES.forEach(()=>{const d=document.createElement('div');d.className='dot';dotsEl.appendChild(d)});
+const dots=[...dotsEl.children];
+
+// build cards
+CUES.forEach((c,idx)=>{
+  const el=document.createElement('div');el.className='card';el.dataset.i=idx;
+  let lis=c.bullets.map(b=>{
+    if(typeof b==='object') return `<li class="pause">${b.pause}</li>`;
+    return `<li>${b}</li>`;
+  }).join('');
+  el.innerHTML=`
+    <div class="lbl">${c.lbl}</div>
+    <div class="time">⏱ ${c.time}</div>
+    <h1>${c.h}</h1>
+    ${c.cmd?`<div class="cmd">${c.cmd}</div>`:''}
+    <div class="do">▸ ${c.do}</div>
+    <ul>${lis}</ul>
+    <div class="say"><span class="k">say this ↓</span><p>${c.say}</p></div>
+    <div class="next"><b>${c.next}</b></div>`;
+  stage.appendChild(el);
+});
+const cards=[...stage.querySelectorAll('.card')];
+
+function show(n){
+  i=Math.max(0,Math.min(CUES.length-1,n));
+  cards.forEach((c,idx)=>c.classList.toggle('show',idx===i));
+  dots.forEach((d,idx)=>{d.className='dot'+(idx<i?' done':idx===i?' on':'')});
+  document.getElementById('beatLbl').textContent=`CUE ${i+1} / ${CUES.length}`;
+  document.getElementById('jn').textContent=i+1;
+  cards[i].scrollTop=0;
+}
+document.getElementById('next').onclick=()=>show(i+1);
+document.getElementById('prev').onclick=()=>show(i-1);
+document.getElementById('tapR').onclick=()=>show(i+1);
+document.getElementById('tapL').onclick=()=>show(i-1);
+document.getElementById('jump').onclick=()=>show(0);
+addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown'){e.preventDefault();show(i+1)}
+  if(e.key==='ArrowLeft'||e.key==='PageUp'){e.preventDefault();show(i-1)}
+});
+// swipe
+let sx=0;
+stage.addEventListener('touchstart',e=>sx=e.touches[0].clientX,{passive:true});
+stage.addEventListener('touchend',e=>{
+  const dx=e.changedTouches[0].clientX-sx;
+  if(Math.abs(dx)>55){dx<0?show(i+1):show(i-1)}
+},{passive:true});
+
+// panic
+const panic=document.getElementById('panic');
+document.getElementById('panicBtn').onclick=()=>panic.classList.add('show');
+document.getElementById('panicClose').onclick=()=>panic.classList.remove('show');
+
+// clock (tap to start/stop)
+const clockEl=document.getElementById('clock');
+let t0=null,tick=null;
+clockEl.onclick=()=>{
+  if(tick){clearInterval(tick);tick=null;clockEl.classList.remove('run');return}
+  t0=Date.now();clockEl.classList.add('run');
+  tick=setInterval(()=>{
+    const s=Math.floor((Date.now()-t0)/1000);
+    clockEl.textContent=`⏱ ${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+    if(s>=600)clockEl.style.color='var(--red)';
+    else if(s>=510)clockEl.style.color='var(--amb)';
+  },500);
+};
+
+show(0);
+</script>
+</body>
+</html>

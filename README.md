@@ -21,7 +21,7 @@ tags:
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ROHITCRAFTSYT/SOC-Triage-Gym/blob/main/soc_triage_gym_v2_training.ipynb)
 [![HF Space](https://img.shields.io/badge/🤗%20Space-rohitcraftsyt%2Fopenenv2-yellow)](https://huggingface.co/spaces/rohitcraftsyt/openenv2)
 [![Trained Model](https://img.shields.io/badge/🤗%20Model-rohitcraftsyt%2Fsoc--grpo--tier1-blue)](https://huggingface.co/rohitcraftsyt/soc-grpo-tier1)
-[![Tests](https://img.shields.io/badge/tests-111%20passing-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/tests-162%20passing-brightgreen)](tests/)
 [![CI](https://github.com/ROHITCRAFTSYT/SOC-Triage-Gym/actions/workflows/ci.yml/badge.svg)](.github/workflows/ci.yml)
 [![Ruff](https://img.shields.io/badge/lint-ruff-261230?logo=ruff&logoColor=white)](pyproject.toml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -158,13 +158,30 @@ Reward      = env.step(model_action).reward   ← immediate step signal
 The reward function replays the environment to `step_index` deterministically (same seed → same state), applies the model's single action, and returns the env's immediate blended step reward.
 
 ```bash
-# Colab/GPU training
-python train_grpo.py --role tier1 --model Qwen/Qwen2.5-0.5B --unsloth
+# Colab/GPU training — recommended production recipe (v0.3):
+# staged curriculum + parallel reward scoring + held-out eval + run tracking
+python train_grpo.py --role tier1 --model Qwen/Qwen2.5-0.5B --unsloth     --curriculum --parallel-rewards 4 --eval-episodes 5
 
 # Dry-run (oracle baseline, no GPU)
 python train_grpo.py --role tier1 --dry-run
+
+# Same via the CLI, plus run inspection
+soc-gym train --role tier1 --curriculum --parallel-rewards 4
+soc-gym runs
 ```
 
+### v0.3 training toolkit ([`training/`](training/), guide: [docs/TRAINING.md](docs/TRAINING.md))
+
+| Enhancement | What it does |
+|---|---|
+| **Staged curriculum** (`--curriculum`) | Easy → hard task ladder with reward promotion gates; the final stage mixes in adaptive `red_team_generated` scenarios, closing the RLVE loop |
+| **Parallel reward scoring** (`--parallel-rewards N`) | Scores each GRPO completion group concurrently across N isolated server sessions — reward evaluation is the wall-clock bottleneck, so this is a near-linear speedup |
+| **Structured run storage** (`runs/<run_id>/`) | Every run records config + git provenance, an append-only `metrics.jsonl` stream, rotated checkpoints, eval reports, and an auto-generated `MODEL_CARD.md` |
+| **Held-out eval + best tracking** (`--eval-episodes N`) | Evaluates the trained model on disjoint seeds (100+) after training and tracks the best checkpoint |
+| **Early stopping** (`--early-stop-patience N`) | Stops when the training reward plateaus instead of burning the GPU budget |
+| **Better trainer defaults** | Cosine LR schedule with warmup, gradient clipping, `save_total_limit` rotation, automatic bf16 on supported GPUs |
+
+All flags are opt-in; the original single-shot training path is unchanged.
 See [`soc_triage_gym_v2_training.ipynb`](soc_triage_gym_v2_training.ipynb) for the full Colab walkthrough.
 
 ---
@@ -300,7 +317,7 @@ The notebook is designed so **cells 1-7 run on free-tier Colab in ~8 minutes and
 | Environment Innovation | 40 % | 8 tasks, 3-role team with ticket bus + phase FSM, 250-step APT campaign, rotating expert judges, mid-episode schema drift, adaptive red-team curriculum | [`server/app.py`](server/app.py), [`server/environment.py`](server/environment.py), [`scenarios/red_team_generator.py`](scenarios/red_team_generator.py) |
 | Storytelling | 30 % | This README, dossier-styled landing page, `/ui/themes`, `/ui/metadata`, one-command `demo.py` | [live Space](https://huggingface.co/spaces/rohitcraftsyt/openenv2), [`demo.py`](demo.py) |
 | Showing Improvement | 20 % | Oracle ceiling (0.90) + random floor (0.063) committed; Δ=+0.836 learnable gap; Colab notebook produces the trained line on the same axes | `reward_comparison_baseline_tier1.png`, notebook cell 4b / cell 11 |
-| Reward & pipeline | 10 % | 6 layered programmatic graders, 111 pytest assertions including 6 named reward-hacking regressions, per-step GRPO (not trajectory-averaged) | [`graders/`](graders/), [`tests/`](tests/), [`train_grpo.py`](train_grpo.py) |
+| Reward & pipeline | 10 % | 6 layered programmatic graders, 162 pytest assertions including 6 named reward-hacking regressions, per-step GRPO (not trajectory-averaged) | [`graders/`](graders/), [`tests/`](tests/), [`train_grpo.py`](train_grpo.py) |
 
 ---
 
@@ -322,6 +339,9 @@ The notebook is designed so **cells 1-7 run on free-tier Colab in ~8 minutes and
 | `/reward/config` · `/reward/token_bonus` | GET/POST | Token-scaled reward preview (Mercor) |
 | `/experts/current` · `/experts/rotate` · `/experts/panel` | GET/POST | Rotating expert judge (Snorkel) |
 | `/tickets` · `/tickets/open` · `/tickets/{id}/resolve` · `/tickets/can_disable_user` | GET/POST | Enterprise ticketing + cross-app rule (Scaler AI Labs) |
+| `/metrics` | GET | Prometheus operational metrics |
+| `/episodes` · `/episodes/{id}/trace` | GET | Episode audit trail + JSONL replay export |
+| `/sessions` | GET/DELETE | Live session pool (multi-tenant admin) |
 | `/themes/coverage` | GET | Machine-checkable theme-coverage manifest |
 
 ---
@@ -363,7 +383,7 @@ Dense step rewards for productive investigation. Final score on submit/phase_com
 ## Test Coverage
 
 ```
-111 passed, 1 skipped
+162 passed, 1 skipped
 ```
 
 Coverage includes: solo backward-compat, team phase state machine, ticket bus, containment tools, manager oversight, team grader, red-team generator, reward-hack regression tests (close_case idempotency, team_f1 delta, zero-escalation guard, over-escalation threshold, manager judge fallback), **plus new v3 theme-coverage tests**: multi-actor determinism & role routing, policy-drift schedule & active-at semantics, token-bonus floor/cap/monotonicity, expert-panel rotation & weight shift, ticketing cross-app rule, apt_campaign narrative reward growth.
@@ -374,19 +394,24 @@ Coverage includes: solo backward-compat, team phase state machine, ticket bus, c
 
 ```
 soc-triage-gym/
-  server/           FastAPI app + SOCEnvironment
+  server/           FastAPI app + SOCEnvironment + sessions/security/metrics/audit modules
   scenarios/        Scenario configs + RedTeamGenerator + PolicyDriftEngine + apt_campaign
   graders/          Task graders + ManagerJudge + ExpertPanel + token-scaled reward + apt_campaign grader
   tools/            enrichment, log query, correlation, containment, oversight, ticketing (SLA)
   actors/           External NPC actors: ThreatIntelFeed, ComplianceOfficer, EndUserReporter
-  tests/            111 tests (incl. test_themes_coverage.py regression pack)
+  tests/            162 tests (incl. test_themes_coverage.py, test_production.py, test_training.py packs)
   scripts/          gen_plots.py (reward curves), replay.py (deterministic CLI)
+  training/         v0.3 training toolkit: curriculum, parallel rewards, run manager, eval
   models.py         Pydantic v2 types (incl. ActorMessage, PolicyVersion, RewardBlendConfig, ExpertProfile, TicketSLA)
   train_grpo.py     Per-step GRPO training script (Unsloth merged-16bit save path)
   inference.py      Scripted oracle baseline
   benchmark.py      Multi-seed determinism + score benchmark across 5 solo tasks
   demo.py           One-command judge demo (guide §19 format)
   demo_live.py      Presenter-paced five-act live demo (see DEMO_RUNBOOK.md)
+  cli.py            soc-gym CLI (serve · demo · benchmark · tasks · validate)
+  client.py         Python SDK (retries, sessions, auth, run_episode driver)
+  docker-compose.yml Production deploy (non-root, read-only FS, audit volume)
+  docs/PRODUCTION.md Production deployment & operations guide
   site/             Self-contained presentation website (index.html + classic.html)
   openenv.yaml      OpenEnv metadata
 ```
@@ -457,8 +482,8 @@ If any of these surprise a judge, we'd rather have said so first.
 
 ## Presentation Kit
 
-Everything used to present this project live (BLR5 CCCL × SurrealDB — Memory,
-Context & Agents, Bengaluru):
+Everything used to present this project live (CCCL BLR6 — Securing AI Agents,
+Bengaluru):
 
 | Artifact | What it is |
 |---|---|
@@ -468,6 +493,31 @@ Context & Agents, Bengaluru):
 | [`DEMO_RUNBOOK.md`](DEMO_RUNBOOK.md) | Two-terminal setup, slide-by-slide mapping, failure playbook |
 | [`TALK_PLAN.md`](TALK_PLAN.md) | 10-minute run of show with timing checkpoints |
 | [`DESIGN_ARCHITECTURE.md`](DESIGN_ARCHITECTURE.md) | Design notes for the website's interaction system |
+
+---
+
+## Production Deployment
+
+v0.2.0 makes the gym a multi-tenant service your whole team can share — not
+just a single-user demo. All features are opt-in and fully backward
+compatible with stock OpenEnv clients. Full guide: [docs/PRODUCTION.md](docs/PRODUCTION.md).
+
+| Capability | How |
+|---|---|
+| **Concurrent isolated sessions** | `X-Session-ID` header — each trainer/evaluator gets an isolated environment, actors, drift schedule, and reward config |
+| **API-key auth** | `SOC_GYM_API_KEY` env — constant-time check, `Bearer` or `X-API-Key` header |
+| **Rate limiting** | `SOC_GYM_RATE_LIMIT` req/min per client, token bucket, `429 + Retry-After` |
+| **Prometheus metrics** | `GET /metrics` — requests, latency, episodes, steps, reward averages per task |
+| **Episode audit trail** | Every action + reward recorded; `GET /episodes/{id}/trace?format=jsonl` exports to your SIEM/data lake (durable export via `SOC_GYM_AUDIT_DIR`) |
+| **Hardened container** | Non-root user; `docker-compose.yml` runs read-only FS + audit volume + healthcheck |
+| **CLI** | `soc-gym serve · demo · benchmark · tasks · validate` |
+| **SDK** | `client.py` — retries with backoff, sessions, auth, `run_episode()` driver |
+
+```bash
+cp .env.example .env            # set SOC_GYM_API_KEY, SOC_GYM_RATE_LIMIT
+docker compose up -d
+soc-gym validate --url http://localhost:7860 --api-key "$SOC_GYM_API_KEY"
+```
 
 ---
 

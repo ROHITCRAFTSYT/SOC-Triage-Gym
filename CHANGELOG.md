@@ -6,10 +6,97 @@ loosely follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.3.0] — 2026-07-16 — Training toolkit
+
+GRPO training grows a production-grade harness: staged curriculum learning,
+session-parallel reward scoring, structured run storage, held-out
+evaluation, and early stopping. All opt-in; the original single-shot
+training path is byte-compatible. Guide: [docs/TRAINING.md](docs/TRAINING.md).
+
 ### Added
+- **`training/` package** — CPU-importable toolkit (no torch/trl needed):
+  - `training/curriculum.py` — 3-stage easy→hard task ladder with rolling
+    reward promotion gates; final stage regenerates adaptive
+    `red_team_generated` scenarios each round (automated RLVE loop).
+  - `training/rewards.py` — parse-quality classification, action extraction,
+    per-completion scoring, and `ParallelRewardEvaluator`: scores GRPO
+    completion groups concurrently across isolated server sessions
+    (`X-Session-ID: grpo-worker-N`) for a near-linear reward-latency speedup.
+  - `training/run_manager.py` — structured `runs/<run_id>/` storage:
+    config + git provenance, append-only `metrics.jsonl`, best-checkpoint
+    tracking, auto-generated `MODEL_CARD.md`, final `MANIFEST.json`.
+  - `training/evaluation.py` — held-out policy evaluation on disjoint seeds
+    (100+) with per-task breakdowns.
+  - `training/callbacks.py` — TRL callback streaming trainer logs into the
+    run manager and applying reward-plateau early stopping.
+- **`train_grpo.py` flags**: `--curriculum`, `--parallel-rewards N`,
+  `--runs-dir`, `--eval-episodes N`, `--early-stop-patience N`,
+  `--lr-scheduler`, `--warmup-ratio`; trainer config now applies cosine LR +
+  warmup, gradient clipping, `save_total_limit=3`, and automatic bf16
+  (all guarded for older TRL versions).
+- **CLI**: `soc-gym train` (wraps train_grpo with the new flags) and
+  `soc-gym runs` (lists structured runs with best eval scores).
+- 25 new CPU-only tests (`tests/test_training.py`) — suite now 162 passing.
+
+### Changed
+- `train_grpo.py` parsing/shaping helpers moved to `training/rewards.py`
+  (`parse_action_from_text` re-exported for script compatibility);
+  `train()` without the ML stack now degrades to the oracle dry-run *and*
+  still finalizes the run manifest instead of crashing on missing `peft`.
+- `runs/` and `checkpoints/` added to `.gitignore`.
+- Version bumped to 0.3.0.
+
+## [0.2.0] — 2026-07-16 — Production hardening
+
+The release that turns the hackathon environment into a service a company
+can run: multi-tenant, authenticated, observable, and auditable. Everything
+is opt-in and backward compatible with stock OpenEnv clients. Deployment
+guide: [docs/PRODUCTION.md](docs/PRODUCTION.md).
+
+### Added
+- **Multi-session concurrency** (`server/sessions.py`): per-tenant isolated
+  environments (episode + NPC actors + policy drift + ticketing + expert
+  rotation + reward blend, each behind its own lock), selected via the
+  `X-Session-ID` header or `session_id` field on `POST /reset`. TTL and LRU
+  eviction (`SOC_GYM_SESSION_TTL`, `SOC_GYM_MAX_SESSIONS`); admin endpoints
+  `GET /sessions` and `DELETE /sessions/{id}`.
+- **API-key auth + rate limiting** (`server/security.py`): opt-in via
+  `SOC_GYM_API_KEY` (constant-time compare; `Bearer` or `X-API-Key`) and
+  `SOC_GYM_RATE_LIMIT` (token bucket per client, `429` + `Retry-After`).
+  Health, landing pages, and API docs stay open.
+- **Prometheus metrics** (`server/metrics.py`, `GET /metrics`): request
+  counts/latency by route template, episodes started/completed, steps, and
+  reward accumulators per task, active-session gauge — no new dependencies.
+- **Episode audit trail** (`server/audit.py`): every reset/step recorded
+  (action, reward, running total, role, timestamp); `GET /episodes`,
+  `GET /episodes/{id}/trace` (JSON or JSONL for SIEM export); bounded window
+  (`SOC_GYM_AUDIT_MAX_EPISODES`) plus optional durable JSONL export
+  (`SOC_GYM_AUDIT_DIR`).
+- **`soc-gym` CLI** (`cli.py`): `serve`, `demo`, `benchmark`, `tasks`,
+  `validate` (deploy smoke test probing all production endpoints).
+- **SDK upgrade** (`client.py`): automatic retries with exponential backoff
+  on connection errors/429/5xx, session + API-key wiring, `run_episode()`
+  policy driver, and accessors for grader/tasks/audit/metrics.
+- **Deployment**: `docker-compose.yml` (healthcheck, read-only root FS,
+  audit volume, env-driven config); Dockerfile now runs as a non-root user;
+  `.env.example` documents every `SOC_GYM_*` knob.
+- 26 new tests (`tests/test_production.py`) covering session isolation and
+  eviction, auth on/off, rate limiting, metrics format, audit replay, CLI,
+  and SDK wiring — suite now 137 passing.
+
+### Changed
+- `server/app.py` refactored from module-global environment state to the
+  session registry; `/reset`, `/step`, `/state`, MCP tools, and all v3 theme
+  endpoints are session-aware (default session preserves the original
+  single-tenant behaviour exactly).
+- Version bumped to 0.2.0 (`pyproject.toml`, `/health`, `/metadata`, OpenAPI).
+
+### Added (presentation & developer experience, landed pre-0.2.0)
 - `demo_live.py` — presenter-paced five-act live demo (reset → ticket bus →
   grader breakdown → learnable gap → safeguards) with `--auto` rehearsal and
-  `--train` dry-run modes; used for the BLR5 CCCL × SurrealDB meetup.
+  `--train` dry-run modes; used for the CCCL BLR6 (Securing AI Agents) meetup.
 - `site/` — self-contained presentation website (immersive scroll build in
   `index.html`, flat fallback in `classic.html`) plus `TALK_PLAN.md`,
   `DEMO_RUNBOOK.md`, and `DESIGN_ARCHITECTURE.md`.

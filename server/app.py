@@ -20,36 +20,31 @@ Thread safety: a single threading.Lock protects the SOCEnvironment instance.
 """
 
 import logging
-import threading
 from contextlib import asynccontextmanager
 from typing import Literal
 
-from fastapi import Body, FastAPI, HTTPException, Query
+from fastapi import Body, Depends, FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
-from actors import build_default_registry
-from actors.registry import ActorRegistry
 from baseline_agent import HeuristicBaselineAgent
-from graders.expert_panel import ExpertPanel
 from graders.token_scaled_reward import explain as explain_token_bonus
 from models import (
     AgentRole,
     AlertClassification,
     EnvironmentState,
-    ExpertProfile,
     RedTeamConfig,
-    RewardBlendConfig,
     SOCAction,
     SOCObservation,
 )
-from scenarios.policy_drift import PolicyDriftEngine
 from scenarios.red_team_generator import RedTeamGenerator
+from server.audit import AUDIT, trace_to_jsonl
 from server.environment import SOCEnvironment
 from server.landing_ui import UI_HTML
+from server.metrics import METRICS, MetricsMiddleware
 from server.page_ui import (
     render_metadata as _render_metadata_page,
 )
@@ -65,25 +60,67 @@ from server.page_ui import (
 from server.page_ui import (
     render_themes as _render_themes_page,
 )
-from tools.ticketing import TicketingSystem
+from server.security import SecurityMiddleware
+from server.sessions import DEFAULT_SESSION_ID, SessionManager, SessionState
 
 # ---------------------------------------------------------------------------
 # App state
 # ---------------------------------------------------------------------------
+# All episode state (environment + v3 theme modules) lives in per-session
+# containers so concurrent clients never share or corrupt each other's
+# episodes. Requests without an X-Session-ID header use the "default"
+# session, which preserves the original single-tenant behaviour.
 
-_env: SOCEnvironment | None = None
-_env_lock = threading.Lock()
+_sessions = SessionManager()
 _baseline_agent = HeuristicBaselineAgent()
 
-# v3 theme-coverage modules — deterministic, per-episode, reset in /reset.
-_actor_registry: ActorRegistry = build_default_registry(seed=0)
-_policy_drift: PolicyDriftEngine = PolicyDriftEngine(seed=0)
-_expert_panel: ExpertPanel = ExpertPanel()
-_ticketing: TicketingSystem = TicketingSystem()
-_reward_blend: RewardBlendConfig = RewardBlendConfig()
-_current_expert: ExpertProfile = _expert_panel.for_round(0)
-_curriculum_round: int = 0
-_actor_step: int = 0
+VERSION = "0.3.0"
+
+
+def get_session(
+    x_session_id: str | None = Header(default=None, alias="X-Session-ID"),
+) -> SessionState:
+    """FastAPI dependency: resolve (or create) the caller's session."""
+    try:
+        return _sessions.get_or_create(x_session_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+def _do_reset(sess: SessionState, task_id: str, seed: int, mode: str) -> SOCObservation:
+    """Reset a session's episode + v3 modules; record metrics/audit. Call under sess.lock."""
+    obs = sess.env.reset(task_id=task_id, seed=seed, mode=mode)
+    sess.on_reset(seed=seed)
+    METRICS.record_episode_start(task_id)
+    AUDIT.start_episode(
+        episode_id=sess.env._episode_id or "unknown",
+        session_id=sess.session_id,
+        task_id=task_id,
+        seed=seed,
+        mode=mode,
+    )
+    return obs
+
+
+def _do_step(sess: SessionState, action: SOCAction) -> SOCObservation:
+    """Step a session's episode + v3 modules; record metrics/audit. Call under sess.lock."""
+    obs = sess.env.step(action)
+    sess.on_step()
+    task = sess.env._task_id or "unknown"
+    METRICS.record_step(task)
+    role = getattr(action, "role", None)
+    AUDIT.record_step(
+        episode_id=sess.env._episode_id or "unknown",
+        step=sess.env._step,
+        action=action.model_dump(exclude_none=True),
+        reward=float(getattr(obs, "reward", 0.0) or 0.0),
+        cumulative_reward=float(sess.env._cumulative_reward),
+        done=bool(obs.done),
+        role=str(role) if role is not None else None,
+    )
+    if obs.done:
+        METRICS.record_episode_complete(task, float(sess.env._cumulative_reward))
+    return obs
 
 TASKS = [
     {
@@ -155,11 +192,10 @@ TASKS = [
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Initialize environment on startup."""
-    global _env
-    _env = SOCEnvironment()
+    """Warm the default session on startup so the first request is fast."""
+    _sessions.get_or_create(DEFAULT_SESSION_ID)
     yield
-    # Cleanup on shutdown (nothing needed for in-memory env)
+    # Cleanup on shutdown (nothing needed for in-memory sessions)
 
 
 # ---------------------------------------------------------------------------
@@ -174,16 +210,21 @@ app = FastAPI(
         "by enriching threat indicators, querying log sources, correlating events, "
         "and classifying alerts with MITRE ATT&CK mapping."
     ),
-    version="0.1.0",
+    version=VERSION,
     lifespan=lifespan,
 )
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["GET", "POST"],
-    allow_headers=["Content-Type", "Authorization"],
+    allow_methods=["GET", "POST", "DELETE"],
+    allow_headers=["Content-Type", "Authorization", "X-API-Key", "X-Session-ID"],
 )
+# Order matters: middleware added later runs first. Security (auth + rate
+# limit) is innermost of the two; Metrics is outermost so it also counts
+# rejected (401/429) requests.
+app.add_middleware(SecurityMiddleware)
+app.add_middleware(MetricsMiddleware)
 
 
 # ---------------------------------------------------------------------------
@@ -195,6 +236,9 @@ class ResetRequest(BaseModel):
     task_id: str = "phishing"
     seed: int = 42
     mode: Literal["tier1_solo", "team"] = "tier1_solo"
+    # Optional body-level session selector for clients that can't set the
+    # X-Session-ID header. Takes precedence over the header when present.
+    session_id: str | None = None
 
 
 class GenerateScenarioRequest(BaseModel):
@@ -216,7 +260,12 @@ class GenerateScenarioRequest(BaseModel):
 @app.get("/health")
 def health():
     """Liveness check — returns 200 when server is running."""
-    return {"status": "healthy", "version": "0.1.0", "env": "soc-triage-gym"}
+    return {
+        "status": "healthy",
+        "version": VERSION,
+        "env": "soc-triage-gym",
+        "active_sessions": len(_sessions),
+    }
 
 
 @app.get("/metadata")
@@ -224,7 +273,7 @@ def metadata():
     """Environment metadata (OpenEnv runtime spec)."""
     return {
         "name": "soc-triage-gym",
-        "version": "0.1.0",
+        "version": VERSION,
         "description": (
             "A reinforcement learning environment simulating a Security Operations Center "
             "(SOC) analyst. The agent investigates SIEM alerts by enriching threat "
@@ -249,7 +298,10 @@ def schema():
 
 
 @app.post("/mcp")
-def mcp_endpoint(request: dict | None = Body(default=None)):
+def mcp_endpoint(
+    request: dict | None = Body(default=None),
+    sess: SessionState = Depends(get_session),
+):
     """
     MCP (Model Context Protocol) JSON-RPC 2.0 endpoint.
 
@@ -410,8 +462,9 @@ def mcp_endpoint(request: dict | None = Body(default=None)):
 
         try:
             if tool_name == "reset":
-                with _env_lock:
-                    obs = _env.reset(
+                with sess.lock:
+                    obs = _do_reset(
+                        sess,
                         task_id=tool_args.get("task_id", "phishing"),
                         seed=tool_args.get("seed", 42),
                         mode=tool_args.get("mode", "tier1_solo"),
@@ -419,15 +472,15 @@ def mcp_endpoint(request: dict | None = Body(default=None)):
                     return _jsonrpc_ok({"content": [{"type": "text", "text": obs.model_dump_json()}]})
 
             if tool_name == "state":
-                with _env_lock:
-                    st = _env.state()
+                with sess.lock:
+                    st = sess.env.state()
                     return _jsonrpc_ok({"content": [{"type": "text", "text": st.model_dump_json()}]})
 
             if tool_name == "submit_investigation":
-                with _env_lock:
-                    if _env._config is None:
+                with sess.lock:
+                    if sess.env._config is None:
                         return _jsonrpc_err(-32602, "No active episode. Call reset first.")
-                    obs = _env.step(SOCAction(action_type="submit_investigation"))
+                    obs = _do_step(sess, SOCAction(action_type="submit_investigation"))
                     return _jsonrpc_ok({"content": [{"type": "text", "text": obs.model_dump_json()}]})
 
             # Tools that map directly to a step action
@@ -444,15 +497,15 @@ def mcp_endpoint(request: dict | None = Body(default=None)):
             }
 
             if tool_name in ACTION_MAP:
-                with _env_lock:
-                    if _env._config is None:
+                with sess.lock:
+                    if sess.env._config is None:
                         return _jsonrpc_err(-32602, "No active episode. Call reset first.")
                     if tool_name == "step":
                         action_data = tool_args
                     else:
                         action_data = {"action_type": ACTION_MAP[tool_name], **tool_args}
                     action = SOCAction(**action_data)
-                    obs = _env.step(action)
+                    obs = _do_step(sess, action)
                     return _jsonrpc_ok({"content": [{"type": "text", "text": obs.model_dump_json()}]})
 
             return _jsonrpc_err(-32601, f"Unknown tool: '{tool_name}'")
@@ -469,32 +522,30 @@ def mcp_endpoint(request: dict | None = Body(default=None)):
 
 
 @app.post("/reset", response_model=SOCObservation)
-def reset(request: ResetRequest | None = Body(default=None)):
+def reset(
+    request: ResetRequest | None = Body(default=None),
+    sess: SessionState = Depends(get_session),
+):
     """
     Start a new episode.
 
     Args:
         task_id: "phishing" | "lateral_movement" | "queue_management" | "insider_threat" (default: "phishing")
         seed: RNG seed for deterministic scenario generation (default: 42)
+        session_id: Optional session selector (overrides the X-Session-ID header)
 
     Returns:
         Initial SOCObservation with full alert queue.
     """
     req = request or ResetRequest()
-    with _env_lock:
+    if req.session_id:
         try:
-            obs = _env.reset(task_id=req.task_id, seed=req.seed, mode=req.mode)
-            # v3 theme hooks: reset actors, policy drift, ticketing, expert rotation.
-            global _actor_registry, _policy_drift, _ticketing, _current_expert, _actor_step
-            _actor_registry = build_default_registry(seed=req.seed)
-            _actor_registry.reset(seed=req.seed)
-            _policy_drift = PolicyDriftEngine(seed=req.seed)
-            max_steps = _env._config.max_steps if _env._config else 60
-            _policy_drift.plan(max_steps=max_steps, drift_count=2)
-            _ticketing = TicketingSystem()
-            _current_expert = _expert_panel.for_round(_curriculum_round)
-            _actor_step = 0
-            return obs
+            sess = _sessions.get_or_create(req.session_id)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
+    with sess.lock:
+        try:
+            return _do_reset(sess, task_id=req.task_id, seed=req.seed, mode=req.mode)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
         except Exception:
@@ -503,7 +554,7 @@ def reset(request: ResetRequest | None = Body(default=None)):
 
 
 @app.post("/step", response_model=SOCObservation)
-def step(action: SOCAction):
+def step(action: SOCAction, sess: SessionState = Depends(get_session)):
     """
     Execute an action in the current episode.
 
@@ -513,40 +564,30 @@ def step(action: SOCAction):
     Returns:
         Updated SOCObservation with step reward, new results, and done flag.
     """
-    with _env_lock:
-        if _env._config is None:
+    with sess.lock:
+        if sess.env._config is None:
             raise HTTPException(
                 status_code=400,
                 detail="No active episode. Call POST /reset first.",
             )
         try:
-            obs = _env.step(action)
-            # v3 theme tick: advance actors, policy drift, ticketing SLA clocks.
-            global _actor_step
-            _actor_step += 1
-            _actor_registry.tick(
-                step=_actor_step,
-                ctx={"policy_version": _policy_drift.current().version},
-            )
-            _policy_drift.maybe_drift(step=_actor_step)
-            _ticketing.tick()
-            return obs
+            return _do_step(sess, action)
         except Exception:
             logger.exception("Error in /step")
             raise HTTPException(status_code=500, detail="Internal server error.") from None
 
 
 @app.get("/state", response_model=EnvironmentState)
-def state():
+def state(sess: SessionState = Depends(get_session)):
     """
     Get current episode metadata without consuming a step.
 
     Returns episode_id, task_id, step_count, max_steps, done,
     cumulative_reward, alert_count, classified_count, seed.
     """
-    with _env_lock:
+    with sess.lock:
         try:
-            return _env.state()
+            return sess.env.state()
         except Exception:
             logger.exception("Error in /state")
             raise HTTPException(status_code=500, detail="Internal server error.") from None
@@ -595,11 +636,10 @@ def ui_themes():
 
 
 @app.get("/ui/state", response_class=HTMLResponse, include_in_schema=False)
-def ui_state():
-    with _env_lock:
-        if _env._config is None:
-            _env.reset(task_id="phishing", seed=42)
-        snap = _env.state()
+def ui_state(sess: SessionState = Depends(get_session)):
+    with sess.lock:
+        sess.ensure_episode()
+        snap = sess.env.state()
     payload = snap.model_dump() if hasattr(snap, "model_dump") else dict(snap)
     return _render_state_page(payload)
 
@@ -613,12 +653,6 @@ def ui_schema():
 # REST Tool Endpoints (for LLM agents using direct REST tool calls)
 # ---------------------------------------------------------------------------
 
-def _ensure_episode():
-    """Auto-start a default episode if none is active."""
-    if _env._config is None:
-        _env.reset(task_id="phishing", seed=42)
-
-
 @app.get("/tasks")
 def get_tasks():
     """List all available tasks (OpenEnv spec endpoint)."""
@@ -626,25 +660,28 @@ def get_tasks():
 
 
 @app.post("/grader")
-def grader(request: ResetRequest | None = Body(default=None)):
+def grader(
+    request: ResetRequest | None = Body(default=None),
+    sess: SessionState = Depends(get_session),
+):
     """
     Run the grader on the current episode state (OpenEnv spec endpoint).
 
     Evaluates the current investigation state against ground truth and returns
     a normalized score in [0.0, 1.0]. Does not terminate the episode.
     """
-    with _env_lock:
-        _ensure_episode()
+    with sess.lock:
+        sess.ensure_episode()
         try:
-            score, breakdown, feedback = _env.grade_with_breakdown()
+            score, breakdown, feedback = sess.env.grade_with_breakdown()
             return {
                 "score": score,
                 "breakdown": breakdown,
                 "feedback": feedback,
-                "task_id": _env._task_id,
-                "steps_used": _env._step,
-                "max_steps": _env._config.max_steps if _env._config else 0,
-                "done": _env._done,
+                "task_id": sess.env._task_id,
+                "steps_used": sess.env._step,
+                "max_steps": sess.env._config.max_steps if sess.env._config else 0,
+                "done": sess.env._done,
             }
         except Exception:
             logger.exception("Error in /grader")
@@ -652,7 +689,10 @@ def grader(request: ResetRequest | None = Body(default=None)):
 
 
 @app.post("/baseline")
-def baseline(request: ResetRequest | None = Body(default=None)):
+def baseline(
+    request: ResetRequest | None = Body(default=None),
+    sess: SessionState = Depends(get_session),
+):
     """
     Run the heuristic baseline agent on a fresh episode (OpenEnv spec endpoint).
 
@@ -660,21 +700,22 @@ def baseline(request: ResetRequest | None = Body(default=None)):
     heuristic agent to completion, and returns the final score.
     """
     req = request or ResetRequest()
-    with _env_lock:
+    with sess.lock:
         try:
             # Reset to a fresh episode
-            _env.reset(task_id=req.task_id, seed=req.seed, mode=req.mode)
+            _do_reset(sess, task_id=req.task_id, seed=req.seed, mode=req.mode)
             _baseline_agent.reset()
             # Run heuristic steps until done
+            env = sess.env
             steps = 0
-            max_steps = _env._config.max_steps if _env._config else 0
-            while not _env._done and steps < max_steps:
-                obs = _env._build_observation(role=_env._current_role(), reward=0.0)
+            max_steps = env._config.max_steps if env._config else 0
+            while not env._done and steps < max_steps:
+                obs = env._build_observation(role=env._current_role(), reward=0.0)
                 action = SOCAction(**_baseline_agent.next_action(obs.model_dump()))
-                _env.step(action)
+                _do_step(sess, action)
                 steps += 1
             # Grade the result with breakdown
-            score, breakdown, feedback = _env.grade_with_breakdown()
+            score, breakdown, feedback = env.grade_with_breakdown()
             return {
                 "task_id": req.task_id,
                 "seed": req.seed,
@@ -727,7 +768,10 @@ def list_tasks():
 
 
 @app.post("/generate_scenario")
-def generate_scenario(request: GenerateScenarioRequest | None = Body(default=None)):
+def generate_scenario(
+    request: GenerateScenarioRequest | None = Body(default=None),
+    sess: SessionState = Depends(get_session),
+):
     """Generate and load an adaptive red-team scenario for reset(task_id='red_team_generated')."""
     req = request or GenerateScenarioRequest()
     rt_config = RedTeamConfig(
@@ -740,21 +784,21 @@ def generate_scenario(request: GenerateScenarioRequest | None = Body(default=Non
         episode_count=req.episode_count,
     )
     scenario = RedTeamGenerator(config=rt_config, seed=req.seed).generate()
-    with _env_lock:
-        _env.set_generated_scenario(scenario)
+    with sess.lock:
+        sess.env.set_generated_scenario(scenario)
     return scenario.model_dump()
 
 
 @app.get("/inbox/{role}")
-def inbox(role: str):
+def inbox(role: str, sess: SessionState = Depends(get_session)):
     """Debug endpoint to inspect role-filtered tickets in the current episode."""
-    with _env_lock:
-        _ensure_episode()
+    with sess.lock:
+        sess.ensure_episode()
         try:
             parsed_role = AgentRole(role)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
-        obs = _env._build_observation(role=parsed_role, reward=0.0)
+        obs = sess.env._build_observation(role=parsed_role, reward=0.0)
         return {"role": role, "tickets": [ticket.model_dump() for ticket in obs.tickets]}
 
 
@@ -762,6 +806,7 @@ def inbox(role: str):
 def list_alerts(
     limit: int = Query(default=10, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    sess: SessionState = Depends(get_session),
 ):
     """
     List alerts in the current episode queue.
@@ -770,9 +815,9 @@ def list_alerts(
     Call POST /reset first to start an episode, or a default phishing
     episode will be auto-started.
     """
-    with _env_lock:
-        _ensure_episode()
-        alerts = [a.model_dump() for a in _env._config.alerts]
+    with sess.lock:
+        sess.ensure_episode()
+        alerts = [a.model_dump() for a in sess.env._config.alerts]
         total = len(alerts)
         page = alerts[offset: offset + limit]
         return {
@@ -784,15 +829,15 @@ def list_alerts(
 
 
 @app.get("/api/alerts/{alert_id}")
-def get_alert(alert_id: str):
+def get_alert(alert_id: str, sess: SessionState = Depends(get_session)):
     """
     Get full details for a single alert including indicators and metadata.
     """
-    with _env_lock:
-        _ensure_episode()
-        for alert in _env._config.alerts:
+    with sess.lock:
+        sess.ensure_episode()
+        for alert in sess.env._config.alerts:
             if alert.alert_id == alert_id:
-                inv = _env._investigations.get(alert_id)
+                inv = sess.env._investigations.get(alert_id)
                 return {
                     "alert": alert.model_dump(),
                     "investigation": inv.model_dump() if inv else None,
@@ -801,16 +846,16 @@ def get_alert(alert_id: str):
 
 
 @app.get("/threat-intel/ip/{ip}")
-def threat_intel_ip(ip: str):
+def threat_intel_ip(ip: str, sess: SessionState = Depends(get_session)):
     """
     Look up threat intelligence for an IP address.
 
     Returns enrichment data including malicious status, reputation score,
     associated threat actors, and related indicators.
     """
-    with _env_lock:
-        _ensure_episode()
-        db = _env._config.enrichment_db
+    with sess.lock:
+        sess.ensure_episode()
+        db = sess.env._config.enrichment_db
         result = db.get(ip)
         if result:
             return {
@@ -830,16 +875,16 @@ def threat_intel_ip(ip: str):
 
 
 @app.get("/threat-intel/domain/{domain:path}")
-def threat_intel_domain(domain: str):
+def threat_intel_domain(domain: str, sess: SessionState = Depends(get_session)):
     """
     Look up threat intelligence for a domain name.
 
     Returns enrichment data including malicious status, category,
     registrar info, and associated indicators.
     """
-    with _env_lock:
-        _ensure_episode()
-        db = _env._config.enrichment_db
+    with sess.lock:
+        sess.ensure_episode()
+        db = sess.env._config.enrichment_db
         result = db.get(domain)
         if result:
             return {
@@ -859,16 +904,16 @@ def threat_intel_domain(domain: str):
 
 
 @app.get("/threat-intel/hash/{file_hash}")
-def threat_intel_hash(file_hash: str):
+def threat_intel_hash(file_hash: str, sess: SessionState = Depends(get_session)):
     """
     Look up threat intelligence for a file hash (MD5, SHA-1, SHA-256).
 
     Returns enrichment data including malware family, AV detection rate,
     and associated campaigns.
     """
-    with _env_lock:
-        _ensure_episode()
-        db = _env._config.enrichment_db
+    with sess.lock:
+        sess.ensure_episode()
+        db = sess.env._config.enrichment_db
         result = db.get(file_hash)
         if result:
             return {
@@ -892,6 +937,7 @@ def query_log_source(
     source: str,
     alert_id: str | None = Query(default=None),
     hours: int = Query(default=24, ge=1, le=168),
+    sess: SessionState = Depends(get_session),
 ):
     """
     Query a log source for events related to an alert.
@@ -904,9 +950,9 @@ def query_log_source(
 
     Returns list of log entries with timestamps, event types, and details.
     """
-    with _env_lock:
-        _ensure_episode()
-        log_db = _env._config.log_db
+    with sess.lock:
+        sess.ensure_episode()
+        log_db = sess.env._config.log_db
         entries = []
 
         source_logs = log_db.get(source, {})
@@ -934,42 +980,42 @@ def query_log_source(
 # ---------------------------------------------------------------------------
 
 @app.get("/actors/messages")
-def actor_messages(role: str | None = Query(default=None)):
+def actor_messages(role: str | None = Query(default=None), sess: SessionState = Depends(get_session)):
     """
     Halluminate sub-theme — Inspect messages from external NPC actors
     (ThreatIntelFeed, ComplianceOfficer, EndUserReporter) in the current episode.
     """
-    with _env_lock:
+    with sess.lock:
         if role is None:
-            msgs = _actor_registry.all_messages()
+            msgs = sess.actor_registry.all_messages()
             return {"count": len(msgs), "messages": [m.model_dump() for m in msgs]}
         try:
             parsed = AgentRole(role)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
-        msgs = _actor_registry.inbox_for(parsed)
+        msgs = sess.actor_registry.inbox_for(parsed)
         return {"role": role, "count": len(msgs), "messages": [m.model_dump() for m in msgs]}
 
 
 @app.get("/policy/current")
-def policy_current():
+def policy_current(sess: SessionState = Depends(get_session)):
     """Patronus sub-theme — Current active policy version."""
-    with _env_lock:
-        return _policy_drift.current().model_dump()
+    with sess.lock:
+        return sess.policy_drift.current().model_dump()
 
 
 @app.get("/policy/history")
-def policy_history():
+def policy_history(sess: SessionState = Depends(get_session)):
     """Patronus sub-theme — Full policy-drift history for this episode."""
-    with _env_lock:
-        return _policy_drift.to_dict()
+    with sess.lock:
+        return sess.policy_drift.to_dict()
 
 
 @app.get("/reward/config")
-def reward_config():
+def reward_config(sess: SessionState = Depends(get_session)):
     """Mercor sub-theme — Active reward blend config (role/team/token weights)."""
-    with _env_lock:
-        return _reward_blend.model_dump()
+    with sess.lock:
+        return sess.reward_blend.model_dump()
 
 
 class RewardBlendUpdate(BaseModel):
@@ -983,13 +1029,13 @@ class RewardBlendUpdate(BaseModel):
 
 
 @app.post("/reward/config")
-def reward_config_update(patch: RewardBlendUpdate):
+def reward_config_update(patch: RewardBlendUpdate, sess: SessionState = Depends(get_session)):
     """Patch the reward blend config. Returns the new config."""
-    with _env_lock:
+    with sess.lock:
         fields = patch.model_dump(exclude_none=True)
         for k, v in fields.items():
-            setattr(_reward_blend, k, v)
-        return _reward_blend.model_dump()
+            setattr(sess.reward_blend, k, v)
+        return sess.reward_blend.model_dump()
 
 
 class TokenBonusRequest(BaseModel):
@@ -998,30 +1044,30 @@ class TokenBonusRequest(BaseModel):
 
 
 @app.post("/reward/token_bonus")
-def reward_token_bonus(req: TokenBonusRequest):
+def reward_token_bonus(req: TokenBonusRequest, sess: SessionState = Depends(get_session)):
     """
     Compute the Mercor token-length bonus for a given text and quality gate.
     Surfaced as an endpoint so agents / judges can preview the incentive curve.
     """
-    with _env_lock:
-        return explain_token_bonus(req.text, req.content_quality, _reward_blend)
+    with sess.lock:
+        return explain_token_bonus(req.text, req.content_quality, sess.reward_blend)
 
 
 @app.get("/experts/current")
-def experts_current():
+def experts_current(sess: SessionState = Depends(get_session)):
     """Snorkel sub-theme — Active reviewing expert and their preference hint."""
-    with _env_lock:
+    with sess.lock:
         return {
-            "round": _curriculum_round,
-            "expert": _current_expert.model_dump(),
-            "hint": _expert_panel.hint_message(_current_expert),
+            "round": sess.curriculum_round,
+            "expert": sess.current_expert.model_dump(),
+            "hint": sess.expert_panel.hint_message(sess.current_expert),
         }
 
 
 @app.get("/experts/panel")
-def experts_panel():
+def experts_panel(sess: SessionState = Depends(get_session)):
     """Snorkel sub-theme — Full expert panel roster."""
-    return {"panel": [e.model_dump() for e in _expert_panel.all_profiles()]}
+    return {"panel": [e.model_dump() for e in sess.expert_panel.all_profiles()]}
 
 
 class ExpertRotateRequest(BaseModel):
@@ -1029,21 +1075,23 @@ class ExpertRotateRequest(BaseModel):
 
 
 @app.post("/experts/rotate")
-def experts_rotate(req: ExpertRotateRequest | None = Body(default=None)):
+def experts_rotate(
+    req: ExpertRotateRequest | None = Body(default=None),
+    sess: SessionState = Depends(get_session),
+):
     """
     Advance the expert rotation. If round_index is given, rotate to that round;
     otherwise increment by 1. Emulates Snorkel experts-in-the-loop curriculum.
     """
-    global _curriculum_round, _current_expert
-    with _env_lock:
+    with sess.lock:
         if req is not None and req.round_index is not None:
-            _curriculum_round = int(req.round_index)
+            sess.curriculum_round = int(req.round_index)
         else:
-            _curriculum_round += 1
-        _current_expert = _expert_panel.for_round(_curriculum_round)
+            sess.curriculum_round += 1
+        sess.current_expert = sess.expert_panel.for_round(sess.curriculum_round)
         return {
-            "round": _curriculum_round,
-            "expert": _current_expert.model_dump(),
+            "round": sess.curriculum_round,
+            "expert": sess.current_expert.model_dump(),
         }
 
 
@@ -1054,37 +1102,37 @@ class TicketOpenRequest(BaseModel):
 
 
 @app.post("/tickets/open")
-def tickets_open(req: TicketOpenRequest):
+def tickets_open(req: TicketOpenRequest, sess: SessionState = Depends(get_session)):
     """Scaler AI Labs sub-theme — Open a multi-app enterprise ticket."""
-    with _env_lock:
-        t = _ticketing.open(alert_id=req.alert_id, priority=req.priority, note=req.note)
+    with sess.lock:
+        t = sess.ticketing.open(alert_id=req.alert_id, priority=req.priority, note=req.note)
         return t.model_dump()
 
 
 @app.post("/tickets/{ticket_id}/resolve")
-def tickets_resolve(ticket_id: str, note: str = ""):
-    with _env_lock:
-        t = _ticketing.resolve(ticket_id=ticket_id, note=note)
+def tickets_resolve(ticket_id: str, note: str = "", sess: SessionState = Depends(get_session)):
+    with sess.lock:
+        t = sess.ticketing.resolve(ticket_id=ticket_id, note=note)
         if t is None:
             raise HTTPException(status_code=404, detail="ticket not found")
         return t.model_dump()
 
 
 @app.get("/tickets")
-def tickets_list():
+def tickets_list(sess: SessionState = Depends(get_session)):
     """List all tickets in the current episode."""
-    with _env_lock:
+    with sess.lock:
         return {
-            "tickets": [t.model_dump() for t in _ticketing.all_tickets()],
-            "audit": _ticketing.audit_summary(),
+            "tickets": [t.model_dump() for t in sess.ticketing.all_tickets()],
+            "audit": sess.ticketing.audit_summary(),
         }
 
 
 @app.get("/tickets/can_disable_user")
-def tickets_can_disable_user(alert_id: str):
+def tickets_can_disable_user(alert_id: str, sess: SessionState = Depends(get_session)):
     """Cross-app business rule: can IAM.disable_user fire for this alert?"""
-    with _env_lock:
-        return {"alert_id": alert_id, "allowed": _ticketing.can_disable_user(alert_id)}
+    with sess.lock:
+        return {"alert_id": alert_id, "allowed": sess.ticketing.can_disable_user(alert_id)}
 
 
 @app.get("/themes/coverage")
@@ -1128,6 +1176,63 @@ def themes_coverage():
             "policy_drift_active_at_semantics",
         ],
     }
+
+
+# ---------------------------------------------------------------------------
+# Production operations endpoints — metrics, audit trail, session admin
+# ---------------------------------------------------------------------------
+
+@app.get("/metrics", response_class=PlainTextResponse)
+def metrics():
+    """Prometheus text-format operational metrics (requests, episodes, steps, rewards)."""
+    return PlainTextResponse(
+        METRICS.render(active_sessions=len(_sessions)),
+        media_type="text/plain; version=0.0.4; charset=utf-8",
+    )
+
+
+@app.get("/episodes")
+def list_episodes(
+    session_id: str | None = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=500),
+):
+    """
+    List recorded episode audit trails (newest first).
+
+    Every reset/step is recorded per episode for replay and compliance review.
+    Filter with ?session_id=... to scope to one tenant.
+    """
+    return {"episodes": AUDIT.list_episodes(session_id=session_id, limit=limit)}
+
+
+@app.get("/episodes/{episode_id}/trace")
+def episode_trace(episode_id: str, format: Literal["json", "jsonl"] = Query(default="json")):
+    """
+    Full audit trace for one episode: every action, reward, and running total.
+
+    ?format=jsonl returns newline-delimited JSON suitable for piping into a
+    SIEM or data lake.
+    """
+    trace = AUDIT.get(episode_id)
+    if trace is None:
+        raise HTTPException(status_code=404, detail=f"Episode '{episode_id}' not found in the audit window.")
+    if format == "jsonl":
+        return PlainTextResponse(trace_to_jsonl(trace), media_type="application/x-ndjson")
+    return {**trace.summary(), "events": trace.events}
+
+
+@app.get("/sessions")
+def sessions_list():
+    """List live sessions with their episode state (operator/debug endpoint)."""
+    return {"count": len(_sessions), "sessions": _sessions.list_summaries()}
+
+
+@app.delete("/sessions/{session_id}")
+def sessions_delete(session_id: str):
+    """Drop a session and free its episode state. The default session is recreated on demand."""
+    if not _sessions.drop(session_id):
+        raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found.")
+    return {"deleted": session_id}
 
 
 # ---------------------------------------------------------------------------

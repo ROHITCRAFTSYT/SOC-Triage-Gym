@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SOC-Triage-Gym — Train AI Agents as a Coordinated SOC Team</title>
 <meta name="description" content="An immersive tour of SOC-Triage-Gym: the first OpenEnv environment that trains AI agents as a coordinated SOC team — 8 tasks, 3 roles, 250-step campaigns, GRPO training.">
-<meta property="og:title" content="SOC-Triage-Gym — Train the team, not the analyst">
+<meta property="og:title" content="Train the Team, Not the Analyst: An RL Gym for Securing AI SOC Agents">
 <meta property="og:description" content="The first OpenEnv environment that trains AI agents as a coordinated SOC team — 8 tasks, 3 roles, 250-step APT campaigns, verifiable rewards, GRPO training.">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary">
@@ -362,6 +362,7 @@ footer{border-top:1px solid var(--line2);background:#080c12ee;padding:3.5rem 0 2
 <header class="hero" data-scene="0">
   <div class="wrap">
     <div class="kicker">▲ Reinforcement-learning environment · Multi-agent · Cybersecurity</div>
+    <div class="kicker" style="display:flex;width:max-content;max-width:100%;margin-top:-1.1rem;border-color:#3ce8b040;color:var(--green);background:#3ce8b00d">CCCL BLR6 TALK — TRAIN THE TEAM, NOT THE ANALYST: AN RL GYM FOR SECURING AI SOC AGENTS</div>
     <h1>SOC-Triage<span class="r">-Gym</span></h1>
     <p class="sub">
       The first OpenEnv environment that trains and evaluates AI agents as a
@@ -754,9 +755,9 @@ $ python train_grpo.py --role tier1 --dry-run</pre>
 <!-- MEETUP BAND -->
 <div class="band" data-scene="5">
   <div class="wrap">
-    <div class="mca rv"><span class="pin">// WHY IT FITS THIS MEETUP</span><h3><span>Memory</span></h3><p>Episode state, the ticket bus, and <code>/policy/history</code> are explicit, queryable memory. Nothing lives in a prompt — an agent that forgets what Tier-1 escalated, or which policy version was active at step 12, pays for it in reward.</p></div>
-    <div class="mca rv"><span class="pin">// WHY IT FITS THIS MEETUP</span><h3><span>Context</span></h3><p>Context isn't static here — it drifts. Mid-episode policy changes, unsolicited NPC messages, and 250-step horizons force agents to manage context the way real analysts manage a shift: triage what matters, discard what doesn't.</p></div>
-    <div class="mca rv"><span class="pin">// WHY IT FITS THIS MEETUP</span><h3><span>Agents</span></h3><p>Not one agent — a team of three with an adversary underneath. Coordination is rewarded, selfishness is penalized, and the red-team generator is itself an agent learning to break the defenders.</p></div>
+    <div class="mca rv"><span class="pin">// SECURING AI AGENTS</span><h3><span>Memory</span></h3><p>Episode state, the ticket bus, and <code>/policy/history</code> are explicit, queryable memory. Nothing lives in a prompt — an agent that forgets what Tier-1 escalated, or which policy version was active at step 12, pays for it in reward.</p></div>
+    <div class="mca rv"><span class="pin">// SECURING AI AGENTS</span><h3><span>Context</span></h3><p>Context isn't static here — it drifts. Mid-episode policy changes, unsolicited NPC messages, and 250-step horizons force agents to manage context the way real analysts manage a shift: triage what matters, discard what doesn't.</p></div>
+    <div class="mca rv"><span class="pin">// SECURING AI AGENTS</span><h3><span>Agents</span></h3><p>Not one agent — a team of three with an adversary underneath. Coordination is rewarded, selfishness is penalized, and the red-team generator is itself an agent learning to break the defenders.</p></div>
   </div>
 </div>
 
@@ -879,7 +880,7 @@ $ curl -X POST localhost:7860/reset \
     </div>
     <div class="fine">
       <span>MIT LICENSE // 111 TESTS PASSING // DETERMINISTIC BY DESIGN</span>
-      <span>PRESENTED AT CCCL × SURREALDB — MEMORY, CONTEXT &amp; AGENTS · BENGALURU</span>
+      <span>PRESENTED AT CCCL BLR6 — SECURING AI AGENTS · BENGALURU</span>
     </div>
   </div>
 </footer>

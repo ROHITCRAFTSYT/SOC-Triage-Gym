@@ -66,14 +66,15 @@ def environment() -> SOCEnvironment:
 
 @pytest.fixture
 def test_client() -> TestClient:
-    """Return a TestClient wired to the FastAPI app with a fresh environment.
+    """Return a TestClient wired to the FastAPI app with fresh state.
 
-    The lifespan handler creates a fresh SOCEnvironment on startup, so we
-    just let the TestClient context manager handle it. After the lifespan
-    runs we replace _env to ensure isolation.
+    Episode state lives in per-session containers (server.sessions), so we
+    clear the session manager, metrics, and audit trail between tests for
+    isolation.
     """
     import server.app as app_module
     with TestClient(app) as client:
-        # After lifespan creates _env, replace with a fresh one for isolation
-        app_module._env = SOCEnvironment()
+        app_module._sessions.clear()
+        app_module.METRICS.reset()
+        app_module.AUDIT.clear()
         yield client
