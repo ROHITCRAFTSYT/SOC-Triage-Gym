@@ -17,3 +17,14 @@ cryptography>=44.0.0
 # fastmcp >=3.2.0 fixes SSRF & Path Traversal (Critical), OAuth Confused Deputy (High),
 # and Command Injection via Gemini CLI (Moderate)
 fastmcp>=3.2.0
+# mcp >=1.28.1 (pulled in by fastmcp) fixes cross-client task access in the
+# experimental task handlers (High), missing authenticated-principal checks on the
+# HTTP transports (High), and missing Host/Origin validation on the WebSocket
+# server transport (High)
+mcp>=1.28.1
+# pillow >=12.3.0 (pulled in by openenv-core -> gradio) fixes a batch of heap
+# out-of-bounds writes (ImagingExpand/RankFilter, ImageCmsTransform.apply,
+# Image.paste/crop), an OOB read on the McIdas mmap path, several decompression-bomb
+# bypasses (PDF, BDF/PCF/FontFile), JPEG2000 and EPS DoS, TGA heap disclosure, and
+# WindowsViewer command injection
+pillow>=12.3.0

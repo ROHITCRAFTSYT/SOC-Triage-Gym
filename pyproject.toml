@@ -27,6 +27,10 @@ dependencies = [
     "python-multipart>=0.0.32",
     "openenv-core>=0.2.0",
     "fastmcp>=3.2.0",
+    # Transitive floors carried for security fixes (see server/requirements.txt):
+    # mcp via fastmcp, pillow via openenv-core -> gradio.
+    "mcp>=1.28.1",
+    "pillow>=12.3.0",
 ]
 
 [project.optional-dependencies]
