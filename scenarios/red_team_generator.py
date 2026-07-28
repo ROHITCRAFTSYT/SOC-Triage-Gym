@@ -3,7 +3,7 @@ import hashlib
 import random
 import string
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 from models import (
     AlertClassification,
@@ -36,7 +36,9 @@ class RedTeamGenerator:
         self.config = config if config is not None else RedTeamConfig()
         self.seed = seed
         self._rng = random.Random(seed)
-        self._base_time = datetime.now(UTC) - timedelta(hours=2)
+        from scenarios.base import EPISODE_BASE_TIME
+
+        self._base_time = EPISODE_BASE_TIME
 
     # ------------------------------------------------------------------
     # Public API
