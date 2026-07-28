@@ -298,9 +298,28 @@ def get_techniques_for_tactic(tactic: str) -> list[str]:
     return [tid for tid, data in TECHNIQUES.items() if data.get("tactic") == tactic]
 
 
+def normalize_technique_id(raw: str) -> str:
+    """Canonicalize a MITRE ATT&CK technique ID for comparison.
+
+    Agents emit technique IDs in inconsistent forms — lowercase ``t1566.001``,
+    padded whitespace, or prefixed ``MITRE T1566``. Grading them with exact
+    string equality silently drops correct-but-differently-formatted answers.
+    Uppercase, strip, and remove the common prefixes so ``t1566.001`` and
+    ``T1566.001`` compare equal. Unknown junk passes through uppercased, so
+    callers can still reject it with :func:`is_valid_technique`.
+    """
+    s = (raw or "").strip().upper()
+    for prefix in ("MITRE ATT&CK ", "MITRE ", "ATT&CK ", "ATTACK ", "TECHNIQUE ",
+                   "TECHNIQUE:", "MITRE:"):
+        if s.startswith(prefix):
+            s = s[len(prefix):].strip()
+            break
+    return s
+
+
 def is_valid_technique(technique_id: str) -> bool:
     """Return True if the technique ID exists in the database."""
-    return technique_id in TECHNIQUES
+    return normalize_technique_id(technique_id) in TECHNIQUES
 
 
 def get_technique_name(technique_id: str) -> str:

@@ -8,6 +8,7 @@ and the episode's InvestigationState dict, returning a float in [0.0, 1.0].
 
 from abc import ABC, abstractmethod
 
+from data.mitre_attack import normalize_technique_id
 from models import AlertClassification, InvestigationState, ScenarioConfig
 
 
@@ -103,8 +104,10 @@ class BaseGrader(ABC):
                 total_alerts += 1
                 continue
 
-            mapped = set(inv.mapped_techniques)
-            expected = set(expected_techniques)
+            # Normalize both sides so case/prefix differences (e.g. "t1566.001"
+            # vs "T1566.001") don't silently drop a correct mapping.
+            mapped = {normalize_technique_id(t) for t in inv.mapped_techniques}
+            expected = {normalize_technique_id(t) for t in expected_techniques}
 
             # Give partial credit: exact match + parent technique credit
             exact_matches = mapped & expected
