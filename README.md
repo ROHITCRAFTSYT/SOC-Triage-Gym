@@ -128,6 +128,17 @@ A reward function is only as good as the exploits it can't be farmed by. Six exp
 
 Reproduce with `python scripts/reward_integrity_audit.py`.
 
+**Scenario integrity.** Rewards are only trustworthy if the *scenario* they're
+graded against is well-formed. A generated `ScenarioConfig` whose answer key
+points at alert IDs that don't exist — or puts one alert in two of the
+true/false/benign partitions — silently corrupts every reward derived from it.
+`scenarios/validate.py` (`validate_scenario` / `assert_valid`) checks these
+invariants; run it across every registered scenario and seed with:
+
+```bash
+make check-scenarios      # or: python cli.py check-scenarios
+```
+
 ---
 
 ## Red-Team Curriculum (Theme #4)
@@ -408,7 +419,7 @@ soc-triage-gym/
   benchmark.py      Multi-seed determinism + score benchmark across 5 solo tasks
   demo.py           One-command judge demo (guide §19 format)
   demo_live.py      Presenter-paced five-act live demo (see DEMO_RUNBOOK.md)
-  cli.py            soc-gym CLI (serve · demo · benchmark · tasks · validate)
+  cli.py            soc-gym CLI (serve · demo · benchmark · tasks · validate · check-scenarios)
   client.py         Python SDK (retries, sessions, auth, run_episode driver)
   docker-compose.yml Production deploy (non-root, read-only FS, audit volume)
   docs/PRODUCTION.md Production deployment & operations guide
