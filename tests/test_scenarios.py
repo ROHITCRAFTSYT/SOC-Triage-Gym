@@ -4,9 +4,11 @@ Tests for scenario generation: alert counts, determinism, ground truth.
 
 
 from models import AlertClassification
+from scenarios import SCENARIO_REGISTRY
 from scenarios.lateral_movement import LateralMovementScenario
 from scenarios.phishing import PhishingScenario
 from scenarios.queue_management import QueueManagementScenario
+from scenarios.ransomware import RansomwareScenario
 
 
 class TestPhishingScenario:
@@ -107,3 +109,47 @@ class TestGroundTruthCompleteness:
             assert alert_ids == classified_ids, (
                 f"{task_id}: alert IDs {alert_ids} != classified IDs {classified_ids}"
             )
+
+
+class TestRansomwareScenario:
+    def test_ransomware_generates_1_alert(self):
+        """Ransomware scenario should generate exactly 1 alert."""
+        config = RansomwareScenario(seed=42).generate()
+        assert len(config.alerts) == 1
+        assert config.task_id == "ransomware"
+        assert config.max_steps == 15
+
+    def test_ransomware_registered(self):
+        """The scenario must be reachable through the registry."""
+        assert SCENARIO_REGISTRY.get("ransomware") is RansomwareScenario
+
+    def test_ransomware_produces_both_variants(self):
+        """Across seeds the generator yields both TP and FP classifications."""
+        seen = set()
+        for seed in range(24):
+            config = RansomwareScenario(seed=seed).generate()
+            aid = config.alerts[0].alert_id
+            seen.add(config.ground_truth.alert_classifications[aid])
+        assert AlertClassification.TRUE_POSITIVE in seen
+        assert AlertClassification.FALSE_POSITIVE in seen
+
+    def test_ransomware_ground_truth_is_consistent(self):
+        """The single alert is classified, and TP/FP id lists match it."""
+        for seed in (2, 5):
+            config = RansomwareScenario(seed=seed).generate()
+            aid = config.alerts[0].alert_id
+            gt = config.ground_truth
+            assert set(gt.alert_classifications) == {aid}
+            cls = gt.alert_classifications[aid]
+            if cls == AlertClassification.TRUE_POSITIVE:
+                assert gt.true_positive_ids == [aid]
+                assert gt.expected_techniques.get(aid)  # TP names ATT&CK techniques
+            else:
+                assert gt.false_positive_ids == [aid]
+
+    def test_ransomware_is_deterministic(self):
+        """Same seed → identical scenario (id + alert content)."""
+        a = RansomwareScenario(seed=7).generate()
+        b = RansomwareScenario(seed=7).generate()
+        assert a.scenario_id == b.scenario_id
+        assert a.alerts[0].raw_log_snippet == b.alerts[0].raw_log_snippet
