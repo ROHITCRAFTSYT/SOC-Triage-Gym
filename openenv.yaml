@@ -49,6 +49,17 @@ tasks:
     max_steps: 15
     reward_range: [0.0, 1.0]
 
+  - id: ransomware
+    name: "Single-Alert Ransomware Triage"
+    description: >
+      Triage an endpoint ransomware alert. Distinguish a real detonation
+      (mass encryption, shadow-copy deletion, ransom note, C2 beacon) from a
+      benign backup/encryption agent: enrich IOCs, query logs, classify as
+      TP or FP, map MITRE ATT&CK technique, recommend containment.
+    difficulty: easy
+    max_steps: 15
+    reward_range: [0.0, 1.0]
+
   - id: lateral_movement
     name: "Multi-Alert Lateral Movement Kill Chain"
     description: >

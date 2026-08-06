@@ -75,6 +75,7 @@ Team F1 uses delta (not sticky value) — NOOP-spamming after a correct classifi
 | Task | Mode | Alerts | Max steps | Difficulty |
 |------|------|--------|-----------|-----------|
 | `phishing` | solo | 1 | 15 | easy |
+| `ransomware` | solo | 1 | 15 | easy |
 | `lateral_movement` | solo | 5 | 30 | medium |
 | `queue_management` | solo | 20 | 60 | hard |
 | `insider_threat` | solo | 30 | 80 | expert |

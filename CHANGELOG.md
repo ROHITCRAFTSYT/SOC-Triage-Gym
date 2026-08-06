@@ -6,7 +6,12 @@ loosely follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+- New `ransomware` scenario: a single-alert endpoint ransomware triage task with
+  true-positive (mass encryption, shadow-copy deletion via `vssadmin`, ransom
+  note, C2 beacon) and false-positive (legitimate signed backup agent) variants.
+  Registered in `SCENARIO_REGISTRY`, surfaced in the task catalog and
+  `openenv.yaml`, and covered by scenario tests.
 
 ## [0.3.0] — 2026-07-16 — Training toolkit
 
