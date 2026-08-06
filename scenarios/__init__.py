@@ -7,6 +7,7 @@ from scenarios.queue_management import QueueManagementScenario
 from scenarios.ransomware import RansomwareScenario
 from scenarios.team_lateral_team import TeamLateralTeamScenario
 from scenarios.team_phishing_escalation import TeamPhishingEscalationScenario
+from scenarios.validate import assert_valid, validate_scenario
 
 SCENARIO_REGISTRY = {
     "phishing": PhishingScenario,
@@ -29,4 +30,6 @@ __all__ = [
     "TeamLateralTeamScenario",
     "APTCampaignScenario",
     "SCENARIO_REGISTRY",
+    "validate_scenario",
+    "assert_valid",
 ]

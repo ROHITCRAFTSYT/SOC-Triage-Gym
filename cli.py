@@ -152,6 +152,28 @@ def _cmd_validate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_check_scenarios(args: argparse.Namespace) -> int:
+    """Generate every registered scenario across seeds and validate its integrity."""
+    from scenarios import SCENARIO_REGISTRY, validate_scenario
+
+    seeds = [int(s) for s in args.seeds.split(",")] if args.seeds else [1, 7, 42, 99]
+    total = fails = 0
+    for name, cls in SCENARIO_REGISTRY.items():
+        for seed in seeds:
+            total += 1
+            issues = validate_scenario(cls(seed=seed).generate())
+            if issues:
+                fails += 1
+                print(f"  FAIL  {name} (seed={seed})")
+                for issue in issues:
+                    print(f"          - {issue}")
+    if fails:
+        print(f"\n{fails}/{total} scenario(s) failed integrity validation.")
+        return 1
+    print(f"All {total} generated scenarios passed integrity validation.")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="soc-gym",
@@ -183,6 +205,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_val.add_argument("--url", default="http://localhost:7860")
     p_val.add_argument("--api-key", default=None)
     p_val.set_defaults(func=_cmd_validate)
+
+    p_check = sub.add_parser(
+        "check-scenarios", help="Validate generated scenarios' ground-truth integrity."
+    )
+    p_check.add_argument("--seeds", default=None, help="Comma-separated seed list.")
+    p_check.set_defaults(func=_cmd_check_scenarios)
 
     p_train = sub.add_parser("train", help="GRPO-train a SOC role against the environment.")
     p_train.add_argument("--role", choices=["tier1", "tier2", "manager"], default="tier1")
