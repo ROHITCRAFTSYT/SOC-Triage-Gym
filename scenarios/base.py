@@ -15,6 +15,13 @@ from datetime import UTC, datetime, timedelta
 
 from models import AssetInfo, EnrichmentResult, IndicatorType, LogEntry, LogSource, ScenarioConfig, UserInfo
 
+# Fixed reference time for all generated timestamps. This MUST NOT be
+# datetime.now(): wall-clock time makes two generations from the same seed differ
+# whenever they straddle a second boundary, silently breaking the gym's core
+# "same seed -> same scenario -> same grader results" guarantee. A fixed anchor
+# keeps timestamps reproducible; per-event variety still comes from the seeded RNG.
+EPISODE_BASE_TIME = datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
+
 
 class BaseScenario(ABC):
     """Abstract base for all SOC scenario generators."""
@@ -22,7 +29,7 @@ class BaseScenario(ABC):
     def __init__(self, seed: int) -> None:
         self.seed = seed
         self.rng = random.Random(seed)
-        self._base_time = datetime.now(UTC) - timedelta(hours=2)
+        self._base_time = EPISODE_BASE_TIME
 
     @abstractmethod
     def generate(self) -> ScenarioConfig:
