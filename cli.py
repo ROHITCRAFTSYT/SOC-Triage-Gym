@@ -9,6 +9,8 @@ One entry point for everything an operator or researcher needs:
     soc-gym benchmark             # deterministic multi-seed benchmark
     soc-gym tasks                 # print the task catalog
     soc-gym validate              # check a running server's health/endpoints
+    soc-gym train                 # GRPO-train a SOC role against the environment
+    soc-gym runs                  # list structured training runs and results
 
 Installed via [project.scripts] in pyproject.toml. Each subcommand defers to
 the existing module (demo.py, benchmark.py, server.app) so behaviour is
