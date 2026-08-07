@@ -77,13 +77,13 @@ def _run_untrained(client: httpx.Client, task: str, seed: int) -> dict:
     r = client.post("/reset", json={"task_id": task, "seed": seed})
     r.raise_for_status()
     for _ in range(3):
-        step = client.post("/step", json={"action": {"action_type": "noop"}})
+        step = client.post("/step", json={"action_type": "noop"})
         if not step.is_success:
             break
         obs = step.json()
         if obs.get("done"):
             break
-    submit = client.post("/step", json={"action": {"action_type": "submit_investigation"}})
+    submit = client.post("/step", json={"action_type": "submit_investigation"})
     if submit.is_success:
         obs = submit.json()
         return {"score": obs.get("cumulative_reward", 0.0), "steps_used": obs.get("step", 0)}
