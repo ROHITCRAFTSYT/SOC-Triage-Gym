@@ -1,5 +1,6 @@
 """SOC-Triage-Gym scenario generators."""
 from scenarios.apt_campaign import APTCampaignScenario
+from scenarios.cloud_compromise import CloudCompromiseScenario
 from scenarios.insider_threat import InsiderThreatScenario
 from scenarios.lateral_movement import LateralMovementScenario
 from scenarios.phishing import PhishingScenario
@@ -15,6 +16,7 @@ SCENARIO_REGISTRY = {
     "queue_management": QueueManagementScenario,
     "insider_threat": InsiderThreatScenario,
     "ransomware": RansomwareScenario,
+    "cloud_compromise": CloudCompromiseScenario,
     "team_phishing_escalation": TeamPhishingEscalationScenario,
     "team_lateral_team": TeamLateralTeamScenario,
     "apt_campaign": APTCampaignScenario,
@@ -26,6 +28,7 @@ __all__ = [
     "QueueManagementScenario",
     "InsiderThreatScenario",
     "RansomwareScenario",
+    "CloudCompromiseScenario",
     "TeamPhishingEscalationScenario",
     "TeamLateralTeamScenario",
     "APTCampaignScenario",
