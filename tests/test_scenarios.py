@@ -5,6 +5,7 @@ Tests for scenario generation: alert counts, determinism, ground truth.
 
 from models import AlertClassification
 from scenarios import SCENARIO_REGISTRY
+from scenarios.cloud_compromise import CloudCompromiseScenario
 from scenarios.lateral_movement import LateralMovementScenario
 from scenarios.phishing import PhishingScenario
 from scenarios.queue_management import QueueManagementScenario
@@ -151,5 +152,52 @@ class TestRansomwareScenario:
         """Same seed → identical scenario (id + alert content)."""
         a = RansomwareScenario(seed=7).generate()
         b = RansomwareScenario(seed=7).generate()
+        assert a.scenario_id == b.scenario_id
+        assert a.alerts[0].raw_log_snippet == b.alerts[0].raw_log_snippet
+
+
+class TestCloudCompromiseScenario:
+    def test_cloud_generates_1_alert(self):
+        config = CloudCompromiseScenario(seed=42).generate()
+        assert len(config.alerts) == 1
+        assert config.task_id == "cloud_compromise"
+        assert config.max_steps == 15
+
+    def test_cloud_registered(self):
+        assert SCENARIO_REGISTRY.get("cloud_compromise") is CloudCompromiseScenario
+
+    def test_cloud_produces_both_variants(self):
+        seen = set()
+        for seed in range(24):
+            config = CloudCompromiseScenario(seed=seed).generate()
+            aid = config.alerts[0].alert_id
+            seen.add(config.ground_truth.alert_classifications[aid])
+        assert AlertClassification.TRUE_POSITIVE in seen
+        assert AlertClassification.FALSE_POSITIVE in seen
+
+    def test_cloud_uses_auth_and_cloudtrail_sources(self):
+        # The TP variant's evidence spans the AUTH + CloudTrail log sources.
+        config = CloudCompromiseScenario(seed=2).generate()
+        aid = config.alerts[0].alert_id
+        srcs = config.ground_truth.relevant_log_sources[aid]
+        names = {s.value for s in srcs}
+        assert {"auth", "cloud_trail"} <= names
+
+    def test_cloud_ground_truth_is_consistent(self):
+        for seed in (2, 5):
+            config = CloudCompromiseScenario(seed=seed).generate()
+            aid = config.alerts[0].alert_id
+            gt = config.ground_truth
+            assert set(gt.alert_classifications) == {aid}
+            cls = gt.alert_classifications[aid]
+            if cls == AlertClassification.TRUE_POSITIVE:
+                assert gt.true_positive_ids == [aid]
+                assert gt.expected_techniques.get(aid)
+            else:
+                assert gt.false_positive_ids == [aid]
+
+    def test_cloud_is_deterministic(self):
+        a = CloudCompromiseScenario(seed=7).generate()
+        b = CloudCompromiseScenario(seed=7).generate()
         assert a.scenario_id == b.scenario_id
         assert a.alerts[0].raw_log_snippet == b.alerts[0].raw_log_snippet
