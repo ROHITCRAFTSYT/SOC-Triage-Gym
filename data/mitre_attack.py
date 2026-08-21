@@ -333,3 +333,36 @@ def get_technique_name(technique_id: str) -> str:
     """Return technique name or the raw ID if not found."""
     tech = TECHNIQUES.get(technique_id)
     return tech["name"] if tech else technique_id
+
+
+def get_parent_technique(technique_id: str) -> str | None:
+    """Return the parent technique ID of a sub-technique, or None.
+
+    A sub-technique (e.g. ``T1566.001``) records its parent explicitly via the
+    ``parent`` key; fall back to the ``Txxxx`` portion before the dot so the
+    mapping still works for any sub-technique whose entry omits the key. Base
+    techniques and unknown IDs return None.
+    """
+    tech = TECHNIQUES.get(normalize_technique_id(technique_id))
+    if tech is None:
+        return None
+    parent = tech.get("parent")
+    if parent:
+        return parent
+    tid = normalize_technique_id(technique_id)
+    if "." in tid:
+        base = tid.split(".", 1)[0]
+        return base if base in TECHNIQUES else None
+    return None
+
+
+def get_sub_techniques(technique_id: str) -> list[str]:
+    """Return the sorted sub-technique IDs of a base technique.
+
+    Looks up every technique whose parent resolves to ``technique_id``. Returns
+    an empty list for sub-techniques and unknown IDs.
+    """
+    base = normalize_technique_id(technique_id)
+    return sorted(
+        tid for tid in TECHNIQUES if tid != base and get_parent_technique(tid) == base
+    )

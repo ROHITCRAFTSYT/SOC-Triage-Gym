@@ -12,6 +12,10 @@ loosely follows [Semantic Versioning](https://semver.org/).
   note, C2 beacon) and false-positive (legitimate signed backup agent) variants.
   Registered in `SCENARIO_REGISTRY`, surfaced in the task catalog and
   `openenv.yaml`, and covered by scenario tests.
+- `get_parent_technique` and `get_sub_techniques` helpers in
+  `data/mitre_attack.py` for navigating the technique hierarchy (sub-technique →
+  base, base → sub-techniques). Both re-exported from the `data` package, which
+  now also surfaces `get_technique_name` and `normalize_technique_id`.
 
 ### Fixed
 - `normalize_technique_id` now strips wrapping brackets/quotes and trailing
