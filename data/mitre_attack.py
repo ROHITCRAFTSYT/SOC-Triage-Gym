@@ -305,8 +305,11 @@ def normalize_technique_id(raw: str) -> str:
     padded whitespace, or prefixed ``MITRE T1566``. Grading them with exact
     string equality silently drops correct-but-differently-formatted answers.
     Uppercase, strip, and remove the common prefixes so ``t1566.001`` and
-    ``T1566.001`` compare equal. Unknown junk passes through uppercased, so
-    callers can still reject it with :func:`is_valid_technique`.
+    ``T1566.001`` compare equal. Wrapping brackets/quotes and trailing sentence
+    punctuation are also stripped, so ``(T1059.001)``, ``T1566.001.`` and
+    ``T1566,`` normalize to their bare IDs instead of being silently dropped by
+    exact-match grading. Unknown junk passes through uppercased, so callers can
+    still reject it with :func:`is_valid_technique`.
     """
     s = (raw or "").strip().upper()
     for prefix in ("MITRE ATT&CK ", "MITRE ", "ATT&CK ", "ATTACK ", "TECHNIQUE ",
@@ -314,6 +317,10 @@ def normalize_technique_id(raw: str) -> str:
         if s.startswith(prefix):
             s = s[len(prefix):].strip()
             break
+    # Peel off wrapping brackets/quotes and trailing sentence punctuation that
+    # agents emit around the ID. Only leading/trailing characters are touched,
+    # so the internal dot of a sub-technique (T1566.001) is preserved.
+    s = s.strip(" ()[]{}<>\"'.,;:")
     return s
 
 

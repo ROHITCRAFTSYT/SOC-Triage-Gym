@@ -13,6 +13,12 @@ loosely follows [Semantic Versioning](https://semver.org/).
   Registered in `SCENARIO_REGISTRY`, surfaced in the task catalog and
   `openenv.yaml`, and covered by scenario tests.
 
+### Fixed
+- `normalize_technique_id` now strips wrapping brackets/quotes and trailing
+  sentence punctuation, so agent answers like `(T1059.001)`, `T1566.001.` and
+  `T1566,` normalize to their bare IDs instead of being dropped by exact-match
+  grading. The internal sub-technique dot is preserved.
+
 ## [0.3.0] — 2026-07-16 — Training toolkit
 
 GRPO training grows a production-grade harness: staged curriculum learning,

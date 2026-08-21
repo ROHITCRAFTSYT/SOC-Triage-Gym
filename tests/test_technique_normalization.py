@@ -20,6 +20,20 @@ def test_strips_common_prefixes():
     assert normalize_technique_id("technique: t1190") == "T1190"
 
 
+def test_strips_wrapping_and_trailing_punctuation():
+    assert normalize_technique_id("(T1059.001)") == "T1059.001"
+    assert normalize_technique_id("T1566.001.") == "T1566.001"
+    assert normalize_technique_id("T1566,") == "T1566"
+    assert normalize_technique_id("[t1078.002];") == "T1078.002"
+    assert normalize_technique_id("MITRE T1190.") == "T1190"
+
+
+def test_internal_subtechnique_dot_is_preserved():
+    # Stripping trailing punctuation must not eat the sub-technique separator.
+    assert normalize_technique_id("t1566.001") == "T1566.001"
+    assert is_valid_technique("(T1566.001).")
+
+
 def test_unknown_passes_through_uppercased():
     assert normalize_technique_id("not-a-technique") == "NOT-A-TECHNIQUE"
 
