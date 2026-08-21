@@ -16,6 +16,9 @@ loosely follows [Semantic Versioning](https://semver.org/).
   `data/mitre_attack.py` for navigating the technique hierarchy (sub-technique →
   base, base → sub-techniques). Both re-exported from the `data` package, which
   now also surfaces `get_technique_name` and `normalize_technique_id`.
+- `soc-gym techniques` CLI subcommand: prints the MITRE ATT&CK technique catalog
+  the graders recognize, with sub-techniques indented under their base. Supports
+  `--tactic <tactic>` filtering and `--json`.
 
 ### Fixed
 - `normalize_technique_id` now strips wrapping brackets/quotes and trailing
