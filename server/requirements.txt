@@ -12,8 +12,8 @@ anyio>=4.8.0
 starlette>=0.52.1
 openai>=1.0.0
 openenv-core>=0.2.0
-# cryptography >=44.0.0 fixes buffer overflow on non-contiguous buffers (Moderate)
-cryptography>=44.0.0
+# cryptography >=50.0.0 fixes buffer overflow on non-contiguous buffers (Moderate)
+cryptography>=50.0.0
 # fastmcp >=3.2.0 fixes SSRF & Path Traversal (Critical), OAuth Confused Deputy (High),
 # and Command Injection via Gemini CLI (Moderate)
 fastmcp>=3.2.0
