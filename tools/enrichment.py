@@ -4,11 +4,13 @@ Threat Intelligence Enrichment Tool
 Pure function: looks up an indicator in the scenario's enrichment_db
 and returns the result along with a step reward signal.
 
-Reward logic:
-  +0.10  if indicator is in ground_truth.relevant_indicators for the alert being investigated
-  -0.03  if indicator was already enriched this episode (duplicate penalty)
-  -0.03  if indicator has no entry and is unrelated to any ground truth
-   0.00  for benign/neutral indicators not in the threat intel db
+Reward logic (must stay in sync with enrich_indicator below):
+  +0.12  relevant indicator that is malicious in the threat intel db
+  +0.08  relevant indicator that is benign — still worth checking
+  -0.03  duplicate: indicator was already enriched this episode
+  -0.03  irrelevant indicator that exists in the db (unproductive lookup)
+  -0.02  no db entry AND not a relevant indicator (chasing a dead end)
+   0.00  no db entry but the indicator is relevant (missing intel, not the agent's fault)
 """
 
 
