@@ -2,18 +2,18 @@
 fastapi>=0.115.6
 uvicorn>=0.34.0
 pydantic>=2.10.6
-pydantic-core>=2.27.2
+pydantic-core>=2.48.0
 pyyaml>=6.0.2
 # python-multipart >=0.0.22 fixes Arbitrary File Write (CVE-2025-*, High)
 python-multipart>=0.0.22
 httpx>=0.28.1
-anyio>=4.8.0
-# starlette >=0.52.1 fixes O(n^2) DoS via Range header (High) and multipart DoS (Moderate)
-starlette>=0.52.1
+anyio>=4.14.2
+# starlette >=1.6.0 fixes O(n^2) DoS via Range header (High) and multipart DoS (Moderate)
+starlette>=1.6.0
 openai>=1.0.0
 openenv-core>=0.2.0
-# cryptography >=50.0.0 fixes buffer overflow on non-contiguous buffers (Moderate)
-cryptography>=50.0.0
+# cryptography >=50.0.1 fixes buffer overflow on non-contiguous buffers (Moderate)
+cryptography>=50.0.1
 # fastmcp >=3.2.0 fixes SSRF & Path Traversal (Critical), OAuth Confused Deputy (High),
 # and Command Injection via Gemini CLI (Moderate)
 fastmcp>=3.2.0
