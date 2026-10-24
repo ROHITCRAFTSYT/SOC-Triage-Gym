@@ -10,7 +10,7 @@
 #
 # Optional env vars (pass via `hf jobs run --env`):
 #   GIT_REPO              — github clone URL (default: ROHITCRAFTSYT/-Metas-OpenEnv-2)
-#   GIT_REF               — branch/tag/sha to check out (default: master)
+#   GIT_REF               — branch/tag/sha to check out (default: main)
 #   HF_MODEL_REPO         — target model repo for the LoRA (default: rohitcraftsyt/soc-grpo-tier1)
 #   HF_SPACE_REPO         — target space repo for plot/csv/json artifacts (default: rohitcraftsyt/openenv2)
 #   NUM_EPOCHS            — GRPO epochs (default: 2)
@@ -23,7 +23,7 @@ set -euo pipefail
 
 # --- defaults --------------------------------------------------------------
 GIT_REPO="${GIT_REPO:-https://github.com/ROHITCRAFTSYT/-Metas-OpenEnv-2.git}"
-GIT_REF="${GIT_REF:-master}"
+GIT_REF="${GIT_REF:-main}"
 HF_MODEL_REPO="${HF_MODEL_REPO:-rohitcraftsyt/soc-grpo-tier1}"
 HF_SPACE_REPO="${HF_SPACE_REPO:-rohitcraftsyt/openenv2}"
 export NUM_EPOCHS="${NUM_EPOCHS:-2}"

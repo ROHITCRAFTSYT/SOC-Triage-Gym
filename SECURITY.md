@@ -2,7 +2,7 @@
 
 ## Supported Version
 
-Security fixes are applied to the latest commit on the default branch (`master`), which is the active submission for the OpenEnv Apr 2026 Hackathon and the live Hugging Face Space deployment.
+Security fixes are applied to the latest commit on the default branch (`main`), which is the active submission for the OpenEnv Apr 2026 Hackathon and the live Hugging Face Space deployment.
 
 Assume the latest repository version is the only supported version unless stated otherwise.
 
