@@ -174,6 +174,21 @@ def _cmd_check_scenarios(args: argparse.Namespace) -> int:
     return 0
 
 
+def _package_version() -> str:
+    try:
+        from importlib.metadata import PackageNotFoundError
+        from importlib.metadata import version as _pkg_version
+
+        return _pkg_version("soc-triage-gym")
+    except (ImportError, PackageNotFoundError):
+        return "0.3.0"
+
+
+def _cmd_version(args: argparse.Namespace) -> int:
+    print(f"soc-gym {_package_version()}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="soc-gym",
@@ -200,6 +215,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_tasks = sub.add_parser("tasks", help="Print the task catalog.")
     p_tasks.add_argument("--json", action="store_true")
     p_tasks.set_defaults(func=_cmd_tasks)
+
+    p_version = sub.add_parser("version", help="Print the installed soc-gym version.")
+    p_version.set_defaults(func=_cmd_version)
 
     p_val = sub.add_parser("validate", help="Probe a running server's endpoints.")
     p_val.add_argument("--url", default="http://localhost:7860")
