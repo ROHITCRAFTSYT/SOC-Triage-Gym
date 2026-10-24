@@ -92,6 +92,8 @@ The tasks span three orders of magnitude in episode horizon and two in queue siz
 
 *Regenerate with `make plots` (`scripts/gen_readme_assets.py`) — every value is read from committed task metadata.*
 
+**MITRE ATT&CK catalog.** The techniques the graders recognize live in [`data/mitre_attack.py`](data/mitre_attack.py). Browse them from the CLI — `soc-gym techniques` (add `--tactic execution` to filter, `--json` for machine-readable output). The module also exposes hierarchy helpers `get_parent_technique` / `get_sub_techniques` and the punctuation-tolerant `normalize_technique_id` used by grading, all re-exported from the `data` package.
+
 ---
 
 ## Team Mode
@@ -420,7 +422,7 @@ soc-triage-gym/
   benchmark.py      Multi-seed determinism + score benchmark across 5 solo tasks
   demo.py           One-command judge demo (guide §19 format)
   demo_live.py      Presenter-paced five-act live demo (see DEMO_RUNBOOK.md)
-  cli.py            soc-gym CLI (serve · demo · benchmark · tasks · validate · check-scenarios)
+  cli.py            soc-gym CLI (serve · demo · benchmark · tasks · techniques · validate · check-scenarios)
   client.py         Python SDK (retries, sessions, auth, run_episode driver)
   docker-compose.yml Production deploy (non-root, read-only FS, audit volume)
   docs/PRODUCTION.md Production deployment & operations guide
@@ -522,7 +524,7 @@ compatible with stock OpenEnv clients. Full guide: [docs/PRODUCTION.md](docs/PRO
 | **Prometheus metrics** | `GET /metrics` — requests, latency, episodes, steps, reward averages per task |
 | **Episode audit trail** | Every action + reward recorded; `GET /episodes/{id}/trace?format=jsonl` exports to your SIEM/data lake (durable export via `SOC_GYM_AUDIT_DIR`) |
 | **Hardened container** | Non-root user; `docker-compose.yml` runs read-only FS + audit volume + healthcheck |
-| **CLI** | `soc-gym serve · demo · benchmark · tasks · validate` |
+| **CLI** | `soc-gym serve · demo · benchmark · tasks · techniques · validate` |
 | **SDK** | `client.py` — retries with backoff, sessions, auth, `run_episode()` driver |
 
 ```bash

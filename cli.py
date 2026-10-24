@@ -8,6 +8,7 @@ One entry point for everything an operator or researcher needs:
     soc-gym demo                  # run the 5-beat guided demo
     soc-gym benchmark             # deterministic multi-seed benchmark
     soc-gym tasks                 # print the task catalog
+    soc-gym techniques            # print the MITRE ATT&CK technique catalog
     soc-gym validate              # check a running server's health/endpoints
     soc-gym train                 # GRPO-train a SOC role against the environment
     soc-gym runs                  # list structured training runs and results
@@ -174,6 +175,40 @@ def _cmd_check_scenarios(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_techniques(args: argparse.Namespace) -> int:
+    """Print the MITRE ATT&CK technique catalog the graders recognize."""
+    from data.mitre_attack import TACTIC_ORDER, TECHNIQUES, get_sub_techniques
+
+    items = sorted(TECHNIQUES.items())
+    if args.tactic:
+        tactic = args.tactic.strip().lower()
+        if tactic not in TACTIC_ORDER:
+            print(f"Unknown tactic '{args.tactic}'. Known tactics:")
+            for t in TACTIC_ORDER:
+                print(f"  {t}")
+            return 1
+        items = [(tid, data) for tid, data in items if data.get("tactic") == tactic]
+
+    if args.json:
+        print(json.dumps({tid: data for tid, data in items}, indent=2))
+        return 0
+
+    if not items:
+        print("No techniques matched.")
+        return 0
+
+    # Indent sub-techniques under their base for a readable hierarchy.
+    def _label(tid: str) -> str:
+        return f"  {tid}" if "." in tid and not get_sub_techniques(tid) else tid
+
+    width = max(len(_label(tid)) for tid, _ in items)
+    print(f"{'ID':<{width}}  {'TACTIC':<20}  NAME")
+    for tid, data in items:
+        print(f"{_label(tid):<{width}}  {data.get('tactic', ''):<20}  {data['name']}")
+    print(f"\n{len(items)} technique(s).")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="soc-gym",
@@ -211,6 +246,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_check.add_argument("--seeds", default=None, help="Comma-separated seed list.")
     p_check.set_defaults(func=_cmd_check_scenarios)
+
+    p_tech = sub.add_parser("techniques", help="Print the MITRE ATT&CK technique catalog.")
+    p_tech.add_argument("--tactic", default=None, help="Filter to a single ATT&CK tactic.")
+    p_tech.add_argument("--json", action="store_true")
+    p_tech.set_defaults(func=_cmd_techniques)
 
     p_train = sub.add_parser("train", help="GRPO-train a SOC role against the environment.")
     p_train.add_argument("--role", choices=["tier1", "tier2", "manager"], default="tier1")
