@@ -13,6 +13,15 @@ loosely follows [Semantic Versioning](https://semver.org/).
   Registered in `SCENARIO_REGISTRY`, surfaced in the task catalog and
   `openenv.yaml`, and covered by scenario tests.
 
+### Security
+- Resolved all 71 open Dependabot alerts by upgrading pillow 13.0.0, PyJWT
+  2.15.1, certifi 2026.10.23, urllib3 2.8.0, anyio 4.14.2, cryptography 50.0.2,
+  fastmcp 3.4.11, mcp 1.30.0, fsspec 2026.9.0, filelock 4.2.4, brotli 1.2.1 and
+  opentelemetry-api 1.45.1. gradio still pins `pillow<13`, so Pillow is lifted
+  via a `[tool.uv]` override in the lockfile and a post-install upgrade in the
+  Dockerfile. fastmcp and mcp are capped below their next majors (`<4`, `<2`)
+  because openenv-core targets the fastmcp 3 API.
+
 ## [0.3.0] — 2026-07-16 — Training toolkit
 
 GRPO training grows a production-grade harness: staged curriculum learning,
