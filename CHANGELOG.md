@@ -7,6 +7,11 @@ loosely follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- New `cloud_compromise` scenario: a single-alert cloud identity-compromise task
+  with true-positive (impossible-travel login, IAM access-key creation, a bucket
+  made public, a security group opened, CloudTrail `StopLogging`) and
+  false-positive (SSO+MFA admin on approved travel) variants. Exercises the
+  `auth` and `cloud_trail` log sources. Registered, catalogued, and tested.
 - New `ransomware` scenario: a single-alert endpoint ransomware triage task with
   true-positive (mass encryption, shadow-copy deletion via `vssadmin`, ransom
   note, C2 beacon) and false-positive (legitimate signed backup agent) variants.

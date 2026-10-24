@@ -60,6 +60,18 @@ tasks:
     max_steps: 15
     reward_range: [0.0, 1.0]
 
+  - id: cloud_compromise
+    name: "Single-Alert Cloud Account Compromise Triage"
+    description: >
+      Triage a cloud identity alert. Distinguish a real compromise
+      (impossible-travel login, new access key, a bucket made public, a
+      security group opened, CloudTrail logging disabled) from a benign admin
+      on approved travel: enrich IOCs, query AUTH + CloudTrail logs, classify
+      as TP or FP, map MITRE ATT&CK technique, recommend containment.
+    difficulty: medium
+    max_steps: 15
+    reward_range: [0.0, 1.0]
+
   - id: lateral_movement
     name: "Multi-Alert Lateral Movement Kill Chain"
     description: >
