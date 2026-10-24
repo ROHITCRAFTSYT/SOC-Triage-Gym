@@ -8,6 +8,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf 
 # Install dependencies (--prefer-binary avoids Rust/C compilation)
 COPY server/requirements.txt .
 RUN pip install --no-cache-dir --prefer-binary -r requirements.txt
+# gradio (via openenv-core) still pins pillow<13, but every 12.x release carries
+# the 2026 Pillow heap-overflow advisories. Lift it past the pin (mirrors the
+# uv override in pyproject.toml); pip's warning about the gradio pin is expected.
+RUN pip install --no-cache-dir --prefer-binary --no-deps "pillow>=13.0.0"
 
 # Copy source code
 COPY . .
