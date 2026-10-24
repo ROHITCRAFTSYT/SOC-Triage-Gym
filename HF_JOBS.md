@@ -29,7 +29,7 @@ hf jobs run \
 **What this does** (≈30 min on `a10g-small`):
 
 1. Pulls the latest CUDA pytorch image
-2. Fetches `scripts/hf_job_entrypoint.sh` from your repo's master branch
+2. Fetches `scripts/hf_job_entrypoint.sh` from your repo's main branch
 3. The entrypoint clones the repo, installs the GRPO stack, starts the env
    server, runs `scripts/train_and_evaluate.py`, and uploads:
    - **Model:** trained LoRA → `rohitcraftsyt/soc-grpo-tier1`
@@ -48,7 +48,7 @@ Pass them as `--env KEY=VALUE` to the launch command. Defaults shown.
 | `NUM_GENERATIONS` | `4` | Per-prompt completions for GRPO group sampling |
 | `SOC_TRAIN_N_SEEDS` | `12` | Seeds × tasks × steps = total training examples |
 | `SOC_TRAIN_TASKS` | (defaults from `train_grpo.py`) | Comma-separated, e.g. `phishing` for solo dense reward |
-| `GIT_REF` | `master` | Branch / tag / commit SHA to train against |
+| `GIT_REF` | `main` | Branch / tag / commit SHA to train against |
 | `HF_MODEL_REPO` | `rohitcraftsyt/soc-grpo-tier1` | Where the LoRA adapter lands |
 | `HF_SPACE_REPO` | `rohitcraftsyt/openenv2` | Where the artifact files land |
 
