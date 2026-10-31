@@ -2,31 +2,31 @@
 fastapi>=0.115.6
 uvicorn>=0.34.0
 pydantic>=2.10.6
-pydantic-core>=2.27.2
+pydantic-core>=2.50.1
 pyyaml>=6.0.2
 # python-multipart >=0.0.22 fixes Arbitrary File Write (CVE-2025-*, High)
 python-multipart>=0.0.22
 httpx>=0.28.1
-# anyio >=4.14.2 fixes TLSStream IDNA 2003 host-name encoding enabling certificate
+# anyio >=4.15.1 fixes TLSStream IDNA 2003 host-name encoding enabling certificate
 # spoofing (Critical) and process-pool workers blocking on undrained stderr
-anyio>=4.14.2
-# starlette >=0.52.1 fixes O(n^2) DoS via Range header (High) and multipart DoS (Moderate)
-starlette>=0.52.1
+anyio>=4.15.1
+# starlette >=1.9.0 fixes O(n^2) DoS via Range header (High) and multipart DoS (Moderate)
+starlette>=1.9.0
 openai>=1.0.0
 openenv-core>=0.2.0
-# cryptography >=50.0.0 fixes buffer overflow on non-contiguous buffers (Moderate)
-cryptography>=50.0.0
+# cryptography >=50.0.2 fixes buffer overflow on non-contiguous buffers (Moderate)
+cryptography>=50.0.2
 # fastmcp >=3.2.0 fixes SSRF & Path Traversal (Critical), OAuth Confused Deputy (High),
 # and Command Injection via Gemini CLI (Moderate); >=3.4.10 fixes post-transform
 # component authorization being skipped on direct calls (Moderate). Capped below 4:
 # openenv-core is built against the fastmcp 3 API.
-fastmcp>=3.4.10,<4
+fastmcp>=3.4.10,<5
 # mcp >=1.28.1 (pulled in by fastmcp) fixes cross-client task access in the
 # experimental task handlers (High), missing authenticated-principal checks on the
 # HTTP transports (High), and missing Host/Origin validation on the WebSocket
 # server transport (High); >=1.30.0 fixes unbounded StreamableHTTP session
 # accumulation (Moderate). fastmcp 3 requires mcp<2.
-mcp>=1.30.0,<2
+mcp>=1.30.0,<3
 # pillow >=12.3.0 (pulled in by openenv-core -> gradio) fixes a batch of heap
 # out-of-bounds writes (ImagingExpand/RankFilter, ImageCmsTransform.apply,
 # Image.paste/crop), an OOB read on the McIdas mmap path, several decompression-bomb
@@ -36,15 +36,15 @@ mcp>=1.30.0,<2
 pillow>=12.3.0
 # Transitive floors (via httpx/requests/huggingface-hub/fastmcp/gradio) for 2026 advisories:
 # PyJWT JWK/HMAC key-confusion and token forgery (Critical/High)
-pyjwt>=2.15.0
+pyjwt>=2.15.1
 # certifi drops emSign root CAs with compromised intermediate keys (Critical)
-certifi>=2026.10.19
+certifi>=2026.10.23
 # urllib3 unbounded chunk-size buffering and ignored HTTPS-proxy TLS config (High)
 urllib3>=2.8.0
 # fsspec ReferenceFileSystem template injection leading to RCE (High)
-fsspec>=2026.6.0
+fsspec>=2026.9.0
 # filelock ReadWriteLock symlink/journal planting (High)
-filelock>=4.2.1
+filelock>=4.2.4
 # brotli decoder out-of-bounds write (Critical)
 brotli>=1.2.1
 # opentelemetry-api unbounded tracestate parsing (Moderate)

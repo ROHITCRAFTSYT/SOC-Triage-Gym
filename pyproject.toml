@@ -28,10 +28,10 @@ dependencies = [
     "openenv-core>=0.2.0",
     # Capped below 4 / 2: openenv-core is built against the fastmcp 3 API, and
     # fastmcp 3 itself requires mcp<2.
-    "fastmcp>=3.4.10,<4",
+    "fastmcp>=3.4.10,<5",
     # Transitive floors carried for security fixes (see server/requirements.txt):
     # mcp via fastmcp, pillow via openenv-core -> gradio.
-    "mcp>=1.30.0,<2",
+    "mcp>=1.30.0,<3",
     # gradio still pins pillow<13, so pip can only reach 12.3.0 here. The uv
     # lock overrides it to the patched 13.x below, and the Dockerfile upgrades it.
     "pillow>=12.3.0",
