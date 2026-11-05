@@ -44,6 +44,7 @@ from scenarios.red_team_generator import RedTeamGenerator
 from server.audit import AUDIT, trace_to_jsonl
 from server.environment import SOCEnvironment
 from server.landing_ui import UI_HTML
+from server.logging_config import RequestLoggingMiddleware, configure_logging
 from server.metrics import METRICS, MetricsMiddleware
 from server.page_ui import (
     render_metadata as _render_metadata_page,
@@ -99,6 +100,17 @@ def _do_reset(sess: SessionState, task_id: str, seed: int, mode: str) -> SOCObse
         seed=seed,
         mode=mode,
     )
+    logger.info(
+        "episode.reset",
+        extra={
+            "episode_id": sess.env._episode_id,
+            "session_id": sess.session_id,
+            "task_id": task_id,
+            "seed": seed,
+            "mode": mode,
+            "alerts": len(obs.alert_queue),
+        },
+    )
     return obs
 
 
@@ -118,8 +130,30 @@ def _do_step(sess: SessionState, action: SOCAction) -> SOCObservation:
         done=bool(obs.done),
         role=str(role) if role is not None else None,
     )
+    logger.debug(
+        "episode.step",
+        extra={
+            "episode_id": sess.env._episode_id,
+            "step": sess.env._step,
+            "action_type": action.action_type.value,
+            "reward": round(float(obs.reward), 4),
+            "done": bool(obs.done),
+        },
+    )
     if obs.done:
         METRICS.record_episode_complete(task, float(sess.env._cumulative_reward))
+        logger.info(
+            "episode.complete",
+            extra={
+                "episode_id": sess.env._episode_id,
+                "session_id": sess.session_id,
+                "task_id": task,
+                "seed": sess.env._config.seed if sess.env._config else None,
+                "steps": sess.env._step,
+                "task_score": obs.task_score,
+                "cumulative_reward": round(float(sess.env._cumulative_reward), 4),
+            },
+        )
     return obs
 
 TASKS = [
@@ -208,9 +242,12 @@ TASKS = [
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Warm the default session on startup so the first request is fast."""
+    """Configure logging and warm the default session so the first request is fast."""
+    configure_logging()
     _sessions.get_or_create(DEFAULT_SESSION_ID)
+    logger.info("server.start", extra={"version": VERSION, "tasks": len(TASKS)})
     yield
+    logger.info("server.stop")
     # Cleanup on shutdown (nothing needed for in-memory sessions)
 
 
@@ -241,6 +278,9 @@ app.add_middleware(
 # rejected (401/429) requests.
 app.add_middleware(SecurityMiddleware)
 app.add_middleware(MetricsMiddleware)
+# Outermost: binds the request ID and logs every request, including ones the
+# security middleware rejects.
+app.add_middleware(RequestLoggingMiddleware)
 
 
 # ---------------------------------------------------------------------------
@@ -1284,7 +1324,10 @@ def main():
 
     host = os.environ.get("SOC_TRIAGE_HOST", "0.0.0.0")  # noqa: S104 - deploy default
     port = int(os.environ.get("SOC_TRIAGE_PORT", "7860"))
-    uvicorn.run("server.app:app", host=host, port=port, reload=False)
+    configure_logging()
+    # Our RequestLoggingMiddleware emits structured access lines; uvicorn's own
+    # access log would duplicate them in a different format.
+    uvicorn.run("server.app:app", host=host, port=port, reload=False, access_log=False)
 
 
 if __name__ == "__main__":
