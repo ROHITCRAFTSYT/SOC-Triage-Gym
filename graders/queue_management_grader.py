@@ -41,7 +41,7 @@ class QueueManagementGrader(BaseGrader):
         missed_tp_score = self._missed_tp_score(investigations, gt)
 
         # ---- Efficiency Score (0.15) ----
-        efficiency_score = self._efficiency_score(steps_used, max_steps)
+        efficiency_score = self._efficiency_score(steps_used, max_steps) * self._coverage(config, investigations)
 
         # ---- Response Score (0.15) ----
         response_score = self._response_quality(config, investigations)
@@ -63,7 +63,7 @@ class QueueManagementGrader(BaseGrader):
         f1 = self._compute_f1(investigations, gt)
         chain_score = self._attack_chain_score(investigations, gt)
         missed_tp_score = self._missed_tp_score(investigations, gt)
-        efficiency_score = self._efficiency_score(steps_used, max_steps)
+        efficiency_score = self._efficiency_score(steps_used, max_steps) * self._coverage(config, investigations)
         response_score = self._response_quality(config, investigations)
 
         final = self._clamp(

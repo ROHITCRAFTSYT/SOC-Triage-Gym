@@ -72,7 +72,10 @@ class APTCampaignGrader(BaseGrader):
         narrative_component = (
             narrative_bonus / blend.token_scale_max_bonus if blend.token_scale_max_bonus else 0.0
         )
-        return f1, chain_recall, narrative_component, self._policy_compliance
+        # Policy compliance is trivially 1.0 when the agent took no actions, so
+        # scale it by triage coverage: an empty submission must not earn it.
+        compliance = self._policy_compliance * self._coverage(config, investigations)
+        return f1, chain_recall, narrative_component, compliance
 
     def grade(
         self,

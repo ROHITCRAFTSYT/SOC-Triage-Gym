@@ -43,7 +43,7 @@ class LateralMovementGrader(BaseGrader):
         response_score = self._response_quality(config, investigations)
 
         # ---- Efficiency Score (0.10) ----
-        efficiency_score = self._efficiency_score(steps_used, max_steps)
+        efficiency_score = self._efficiency_score(steps_used, max_steps) * self._coverage(config, investigations)
 
         # ---- Weighted sum ----
         final = (
@@ -63,7 +63,7 @@ class LateralMovementGrader(BaseGrader):
         technique_score = self._technique_accuracy(config, investigations, only_tps=True)
         chain_score = self._chain_reconstruction_score(investigations, gt.kill_chain_order or [])
         response_score = self._response_quality(config, investigations)
-        efficiency_score = self._efficiency_score(steps_used, max_steps)
+        efficiency_score = self._efficiency_score(steps_used, max_steps) * self._coverage(config, investigations)
 
         final = self._clamp(
             0.30 * classification_score + 0.20 * technique_score
