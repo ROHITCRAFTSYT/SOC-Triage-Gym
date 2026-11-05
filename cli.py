@@ -48,16 +48,18 @@ def _cmd_demo(args: argparse.Namespace) -> int:
 
 
 def _cmd_benchmark(args: argparse.Namespace) -> int:
-    argv = ["benchmark.py"]
+    argv: list[str] = []
     if args.task:
         argv += ["--task", args.task]
     if args.seeds:
         argv += ["--seeds", args.seeds]
-    sys.argv = argv
+    if args.agents:
+        argv += ["--agents", args.agents]
+    if args.write:
+        argv += ["--write", args.write]
     from benchmark import main as benchmark_main
 
-    benchmark_main()
-    return 0
+    return benchmark_main(argv)
 
 
 def _cmd_tasks(args: argparse.Namespace) -> int:
@@ -230,6 +232,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_bench = sub.add_parser("benchmark", help="Run the deterministic multi-seed benchmark.")
     p_bench.add_argument("--task", default=None)
     p_bench.add_argument("--seeds", default=None, help="Comma-separated seed list.")
+    p_bench.add_argument("--agents", default=None, help="Comma-separated agents (submit,random,heuristic,oracle).")
+    p_bench.add_argument("--write", default=None, metavar="DIR", help="Write results.json/results.md into DIR.")
     p_bench.set_defaults(func=_cmd_benchmark)
 
     p_tasks = sub.add_parser("tasks", help="Print the task catalog.")

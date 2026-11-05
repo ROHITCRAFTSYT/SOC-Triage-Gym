@@ -1,0 +1,225 @@
+{
+  "agents": [
+    "submit",
+    "random",
+    "heuristic",
+    "oracle"
+  ],
+  "cells": {
+    "apt_campaign": {
+      "heuristic": {
+        "mean": 0.6401,
+        "n": 5,
+        "std": 0.0052
+      },
+      "oracle": {
+        "mean": 0.8,
+        "n": 5,
+        "std": 0.0
+      },
+      "random": {
+        "mean": 0.0023,
+        "n": 5,
+        "std": 0.0016
+      },
+      "submit": {
+        "mean": 0.001,
+        "n": 5,
+        "std": 0.0
+      }
+    },
+    "cloud_compromise": {
+      "heuristic": {
+        "mean": 0.705,
+        "n": 5,
+        "std": 0.1592
+      },
+      "oracle": {
+        "mean": 0.9396,
+        "n": 5,
+        "std": 0.0485
+      },
+      "random": {
+        "mean": 0.2382,
+        "n": 5,
+        "std": 0.3137
+      },
+      "submit": {
+        "mean": 0.001,
+        "n": 5,
+        "std": 0.0
+      }
+    },
+    "insider_threat": {
+      "heuristic": {
+        "mean": 0.782,
+        "n": 5,
+        "std": 0.0
+      },
+      "oracle": {
+        "mean": 0.897,
+        "n": 5,
+        "std": 0.0062
+      },
+      "random": {
+        "mean": 0.032,
+        "n": 5,
+        "std": 0.0345
+      },
+      "submit": {
+        "mean": 0.001,
+        "n": 5,
+        "std": 0.0
+      }
+    },
+    "lateral_movement": {
+      "heuristic": {
+        "mean": 0.71,
+        "n": 5,
+        "std": 0.0
+      },
+      "oracle": {
+        "mean": 0.75,
+        "n": 5,
+        "std": 0.0
+      },
+      "random": {
+        "mean": 0.0514,
+        "n": 5,
+        "std": 0.0648
+      },
+      "submit": {
+        "mean": 0.001,
+        "n": 5,
+        "std": 0.0
+      }
+    },
+    "phishing": {
+      "heuristic": {
+        "mean": 0.6726,
+        "n": 5,
+        "std": 0.2665
+      },
+      "oracle": {
+        "mean": 0.8796,
+        "n": 5,
+        "std": 0.0975
+      },
+      "random": {
+        "mean": 0.1156,
+        "n": 5,
+        "std": 0.0829
+      },
+      "submit": {
+        "mean": 0.001,
+        "n": 5,
+        "std": 0.0
+      }
+    },
+    "queue_management": {
+      "heuristic": {
+        "mean": 0.885,
+        "n": 5,
+        "std": 0.0
+      },
+      "oracle": {
+        "mean": 0.9197,
+        "n": 5,
+        "std": 0.0045
+      },
+      "random": {
+        "mean": 0.0269,
+        "n": 5,
+        "std": 0.0383
+      },
+      "submit": {
+        "mean": 0.001,
+        "n": 5,
+        "std": 0.0
+      }
+    },
+    "ransomware": {
+      "heuristic": {
+        "mean": 0.7596,
+        "n": 5,
+        "std": 0.1955
+      },
+      "oracle": {
+        "mean": 0.8796,
+        "n": 5,
+        "std": 0.0975
+      },
+      "random": {
+        "mean": 0.1984,
+        "n": 5,
+        "std": 0.2613
+      },
+      "submit": {
+        "mean": 0.001,
+        "n": 5,
+        "std": 0.0
+      }
+    },
+    "team_lateral_team": {
+      "heuristic": {
+        "mean": 0.8,
+        "n": 5,
+        "std": 0.0
+      },
+      "random": {
+        "mean": 0.001,
+        "n": 5,
+        "std": 0.0
+      },
+      "submit": {
+        "mean": 0.001,
+        "n": 5,
+        "std": 0.0
+      }
+    },
+    "team_phishing_escalation": {
+      "heuristic": {
+        "mean": 0.999,
+        "n": 5,
+        "std": 0.0
+      },
+      "random": {
+        "mean": 0.001,
+        "n": 5,
+        "std": 0.0
+      },
+      "submit": {
+        "mean": 0.001,
+        "n": 5,
+        "std": 0.0
+      }
+    }
+  },
+  "determinism_failures": [],
+  "deterministic": true,
+  "overall": {
+    "heuristic": 0.7726,
+    "oracle": 0.8665,
+    "random": 0.0741,
+    "submit": 0.001
+  },
+  "repeat": 2,
+  "seeds": [
+    42,
+    123,
+    256,
+    789,
+    1024
+  ],
+  "tasks": [
+    "phishing",
+    "ransomware",
+    "cloud_compromise",
+    "lateral_movement",
+    "queue_management",
+    "insider_threat",
+    "apt_campaign",
+    "team_phishing_escalation",
+    "team_lateral_team"
+  ]
+}
