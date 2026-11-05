@@ -106,6 +106,7 @@ class SOCEnvironment:
         self._phase: EpisodePhase | None = None
         self._phase_step: int = 0
         self._tickets: list[TicketMessage] = []
+        self._ticket_seq: int = 0
         self._containment_results: list[ContainmentResult] = []
         self._manager_review: ManagerReviewResult | None = None
         self._escalated_alert_ids: list[str] = []
@@ -154,6 +155,7 @@ class SOCEnvironment:
         self._episode_id = str(uuid.uuid4())[:8]
         self._action_history = []
         self._tickets = []
+        self._ticket_seq = 0
         self._containment_results = []
         self._manager_review = None
         self._escalated_alert_ids = []
@@ -705,7 +707,7 @@ class SOCEnvironment:
 
         # Create escalation ticket
         ticket = TicketMessage(
-            ticket_id=f"TKT-{str(uuid.uuid4())[:8]}",
+            ticket_id=self._next_ticket_id(),
             alert_id=alert_id,
             from_role=AgentRole.TIER1,
             to_role=AgentRole.TIER2,
@@ -857,7 +859,7 @@ class SOCEnvironment:
         self._containment_results.append(result)
         # Create closure ticket for Manager
         ticket = TicketMessage(
-            ticket_id=f"TKT-{str(uuid.uuid4())[:8]}",
+            ticket_id=self._next_ticket_id(),
             alert_id=alert_id or inv.alert_id,
             from_role=AgentRole.TIER2,
             to_role=AgentRole.MANAGER,
@@ -897,7 +899,7 @@ class SOCEnvironment:
         )
         # Create override ticket
         ticket = TicketMessage(
-            ticket_id=f"TKT-{str(uuid.uuid4())[:8]}",
+            ticket_id=self._next_ticket_id(),
             alert_id=action.alert_id,
             from_role=AgentRole.MANAGER,
             to_role=AgentRole.TIER1,
@@ -915,7 +917,7 @@ class SOCEnvironment:
             self._config, self._investigations, action.alert_id, action.flag_reason or ""
         )
         ticket = TicketMessage(
-            ticket_id=f"TKT-{str(uuid.uuid4())[:8]}",
+            ticket_id=self._next_ticket_id(),
             alert_id=action.alert_id,
             from_role=AgentRole.MANAGER,
             to_role=None,
@@ -1097,6 +1099,17 @@ class SOCEnvironment:
             not in {AlertClassification.TRUE_POSITIVE, AlertClassification.BENIGN_TRUE_POSITIVE}
         )
         return min(0.0, -0.5 * missed_tps)
+
+    def _next_ticket_id(self) -> str:
+        """Per-episode sequential ticket ID.
+
+        Ticket IDs feed ``_trajectory_hash`` (the manager-judge cache key) and
+        appear in observations, so they must be a pure function of the action
+        sequence. uuid4 made two identical episodes produce different
+        observations and trajectory hashes.
+        """
+        self._ticket_seq += 1
+        return f"TKT-EP{self._ticket_seq:04d}"
 
     def _action_signature(self, action: SOCAction) -> str:
         """Identity of an action for loop detection.
