@@ -14,13 +14,38 @@ permissions:
   contents: read
 
 jobs:
-  test:
-    name: Lint & test (py${{ matrix.python-version }})
+  lint:
+    name: Lint & format
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.12"
+
+      # Same ruff version as .pre-commit-config.yaml and the dev extra, so
+      # local, pre-commit and CI agree on formatting.
+      - name: Install ruff
+        run: python -m pip install "ruff==0.15.22"
+
+      - name: Ruff lint
+        run: ruff check --output-format=github .
+
+      - name: Ruff format check
+        run: ruff format --check .
+
+  test:
+    name: Test (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12"]
+        python-version: ["3.11", "3.12", "3.13"]
 
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
@@ -38,12 +63,103 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
           pip install -e ".[dev]"
 
-      - name: Ruff lint
-        run: ruff check .
+      - name: Run tests with coverage
+        run: pytest -q --cov=. --cov-report=term --cov-fail-under=65
 
-      - name: Ruff format check
-        run: ruff format --check .
-        continue-on-error: true
+      - name: Validate scenario ground truth
+        run: python cli.py check-scenarios --seeds 0,1,2,3,7,42,99,123
 
-      - name: Run tests
-        run: pytest -q
+  benchmark:
+    name: Benchmark & determinism
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -e .
+
+      # Exits non-zero if any (agent, task, seed) is non-deterministic across
+      # repeats. Then fail if the committed leaderboard is stale. Uses the same
+      # flags as `make benchmark` so the written files are byte-comparable.
+      - name: Run benchmark
+        run: python benchmark.py --quiet --write benchmarks/
+
+      - name: Committed leaderboard is up to date
+        run: |
+          if ! git diff --exit-code -- benchmarks/; then
+            echo "::error::benchmarks/ is stale. Run 'make benchmark' and commit the result."
+            exit 1
+          fi
+
+  docker:
+    name: Docker build & smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Build image
+        run: docker build -t soc-triage-gym:ci .
+
+      - name: Start container
+        run: docker run -d --name soc-gym -p 7860:7860 soc-triage-gym:ci
+
+      - name: Wait for healthy
+        run: |
+          for _ in $(seq 1 60); do
+            status=$(docker inspect --format '{{.State.Health.Status}}' soc-gym)
+            [ "$status" = "healthy" ] && exit 0
+            sleep 2
+          done
+          docker logs soc-gym
+          exit 1
+
+      - name: Smoke test API
+        run: |
+          set -euo pipefail
+          curl -fsS http://127.0.0.1:7860/health
+          curl -fsS -X POST http://127.0.0.1:7860/reset \
+            -H 'Content-Type: application/json' \
+            -d '{"task_id": "ransomware", "seed": 2}' > /dev/null
+          curl -fsS -X POST http://127.0.0.1:7860/step \
+            -H 'Content-Type: application/json' \
+            -d '{"action_type": "submit_investigation"}' | python -c "import json,sys; o=json.load(sys.stdin); assert o['done'] and o['task_score'] is not None, o"
+          # Container must not run as root.
+          test "$(docker exec soc-gym id -u)" != "0"
+          # Logs must be structured JSON.
+          docker logs soc-gym 2>&1 | grep '^{' | tail -n 1 | python -c "import json,sys; json.loads(sys.stdin.read())"
+
+      - name: Container logs
+        if: always()
+        run: docker logs soc-gym || true
+
+  workflow-security:
+    name: Workflow security (zizmor)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.12"
+
+      # Same zizmor version as .pre-commit-config.yaml.
+      - name: Audit workflows
+        run: |
+          python -m pip install "zizmor==1.28.0"
+          zizmor --offline .github/workflows
