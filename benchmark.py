@@ -1,21 +1,34 @@
 """
-SOC-Triage-Gym Multi-Seed Reproducibility Benchmark
-=====================================================
-Runs all tasks across multiple seeds using the heuristic agent (no LLM needed).
-Prints a markdown table of scores and verifies determinism (same seed = same score).
+SOC-Triage-Gym Benchmark
+========================
+Runs the baseline agents in ``baselines.py`` across every task and a set of
+seeds, prints a leaderboard (mean ± std task score per agent), and verifies
+determinism: each (agent, task, seed) is played ``--repeat`` times and must
+produce identical scores and step-reward sequences.
+
+Runs in-process against ``SOCEnvironment`` — no server, no GPU, no API key —
+so the numbers are a pure function of the code at this commit.
 
 Usage:
-    python benchmark.py
-    python benchmark.py --seeds 42,123,256
-    python benchmark.py --server http://localhost:7860
+    python benchmark.py                                 # full leaderboard
+    python benchmark.py --task phishing --seed 42       # one cell
+    python benchmark.py --agents heuristic,oracle --seeds 1,2,3
+    python benchmark.py --write benchmarks/             # refresh committed results
+
+Exit code is 1 if any run is non-deterministic, so CI can gate on it.
 """
 
+from __future__ import annotations
+
 import argparse
-import subprocess
+import json
+import os
+import statistics
 import sys
 import time
+from collections import defaultdict
 
-import httpx
+from baselines import AGENTS, SOLO_TASKS, TEAM_TASKS, EpisodeResult, make_agent, run_episode
 
 # Windows consoles default to cp1252 and crash on the Unicode glyphs printed
 # below; force UTF-8 so output is identical everywhere.
@@ -25,152 +38,155 @@ for _stream in (sys.stdout, sys.stderr):
     except (AttributeError, ValueError):
         pass
 
-TASKS = ["phishing", "lateral_movement", "queue_management", "insider_threat", "apt_campaign"]
-DEFAULT_SEEDS = [42, 123, 256, 789, 1024]
-DEFAULT_SERVER = "http://localhost:7860"
+TASKS: tuple[str, ...] = SOLO_TASKS + TEAM_TASKS
+DEFAULT_AGENTS: tuple[str, ...] = ("submit", "random", "heuristic", "oracle")
+DEFAULT_SEEDS: tuple[int, ...] = (42, 123, 256, 789, 1024)
+# The oracle reads ground truth and only plays solo mode.
+_UNSUPPORTED = {("oracle", t) for t in TEAM_TASKS}
 
 
-def ensure_server(server_url: str) -> subprocess.Popen | None:
-    """Return a server subprocess if one needs to be started, else None."""
-    try:
-        r = httpx.get(f"{server_url}/health", timeout=3)
-        r.raise_for_status()
-        print(f"[OK] Server already running at {server_url}")
-        return None
-    except Exception:
-        pass
+def run_benchmark(
+    agents: list[str],
+    tasks: list[str],
+    seeds: list[int],
+    repeat: int = 2,
+    progress: bool = False,
+) -> dict:
+    """Run every (agent, task, seed) ``repeat`` times and summarise.
 
-    print(f"[INFO] Starting server subprocess on {server_url} ...")
-    proc = subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", "server.app:app", "--host", "127.0.0.1", "--port", "7860"],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-    for _ in range(30):
-        time.sleep(1)
-        try:
-            r = httpx.get(f"{server_url}/health", timeout=3)
-            r.raise_for_status()
-            print(f"[OK] Server started at {server_url}")
-            return proc
-        except Exception:
-            pass
-    print("[ERROR] Server failed to start after 30 seconds.")
-    proc.terminate()
-    sys.exit(1)
+    Returns a JSON-serialisable dict with per-episode results, per-cell
+    mean/std, per-agent overall means, and a list of determinism failures.
+    """
+    episodes: list[EpisodeResult] = []
+    failures: list[str] = []
+    for agent_name in agents:
+        for task in tasks:
+            if (agent_name, task) in _UNSUPPORTED:
+                continue
+            for seed in seeds:
+                runs = [run_episode(make_agent(agent_name), task, seed) for _ in range(max(1, repeat))]
+                first = runs[0]
+                for other in runs[1:]:
+                    if other.score != first.score or other.step_rewards != first.step_rewards:
+                        failures.append(f"{agent_name}/{task}/seed={seed}: {first.score} vs {other.score}")
+                episodes.append(first)
+                if progress:
+                    print(f"  {agent_name:<10} {task:<26} seed={seed:<5} score={first.score:.3f} steps={first.steps}")
+
+    cells: dict[str, dict[str, dict[str, float]]] = defaultdict(dict)
+    by_cell: dict[tuple[str, str], list[float]] = defaultdict(list)
+    for ep in episodes:
+        by_cell[(ep.agent, ep.task_id)].append(ep.score)
+    for (agent_name, task), scores in by_cell.items():
+        cells[task][agent_name] = {
+            "mean": round(statistics.fmean(scores), 4),
+            "std": round(statistics.pstdev(scores), 4) if len(scores) > 1 else 0.0,
+            "n": len(scores),
+        }
+
+    overall: dict[str, float] = {}
+    for agent_name in agents:
+        means = [cells[t][agent_name]["mean"] for t in tasks if agent_name in cells.get(t, {})]
+        if means:
+            overall[agent_name] = round(statistics.fmean(means), 4)
+
+    return {
+        "agents": agents,
+        "tasks": tasks,
+        "seeds": seeds,
+        "repeat": repeat,
+        "cells": {t: cells[t] for t in tasks if t in cells},
+        "overall": overall,
+        "deterministic": not failures,
+        "determinism_failures": failures,
+        "episodes": [ep.as_dict() for ep in episodes],
+    }
 
 
-def run_baseline(client: httpx.Client, task_id: str, seed: int) -> float:
-    """Run /baseline for a single task+seed and return the score."""
-    resp = client.post("/baseline", json={"task_id": task_id, "seed": seed})
-    resp.raise_for_status()
-    data = resp.json()
-    return data.get("score", 0.0)
-
-
-def main():
-    parser = argparse.ArgumentParser(description="SOC-Triage-Gym reproducibility benchmark")
-    parser.add_argument("--task", type=str, default=None, choices=TASKS,
-                        help="Benchmark a single task instead of all five")
-    parser.add_argument("--seed", type=int, default=None,
-                        help="Single-seed shorthand (overrides --seeds)")
-    parser.add_argument("--seeds", type=str, default=None,
-                        help="Comma-separated seed list (default: 42,123,256,789,1024)")
-    parser.add_argument("--server", type=str, default=DEFAULT_SERVER,
-                        help=f"Server URL (default: {DEFAULT_SERVER})")
-    parser.add_argument("--repeat", type=int, default=2,
-                        help="How many times to repeat each (task, seed) for determinism check (default: 2)")
-    args = parser.parse_args()
-
-    tasks = [args.task] if args.task else TASKS
-    if args.seed is not None:
-        seeds = [args.seed]
-    else:
-        seeds = [int(s) for s in args.seeds.split(",")] if args.seeds else DEFAULT_SEEDS
-    server_url = args.server
-    repeats = args.repeat
-
-    server_proc = ensure_server(server_url)
-
-    # results[task][seed] = [score_run1, score_run2, ...]
-    results: dict[str, dict[int, list[float]]] = {t: {s: [] for s in seeds} for t in tasks}
-
-    total_runs = len(tasks) * len(seeds) * repeats
-    run_idx = 0
-    t0 = time.time()
-
-    try:
-        with httpx.Client(base_url=server_url, timeout=120) as client:
-            for rep in range(repeats):
-                for task in tasks:
-                    for seed in seeds:
-                        run_idx += 1
-                        score = run_baseline(client, task, seed)
-                        results[task][seed].append(score)
-                        pct = (score * 100)
-                        print(f"  [{run_idx}/{total_runs}] {task:<22} seed={seed:<5} run={rep+1}  score={pct:6.2f}%")
-    except Exception as e:
-        print(f"\n[ERROR] {type(e).__name__}: {e}")
-        if server_proc:
-            server_proc.terminate()
-        sys.exit(1)
-
-    elapsed = time.time() - t0
-
-    # ---- Print markdown table ----
-    print("\n")
-    print("## SOC-Triage-Gym Reproducibility Benchmark")
-    print()
-
-    # Header
-    seed_hdrs = " | ".join(f"Seed {s}" for s in seeds)
-    print(f"| Task | {seed_hdrs} | Mean |")
-    print(f"|{'---|' * (len(seeds) + 2)}")
-
-    task_means = []
-    for task in tasks:
+def render_markdown(summary: dict) -> str:
+    """Render the leaderboard as a GitHub-flavoured markdown table."""
+    agents = summary["agents"]
+    lines = [
+        "| Task | " + " | ".join(f"`{a}`" for a in agents) + " |",
+        "|---|" + "---:|" * len(agents),
+    ]
+    for task in summary["tasks"]:
+        row = summary["cells"].get(task, {})
         cells = []
-        row_scores = []
-        for seed in seeds:
-            scores = results[task][seed]
-            avg = sum(scores) / len(scores)
-            row_scores.append(avg)
-            cells.append(f"{avg*100:.1f}%")
-        mean = sum(row_scores) / len(row_scores)
-        task_means.append(mean)
-        print(f"| {task:<22} | {' | '.join(cells)} | **{mean*100:.1f}%** |")
+        for a in agents:
+            c = row.get(a)
+            cells.append("n/a" if c is None else f"{c['mean']:.3f} ± {c['std']:.3f}")
+        lines.append(f"| `{task}` | " + " | ".join(cells) + " |")
+    overall = summary["overall"]
+    lines.append(
+        "| **Mean over tasks** | "
+        + " | ".join(f"**{overall[a]:.3f}**" if a in overall else "n/a" for a in agents)
+        + " |"
+    )
+    seeds = ", ".join(str(s) for s in summary["seeds"])
+    lines.append("")
+    lines.append(
+        f"Task score in [0.001, 0.999], mean ± population std over seeds {seeds}. "
+        f"Determinism: {'PASS' if summary['deterministic'] else 'FAIL'} "
+        f"({summary['repeat']} repeats per cell)."
+    )
+    return "\n".join(lines)
 
-    overall = sum(task_means) / len(task_means)
-    print(f"| **Overall Average** | {' | '.join(['—']*len(seeds))} | **{overall*100:.1f}%** |")
-    print()
 
-    # ---- Determinism check ----
-    print("## Determinism Check")
-    print()
-    all_deterministic = True
+def _parse_list(value: str | None, default: tuple, cast=str) -> list:
+    if not value:
+        return list(default)
+    return [cast(v.strip()) for v in value.split(",") if v.strip()]
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="SOC-Triage-Gym baseline benchmark")
+    parser.add_argument("--task", choices=TASKS, default=None, help="Benchmark a single task")
+    parser.add_argument("--tasks", default=None, help="Comma-separated task list (default: all)")
+    parser.add_argument("--agents", default=None, help=f"Comma-separated agents (default: {','.join(DEFAULT_AGENTS)})")
+    parser.add_argument("--seed", type=int, default=None, help="Single-seed shorthand (overrides --seeds)")
+    parser.add_argument("--seeds", default=None, help="Comma-separated seeds (default: 42,123,256,789,1024)")
+    parser.add_argument("--repeat", type=int, default=2, help="Repeats per cell for the determinism check")
+    parser.add_argument("--json", action="store_true", help="Print the full summary as JSON")
+    parser.add_argument("--quiet", action="store_true", help="Skip per-episode progress lines")
+    parser.add_argument("--write", metavar="DIR", default=None, help="Write results.json and results.md into DIR")
+    args = parser.parse_args(argv)
+
+    tasks = [args.task] if args.task else _parse_list(args.tasks, TASKS)
+    agents = _parse_list(args.agents, DEFAULT_AGENTS)
+    seeds = [args.seed] if args.seed is not None else _parse_list(args.seeds, DEFAULT_SEEDS, int)
+    for name in agents:
+        if name not in AGENTS:
+            parser.error(f"unknown agent '{name}' (valid: {', '.join(sorted(AGENTS))})")
     for task in tasks:
-        for seed in seeds:
-            scores = results[task][seed]
-            if len(set(round(s, 10) for s in scores)) > 1:
-                print(f"  FAIL: {task} seed={seed} produced different scores: {scores}")
-                all_deterministic = False
+        if task not in TASKS:
+            parser.error(f"unknown task '{task}' (valid: {', '.join(TASKS)})")
 
-    if all_deterministic:
-        print(f"  PASS: All {len(tasks)*len(seeds)} (task, seed) pairs produced identical scores across {repeats} runs.")
+    t0 = time.perf_counter()
+    summary = run_benchmark(agents, tasks, seeds, repeat=args.repeat, progress=not (args.quiet or args.json))
+    elapsed = time.perf_counter() - t0
+
+    if args.json:
+        print(json.dumps(summary, indent=2))
     else:
-        print("  FAIL: Non-deterministic results detected!")
+        print("\n## SOC-Triage-Gym Baseline Leaderboard\n")
+        print(render_markdown(summary))
+        for failure in summary["determinism_failures"]:
+            print(f"  NON-DETERMINISTIC: {failure}")
+        print(f"\n{len(summary['episodes'])} episodes x {args.repeat} repeats in {elapsed:.1f}s")
 
-    print(f"\nTotal time: {elapsed:.1f}s ({total_runs} runs)")
-    print(f"Average per run: {elapsed/max(1,total_runs):.2f}s")
+    if args.write:
+        os.makedirs(args.write, exist_ok=True)
+        stable = {k: v for k, v in summary.items() if k != "episodes"}
+        with open(os.path.join(args.write, "results.json"), "w", encoding="utf-8") as f:
+            json.dump(stable, f, indent=2, sort_keys=True)
+            f.write("\n")
+        with open(os.path.join(args.write, "results.md"), "w", encoding="utf-8") as f:
+            f.write("<!-- Generated by `python benchmark.py --write benchmarks/` — do not edit by hand. -->\n\n")
+            f.write(render_markdown(summary) + "\n")
 
-    # Cleanup
-    if server_proc:
-        server_proc.terminate()
-        try:
-            server_proc.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            server_proc.kill()
+    return 0 if summary["deterministic"] else 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -27,6 +27,7 @@ from training.run_manager import TrainingRunManager
 # Parsing + shaping
 # ---------------------------------------------------------------------------
 
+
 class TestParsing:
     def test_strict_json(self):
         assert classify_parse_quality('{"action_type": "noop", "role": "tier1"}') == "strict"
@@ -55,12 +56,15 @@ class TestParsing:
 # Curriculum
 # ---------------------------------------------------------------------------
 
+
 class TestCurriculum:
     def _tiny(self):
-        return CurriculumScheduler(stages=[
-            CurriculumStage(name="a", tasks=["t1"], promotion_threshold=0.1, min_samples=4, max_rounds=2),
-            CurriculumStage(name="b", tasks=["t2"], promotion_threshold=0.5, min_samples=4, max_rounds=2),
-        ])
+        return CurriculumScheduler(
+            stages=[
+                CurriculumStage(name="a", tasks=["t1"], promotion_threshold=0.1, min_samples=4, max_rounds=2),
+                CurriculumStage(name="b", tasks=["t2"], promotion_threshold=0.5, min_samples=4, max_rounds=2),
+            ]
+        )
 
     def test_promotes_when_gate_cleared(self):
         sched = self._tiny()
@@ -107,6 +111,7 @@ class TestCurriculum:
 # ---------------------------------------------------------------------------
 # Run manager
 # ---------------------------------------------------------------------------
+
 
 class TestRunManager:
     def test_run_directory_structure(self, tmp_path):
@@ -167,9 +172,11 @@ class TestRunManager:
 # Reward scoring against the live environment (TestClient)
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def env_client():
     import server.app as app_module
+
     with TestClient(app) as client:
         app_module._sessions.clear()
         app_module.METRICS.reset()
@@ -182,17 +189,28 @@ class TestRewardScoring:
         from train_grpo import replay_to_step
 
         # A correct tier1 enrichment/classification completion at step 0
-        good = json.dumps({
-            "action_type": "phase_complete", "role": "tier1",
-        })
+        good = json.dumps(
+            {
+                "action_type": "phase_complete",
+                "role": "tier1",
+            }
+        )
         good_reward, good_q = score_completion(
-            env_client, text=good, role="tier1",
-            task_id="team_phishing_escalation", seed=42, step_index=0,
+            env_client,
+            text=good,
+            role="tier1",
+            task_id="team_phishing_escalation",
+            seed=42,
+            step_index=0,
             replay_fn=replay_to_step,
         )
         bad_reward, bad_q = score_completion(
-            env_client, text="hello world no json here at all", role="tier1",
-            task_id="team_phishing_escalation", seed=42, step_index=0,
+            env_client,
+            text="hello world no json here at all",
+            role="tier1",
+            task_id="team_phishing_escalation",
+            seed=42,
+            step_index=0,
             replay_fn=replay_to_step,
         )
         assert good_q == "strict"
@@ -205,7 +223,9 @@ class TestRewardScoring:
         items = [
             CompletionItem(
                 text=json.dumps({"action_type": "noop", "role": "tier1"}),
-                task_id="team_phishing_escalation", seed=42, step_index=0,
+                task_id="team_phishing_escalation",
+                seed=42,
+                step_index=0,
             )
             for _ in range(4)
         ]
@@ -229,14 +249,18 @@ class TestRewardScoring:
 # Held-out evaluation
 # ---------------------------------------------------------------------------
 
+
 class TestEvaluation:
     def test_oracle_policy_scores_high(self, env_client):
         from train_grpo import oracle_action
 
         report = evaluate_policy(
-            env_client, "tier1",
-            policy_fn=oracle_action, oracle_fn=oracle_action,
-            tasks=["team_phishing_escalation"], seeds=[100, 101],
+            env_client,
+            "tier1",
+            policy_fn=oracle_action,
+            oracle_fn=oracle_action,
+            tasks=["team_phishing_escalation"],
+            seeds=[100, 101],
         )
         assert report["n_episodes"] == 2
         assert report["mean_score"] > 0.5  # oracle is near-ceiling
@@ -249,15 +273,21 @@ class TestEvaluation:
             return {"action_type": "noop", "role": "tier1"}
 
         report = evaluate_policy(
-            env_client, "tier1",
-            policy_fn=noop_policy, oracle_fn=oracle_action,
-            tasks=["team_phishing_escalation"], seeds=[100],
+            env_client,
+            "tier1",
+            policy_fn=noop_policy,
+            oracle_fn=oracle_action,
+            tasks=["team_phishing_escalation"],
+            seeds=[100],
             max_steps=40,
         )
         oracle_report = evaluate_policy(
-            env_client, "tier1",
-            policy_fn=oracle_action, oracle_fn=oracle_action,
-            tasks=["team_phishing_escalation"], seeds=[100],
+            env_client,
+            "tier1",
+            policy_fn=oracle_action,
+            oracle_fn=oracle_action,
+            tasks=["team_phishing_escalation"],
+            seeds=[100],
         )
         assert report["mean_score"] < oracle_report["mean_score"]
 
@@ -265,8 +295,12 @@ class TestEvaluation:
         from train_grpo import oracle_action
 
         rec = run_policy_episode(
-            env_client, "team_phishing_escalation", 100, "tier1",
-            policy_fn=oracle_action, oracle_fn=oracle_action,
+            env_client,
+            "team_phishing_escalation",
+            100,
+            "tier1",
+            policy_fn=oracle_action,
+            oracle_fn=oracle_action,
         )
         assert set(rec) == {"task_id", "seed", "score", "steps", "policy_steps"}
         assert rec["policy_steps"] > 0
@@ -276,18 +310,20 @@ class TestEvaluation:
 # CLI + reward-fn integration
 # ---------------------------------------------------------------------------
 
+
 class TestTrainingCLI:
     def test_train_grpo_new_flags_parse(self):
         import sys
 
         import train_grpo as tg
+
         argv_backup = sys.argv
         try:
-            sys.argv = ["train_grpo.py", "--curriculum", "--parallel-rewards", "4",
-                        "--eval-episodes", "3", "--dry-run"]
+            sys.argv = ["train_grpo.py", "--curriculum", "--parallel-rewards", "4", "--eval-episodes", "3", "--dry-run"]
             # parse only — --dry-run path needs a live server, so just check
             # the parser accepts the new flags via a fresh ArgumentParser run.
             import argparse
+
             parser = argparse.ArgumentParser()
             # Reuse main()'s parser by introspection is brittle; instead assert
             # the flags exist in the module source contract:
@@ -297,15 +333,18 @@ class TestTrainingCLI:
 
     def test_soc_gym_cli_train_and_runs_subcommands(self):
         from cli import build_parser
+
         parser = build_parser()
-        args = parser.parse_args(["train", "--role", "tier1", "--curriculum",
-                                  "--parallel-rewards", "4", "--eval-episodes", "2"])
+        args = parser.parse_args(
+            ["train", "--role", "tier1", "--curriculum", "--parallel-rewards", "4", "--eval-episodes", "2"]
+        )
         assert args.curriculum is True and args.parallel_rewards == 4
         args2 = parser.parse_args(["runs", "--json"])
         assert callable(args2.func)
 
     def test_runs_command_output(self, tmp_path, capsys):
         from cli import main
+
         TrainingRunManager("tier1", "m", runs_dir=tmp_path, run_id="r1").finalize({})
         assert main(["runs", "--runs-dir", str(tmp_path)]) == 0
         assert "r1" in capsys.readouterr().out
@@ -316,10 +355,13 @@ class TestRewardFnIntegration:
         from train_grpo import make_reward_fn
 
         rm = TrainingRunManager("tier1", "m", runs_dir=tmp_path)
-        sched = CurriculumScheduler(stages=[
-            CurriculumStage(name="s", tasks=["team_phishing_escalation"],
-                            promotion_threshold=0.0, min_samples=2, max_rounds=1),
-        ])
+        sched = CurriculumScheduler(
+            stages=[
+                CurriculumStage(
+                    name="s", tasks=["team_phishing_escalation"], promotion_threshold=0.0, min_samples=2, max_rounds=1
+                ),
+            ]
+        )
         reward_fn = make_reward_fn(env_client, "tier1", curriculum=sched, run_manager=rm)
 
         completions = [

@@ -84,8 +84,11 @@ class PhishingScenario(BaseScenario):
         # Enrichment DB
         enrichment_db = {
             attacker_ip: self._make_enrichment_result(
-                attacker_ip, IndicatorType.IP, malicious=True,
-                confidence=0.93, threat_score=88,
+                attacker_ip,
+                IndicatorType.IP,
+                malicious=True,
+                confidence=0.93,
+                threat_score=88,
                 threat_type="phishing",
                 geo="Russia",
                 tags=["phishing-actor", "bulletproof-hosting"],
@@ -93,37 +96,52 @@ class PhishingScenario(BaseScenario):
                 whois="Registered 3 days ago. AS: BULLETPROOF-HOSTING-001",
             ),
             malicious_domain: self._make_enrichment_result(
-                malicious_domain, IndicatorType.DOMAIN, malicious=True,
-                confidence=0.91, threat_score=85,
+                malicious_domain,
+                IndicatorType.DOMAIN,
+                malicious=True,
+                confidence=0.91,
+                threat_score=85,
                 threat_type="phishing",
                 geo="Russia",
                 tags=["newly-registered", "phishing-kit", "lookalike"],
                 whois="Registered 5 days ago via anonymous registrar.",
             ),
             attachment_hash: self._make_enrichment_result(
-                attachment_hash, IndicatorType.FILE_HASH, malicious=True,
-                confidence=0.98, threat_score=97,
+                attachment_hash,
+                IndicatorType.FILE_HASH,
+                malicious=True,
+                confidence=0.98,
+                threat_score=97,
                 threat_type="malware",
                 tags=["trojan", "dropper", "emotet"],
                 malware=["Emotet", "TrickBot"],
             ),
             sender_email: self._make_enrichment_result(
-                sender_email, IndicatorType.EMAIL, malicious=True,
-                confidence=0.85, threat_score=80,
+                sender_email,
+                IndicatorType.EMAIL,
+                malicious=True,
+                confidence=0.85,
+                threat_score=80,
                 threat_type="phishing",
                 tags=["phishing-sender", "spoofed-billing"],
             ),
             c2_domain: self._make_enrichment_result(
-                c2_domain, IndicatorType.DOMAIN, malicious=True,
-                confidence=0.95, threat_score=92,
+                c2_domain,
+                IndicatorType.DOMAIN,
+                malicious=True,
+                confidence=0.95,
+                threat_score=92,
                 threat_type="command-and-control",
                 geo="Ukraine",
                 tags=["c2", "malware-c2", "emotet-c2"],
                 malware=["Emotet"],
             ),
             c2_ip: self._make_enrichment_result(
-                c2_ip, IndicatorType.IP, malicious=True,
-                confidence=0.94, threat_score=90,
+                c2_ip,
+                IndicatorType.IP,
+                malicious=True,
+                confidence=0.94,
+                threat_score=90,
                 threat_type="command-and-control",
                 geo="Ukraine",
                 tags=["c2", "emotet-c2"],
@@ -137,8 +155,11 @@ class PhishingScenario(BaseScenario):
         # Email Gateway — email received
         log_db[LogSource.EMAIL_GATEWAY.value][alert_id] = [
             self._make_log_entry(
-                LogSource.EMAIL_GATEWAY, "email_received",
-                hours_ago=1.5, src_ip=attacker_ip, user=victim_username,
+                LogSource.EMAIL_GATEWAY,
+                "email_received",
+                hours_ago=1.5,
+                src_ip=attacker_ip,
+                user=victim_username,
                 action="delivered",
                 details={
                     "from": sender_email,
@@ -151,16 +172,20 @@ class PhishingScenario(BaseScenario):
                     "dkim": "fail",
                     "dmarc": "fail",
                     "spam_score": 8.7,
-                }
+                },
             ),
         ]
 
         # Endpoint — user executed attachment
         log_db[LogSource.ENDPOINT.value][alert_id] = [
             self._make_log_entry(
-                LogSource.ENDPOINT, "process_created",
-                hours_ago=1.2, src_ip=victim_ip, hostname=victim_host,
-                user=victim_username, action="execute",
+                LogSource.ENDPOINT,
+                "process_created",
+                hours_ago=1.2,
+                src_ip=victim_ip,
+                hostname=victim_host,
+                user=victim_username,
+                action="execute",
                 severity="high",
                 details={
                     "process_name": "Invoice_Q4.exe",
@@ -169,42 +194,53 @@ class PhishingScenario(BaseScenario):
                     "hash_sha256": attachment_hash,
                     "command_line": "Invoice_Q4.exe /silent",
                     "hostname": victim_host,
-                }
+                },
             ),
             self._make_log_entry(
-                LogSource.ENDPOINT, "process_created",
-                hours_ago=1.1, hostname=victim_host, user=victim_username,
-                action="execute", severity="critical",
+                LogSource.ENDPOINT,
+                "process_created",
+                hours_ago=1.1,
+                hostname=victim_host,
+                user=victim_username,
+                action="execute",
+                severity="critical",
                 details={
                     "process_name": "powershell.exe",
                     "parent_process": "Invoice_Q4.exe",
                     "command_line": "powershell -enc JABzAD0ATgBlAHcALQBPAGIAagBlAGMAdA==",
                     "encoded_payload": True,
                     "hostname": victim_host,
-                }
+                },
             ),
         ]
 
         # DNS — C2 beacon
         log_db[LogSource.DNS.value][alert_id] = [
             self._make_log_entry(
-                LogSource.DNS, "dns_query",
-                hours_ago=1.0, hostname=victim_host, src_ip=victim_ip,
+                LogSource.DNS,
+                "dns_query",
+                hours_ago=1.0,
+                hostname=victim_host,
+                src_ip=victim_ip,
                 details={
                     "query": c2_domain,
                     "response": c2_ip,
                     "record_type": "A",
                     "hostname": victim_host,
-                }
+                },
             ),
         ]
 
         # Firewall — outbound C2 connection
         log_db[LogSource.FIREWALL.value][alert_id] = [
             self._make_log_entry(
-                LogSource.FIREWALL, "outbound_connection",
-                hours_ago=0.9, src_ip=victim_ip, dst_ip=c2_ip,
-                action="allowed", severity="high",
+                LogSource.FIREWALL,
+                "outbound_connection",
+                hours_ago=0.9,
+                src_ip=victim_ip,
+                dst_ip=c2_ip,
+                action="allowed",
+                severity="high",
                 details={
                     "dst_port": 443,
                     "protocol": "TCP",
@@ -212,33 +248,34 @@ class PhishingScenario(BaseScenario):
                     "bytes_recv": 28672,
                     "duration_seconds": 3601,
                     "direction": "outbound",
-                }
+                },
             ),
         ]
 
         # IDS — exploit detection
         log_db[LogSource.IDS.value][alert_id] = [
             self._make_log_entry(
-                LogSource.IDS, "signature_match",
-                hours_ago=1.1, src_ip=victim_ip, dst_ip=c2_ip,
+                LogSource.IDS,
+                "signature_match",
+                hours_ago=1.1,
+                src_ip=victim_ip,
+                dst_ip=c2_ip,
                 severity="critical",
                 details={
                     "signature": "MALWARE-CNC Emotet checkin POST",
                     "category": "Malware-CnC",
                     "priority": 1,
-                }
+                },
             ),
         ]
 
         # Asset + User DB
-        asset_db = {victim_host: self._make_asset(
-            victim_host, "workstation", victim_username,
-            self._department(), victim_ip, criticality="medium"
-        )}
-        user_db = {victim_username: self._make_user(
-            victim_username, "Financial Analyst", "Finance",
-            risk_score=0.25
-        )}
+        asset_db = {
+            victim_host: self._make_asset(
+                victim_host, "workstation", victim_username, self._department(), victim_ip, criticality="medium"
+            )
+        }
+        user_db = {victim_username: self._make_user(victim_username, "Financial Analyst", "Finance", risk_score=0.25)}
 
         # Ground Truth
         ground_truth = GroundTruth(
@@ -246,9 +283,7 @@ class PhishingScenario(BaseScenario):
             true_positive_ids=[alert_id],
             false_positive_ids=[],
             benign_tp_ids=[],
-            expected_techniques={
-                alert_id: ["T1566.001", "T1204.002", "T1059.001", "T1071.001", "T1041"]
-            },
+            expected_techniques={alert_id: ["T1566.001", "T1204.002", "T1059.001", "T1071.001", "T1041"]},
             expected_response_actions={
                 alert_id: [
                     ResponseActionType.ISOLATE_ENDPOINT,
@@ -327,27 +362,39 @@ class PhishingScenario(BaseScenario):
         # Enrichment DB — all clean
         enrichment_db = {
             sender_ip: self._make_enrichment_result(
-                sender_ip, IndicatorType.IP, malicious=False,
-                confidence=0.95, threat_score=2,
+                sender_ip,
+                IndicatorType.IP,
+                malicious=False,
+                confidence=0.95,
+                threat_score=2,
                 geo="United States",
                 tags=["legitimate-mailer", "mailchimp-sendgrid"],
                 whois="Registered 5+ years ago. Large legitimate email provider.",
             ),
             sender_domain: self._make_enrichment_result(
-                sender_domain, IndicatorType.DOMAIN, malicious=False,
-                confidence=0.99, threat_score=0,
+                sender_domain,
+                IndicatorType.DOMAIN,
+                malicious=False,
+                confidence=0.99,
+                threat_score=0,
                 geo="United States",
                 tags=["legitimate", "trusted", "high-volume-sender"],
                 whois="Registered 8+ years ago. WHOIS matches company registration.",
             ),
             pdf_hash: self._make_enrichment_result(
-                pdf_hash, IndicatorType.FILE_HASH, malicious=False,
-                confidence=0.90, threat_score=0,
+                pdf_hash,
+                IndicatorType.FILE_HASH,
+                malicious=False,
+                confidence=0.90,
+                threat_score=0,
                 tags=["pdf", "document", "clean"],
             ),
             sender_email: self._make_enrichment_result(
-                sender_email, IndicatorType.EMAIL, malicious=False,
-                confidence=0.92, threat_score=1,
+                sender_email,
+                IndicatorType.EMAIL,
+                malicious=False,
+                confidence=0.92,
+                threat_score=1,
                 tags=["newsletter", "opt-in", "legitimate-sender"],
             ),
         }
@@ -357,8 +404,11 @@ class PhishingScenario(BaseScenario):
 
         log_db[LogSource.EMAIL_GATEWAY.value][alert_id] = [
             self._make_log_entry(
-                LogSource.EMAIL_GATEWAY, "email_received",
-                hours_ago=0.5, src_ip=sender_ip, user=victim_username,
+                LogSource.EMAIL_GATEWAY,
+                "email_received",
+                hours_ago=0.5,
+                src_ip=sender_ip,
+                user=victim_username,
                 action="delivered",
                 details={
                     "from": sender_email,
@@ -371,21 +421,17 @@ class PhishingScenario(BaseScenario):
                     "dkim": "pass",
                     "dmarc": "pass",
                     "spam_score": 0.3,
-                }
+                },
             ),
         ]
 
         # Asset + User DB
         victim_host = self._hostname("WORKSTATION")
         victim_ip = self._private_ip()
-        asset_db = {victim_host: self._make_asset(
-            victim_host, "workstation", victim_username,
-            self._department(), victim_ip
-        )}
-        user_db = {victim_username: self._make_user(
-            victim_username, "IT Security Analyst", "IT",
-            risk_score=0.05
-        )}
+        asset_db = {
+            victim_host: self._make_asset(victim_host, "workstation", victim_username, self._department(), victim_ip)
+        }
+        user_db = {victim_username: self._make_user(victim_username, "IT Security Analyst", "IT", risk_score=0.05)}
 
         # Ground Truth
         ground_truth = GroundTruth(
@@ -395,12 +441,8 @@ class PhishingScenario(BaseScenario):
             benign_tp_ids=[],
             expected_techniques={},
             expected_response_actions={alert_id: [ResponseActionType.NO_ACTION]},
-            relevant_log_sources={
-                alert_id: [LogSource.EMAIL_GATEWAY, LogSource.ENDPOINT]
-            },
-            relevant_indicators={
-                alert_id: [sender_ip, sender_domain, pdf_hash]
-            },
+            relevant_log_sources={alert_id: [LogSource.EMAIL_GATEWAY, LogSource.ENDPOINT]},
+            relevant_indicators={alert_id: [sender_ip, sender_domain, pdf_hash]},
         )
 
         return ScenarioConfig(

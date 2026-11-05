@@ -3,7 +3,6 @@ Tests for FastAPI endpoints: health, metadata, schema, mcp, reset, step, state, 
 """
 
 
-
 class TestHealthEndpoint:
     def test_health_endpoint(self, test_client):
         """GET /health returns 200 with status healthy."""

@@ -16,6 +16,7 @@ grader fires only after the agent emits a campaign narrative via
 The context-window pressure forces summarization and note-taking, the
 capability the long-horizon theme targets.
 """
+
 from __future__ import annotations
 
 from models import GroundTruth, ScenarioConfig

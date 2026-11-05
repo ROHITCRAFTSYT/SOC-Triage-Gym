@@ -5,6 +5,7 @@ light (no server import at plot time). This test makes sure that table cannot
 silently drift away from the authoritative TASKS list in server/app.py — a
 stale chart is worse than no chart.
 """
+
 import importlib.util
 import os
 
@@ -28,15 +29,12 @@ def test_asset_tasks_match_server_tasks():
     asset_by_id = {row[0]: row for row in assets.TASKS}
 
     # Same set of task ids in both places.
-    assert set(asset_by_id) == set(server_by_id), (
-        "gen_readme_assets.TASKS is out of sync with server.app.TASKS"
-    )
+    assert set(asset_by_id) == set(server_by_id), "gen_readme_assets.TASKS is out of sync with server.app.TASKS"
 
     # max_steps (index 2 in the asset tuple) must match the server metadata.
     for task_id, row in asset_by_id.items():
         assert row[2] == server_by_id[task_id]["max_steps"], (
-            f"max_steps mismatch for {task_id}: "
-            f"chart={row[2]} vs server={server_by_id[task_id]['max_steps']}"
+            f"max_steps mismatch for {task_id}: chart={row[2]} vs server={server_by_id[task_id]['max_steps']}"
         )
 
 

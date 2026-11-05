@@ -38,6 +38,7 @@ import httpx
 
 from training.curriculum import default_team_curriculum
 from training.evaluation import DEFAULT_EVAL_SEEDS, evaluate_policy
+from training.prompts import ROLE_SYSTEM_PROMPTS, check_prompt_budget, format_obs_prompt
 from training.rewards import (
     CompletionItem,
     ParallelRewardEvaluator,
@@ -78,34 +79,15 @@ MANAGER_TASKS = _default_tier1
 _n_seeds = int(os.getenv("SOC_TRAIN_N_SEEDS", "50"))
 SEEDS = list(range(42, 42 + _n_seeds))
 
-# Per-role system prompts (must match inference.py)
-ROLE_SYSTEM_PROMPTS = {
-    "tier1": (
-        "You are a Tier-1 SOC Analyst. Triage incoming security alerts quickly and accurately.\n"
-        "Respond with a JSON action. Available actions: enrich_indicator, query_logs, correlate_alerts,\n"
-        "check_asset, check_user, classify_alert, map_technique, recommend_action,\n"
-        "escalate_to_tier2, phase_complete, noop.\n"
-        "Always include: {\"action_type\": \"...\", \"role\": \"tier1\", ...}\n"
-        "Escalate to Tier-2 only confirmed true positives needing containment."
-    ),
-    "tier2": (
-        "You are a Tier-2 SOC Responder. Investigate escalated tickets and contain confirmed threats.\n"
-        "Respond with a JSON action. Available actions: forensic_timeline, sandbox_detonate,\n"
-        "memory_analysis, isolate_host, disable_user, block_ioc, close_case, phase_complete, noop.\n"
-        "Always include: {\"action_type\": \"...\", \"role\": \"tier2\", ...}"
-    ),
-    "manager": (
-        "You are a SOC Manager. Review team decisions, catch inconsistencies, and explain behavior.\n"
-        "Respond with a JSON action. Available actions: review_decision, override_classification,\n"
-        "flag_inconsistency, explain_team_behavior, phase_complete, noop.\n"
-        "Always include: {\"action_type\": \"...\", \"role\": \"manager\", ...}"
-    ),
-}
+# Per-role system prompts and the observation formatter live in
+# training/prompts.py (shared by training, held-out eval and the in-training
+# eval policy). inference.py is a separate API-driven agent with its own prompts.
 
 
 # ---------------------------------------------------------------------------
 # Heuristic oracle actions (frozen baseline for non-trained roles)
 # ---------------------------------------------------------------------------
+
 
 def oracle_action(obs: dict) -> dict:
     """Scripted oracle for frozen roles during staged training."""
@@ -125,18 +107,32 @@ def oracle_action(obs: dict) -> dict:
             # enriched_indicators is a dict keyed by indicator value
             already_enriched = inv.get("enriched_indicators") or {}
             if ips and ips[0] not in already_enriched:
-                return {"action_type": "enrich_indicator", "indicator": ips[0],
-                        "indicator_type": "ip", "query_alert_id": aid, "role": "tier1"}
+                return {
+                    "action_type": "enrich_indicator",
+                    "indicator": ips[0],
+                    "indicator_type": "ip",
+                    "query_alert_id": aid,
+                    "role": "tier1",
+                }
             cls = "true_positive" if alert.get("severity") in ("high", "critical") else "false_positive"
-            return {"action_type": "classify_alert", "alert_id": aid,
-                    "classification": cls, "confidence": 0.85, "role": "tier1"}
+            return {
+                "action_type": "classify_alert",
+                "alert_id": aid,
+                "classification": cls,
+                "confidence": 0.85,
+                "role": "tier1",
+            }
         # Pass 2: escalate all confirmed TPs (env handles over-escalation penalty)
         for alert in alerts:
             aid = alert["alert_id"]
             inv = invs.get(aid, {})
             if inv.get("classification") == "true_positive" and not inv.get("escalated"):
-                return {"action_type": "escalate_to_tier2", "alert_id": aid,
-                        "justification": "TP confirmed via enrichment", "role": "tier1"}
+                return {
+                    "action_type": "escalate_to_tier2",
+                    "alert_id": aid,
+                    "justification": "TP confirmed via enrichment",
+                    "role": "tier1",
+                }
         return {"action_type": "phase_complete", "role": "tier1"}
 
     elif phase == "response" or role == "tier2":
@@ -158,13 +154,15 @@ def oracle_action(obs: dict) -> dict:
                         host = hosts[0]
                     break
             host = host or "WORKSTATION-ALPHA"
-            already_closed = any(
-                e.startswith("Case closed:") for e in (inv.get("evidence_timeline") or [])
-            )
+            already_closed = any(e.startswith("Case closed:") for e in (inv.get("evidence_timeline") or []))
             if not already_closed:
                 handled.add(aid)
-                return {"action_type": "close_case", "alert_id": aid,
-                        "justification": f"Contained host {host}", "role": "tier2"}
+                return {
+                    "action_type": "close_case",
+                    "alert_id": aid,
+                    "justification": f"Contained host {host}",
+                    "role": "tier2",
+                }
         return {"action_type": "phase_complete", "role": "tier2"}
 
     else:  # oversight / manager
@@ -174,24 +172,30 @@ def oracle_action(obs: dict) -> dict:
             aid = ticket.get("alert_id")
             if aid and aid not in reviewed:
                 reviewed.add(aid)
-                return {"action_type": "review_decision", "alert_id": aid,
-                        "ticket_id": ticket.get("ticket_id", ""), "role": "manager"}
+                return {
+                    "action_type": "review_decision",
+                    "alert_id": aid,
+                    "ticket_id": ticket.get("ticket_id", ""),
+                    "role": "manager",
+                }
         alerts_summary = ", ".join(
-            f"{a['alert_id']}({(invs.get(a['alert_id']) or {}).get('classification','?')})"
-            for a in alerts[:3]
+            f"{a['alert_id']}({(invs.get(a['alert_id']) or {}).get('classification', '?')})" for a in alerts[:3]
         )
-        return {"action_type": "explain_team_behavior",
-                "explanation_text": (
-                    f"Team triaged {len(alerts)} alerts. Escalated confirmed true positives. "
-                    f"Tier-2 contained threats and closed cases. "
-                    f"Alert decisions: {alerts_summary}. No inconsistencies observed."
-                ),
-                "role": "manager"}
+        return {
+            "action_type": "explain_team_behavior",
+            "explanation_text": (
+                f"Team triaged {len(alerts)} alerts. Escalated confirmed true positives. "
+                f"Tier-2 contained threats and closed cases. "
+                f"Alert decisions: {alerts_summary}. No inconsistencies observed."
+            ),
+            "role": "manager",
+        }
 
 
 # ---------------------------------------------------------------------------
 # Environment interaction
 # ---------------------------------------------------------------------------
+
 
 def run_episode(
     client: httpx.Client,
@@ -237,13 +241,15 @@ def run_episode(
             break
         obs = step_resp.json()
 
-        trajectory.append({
-            "step": step,
-            "role": role,
-            "action": action.get("action_type"),
-            "reward": obs.get("reward", 0.0),
-            "done": obs.get("done", False),
-        })
+        trajectory.append(
+            {
+                "step": step,
+                "role": role,
+                "action": action.get("action_type"),
+                "reward": obs.get("reward", 0.0),
+                "done": obs.get("done", False),
+            }
+        )
 
     final_score = obs.get("task_score") or obs.get("cumulative_reward", 0.0)
     return float(final_score), trajectory
@@ -252,6 +258,7 @@ def run_episode(
 # ---------------------------------------------------------------------------
 # Dataset generation
 # ---------------------------------------------------------------------------
+
 
 def build_prompt_dataset(
     client: httpx.Client,
@@ -273,13 +280,17 @@ def build_prompt_dataset(
                 reset_resp.raise_for_status()
                 obs = reset_resp.json()
                 prompt = format_obs_prompt(obs, role, step=0)
-                dataset.append({
-                    "prompt": [{"role": "system", "content": ROLE_SYSTEM_PROMPTS[role]},
-                               {"role": "user",   "content": prompt}],
-                    "task_id": task_id,
-                    "seed": seed,
-                    "step_index": 0,
-                })
+                dataset.append(
+                    {
+                        "prompt": [
+                            {"role": "system", "content": ROLE_SYSTEM_PROMPTS[role]},
+                            {"role": "user", "content": prompt},
+                        ],
+                        "task_id": task_id,
+                        "seed": seed,
+                        "step_index": 0,
+                    }
+                )
             except Exception as e:
                 print(f"  [WARN] Failed to generate prompt for {task_id} seed={seed}: {e}")
     return dataset
@@ -307,9 +318,7 @@ def build_step_dataset(
     for task_id in tasks:
         for seed in seeds:
             try:
-                reset_resp = client.post(
-                    "/reset", json={"task_id": task_id, "seed": seed, "mode": "team"}
-                )
+                reset_resp = client.post("/reset", json={"task_id": task_id, "seed": seed, "mode": "team"})
                 reset_resp.raise_for_status()
                 obs = reset_resp.json()
 
@@ -318,15 +327,17 @@ def build_step_dataset(
                     acting_role = obs.get("current_role") or "tier1"
                     if acting_role == role:
                         prompt = format_obs_prompt(obs, role, step=step)
-                        dataset.append({
-                            "prompt": [
-                                {"role": "system", "content": ROLE_SYSTEM_PROMPTS[role]},
-                                {"role": "user",   "content": prompt},
-                            ],
-                            "task_id": task_id,
-                            "seed": seed,
-                            "step_index": step,
-                        })
+                        dataset.append(
+                            {
+                                "prompt": [
+                                    {"role": "system", "content": ROLE_SYSTEM_PROMPTS[role]},
+                                    {"role": "user", "content": prompt},
+                                ],
+                                "task_id": task_id,
+                                "seed": seed,
+                                "step_index": step,
+                            }
+                        )
                     step += 1
                     action = oracle_action(obs)
                     step_resp = client.post(
@@ -350,9 +361,7 @@ def replay_to_step(
     max_steps_per_episode: int = 80,
 ) -> dict:
     """Reset env and run oracle until reaching `step_index`. Returns that obs."""
-    reset_resp = client.post(
-        "/reset", json={"task_id": task_id, "seed": seed, "mode": "team"}
-    )
+    reset_resp = client.post("/reset", json={"task_id": task_id, "seed": seed, "mode": "team"})
     reset_resp.raise_for_status()
     obs = reset_resp.json()
     step = 0
@@ -368,29 +377,6 @@ def replay_to_step(
         obs = step_resp.json()
         step += 1
     return obs
-
-
-def format_obs_prompt(obs: dict, role: str, step: int) -> str:
-    alerts = obs.get("alert_queue", [])
-    tickets = obs.get("tickets") or []
-    phase = obs.get("current_phase", "triage")
-    budget = obs.get("phase_steps_remaining", 40)
-
-    lines = [
-        f"=== SOC OBSERVATION | role={role} phase={phase} step={step} budget={budget} ===",
-        f"Alerts ({len(alerts)}):",
-    ]
-    for a in alerts[:5]:  # cap at 5 to fit context
-        lines.append(
-            f"  [{a['alert_id']}] {a.get('title', '')} | severity={a.get('severity','')} "
-            f"| IPs={list(a.get('indicators', {}).get('ip', []))}"
-        )
-    if tickets:
-        lines.append(f"Tickets ({len(tickets)}):")
-        for t in tickets[:3]:
-            lines.append(f"  [{t.get('ticket_id','')}] kind={t.get('kind','')} alert={t.get('alert_id','')}")
-    lines.append("Respond with a single JSON action.")
-    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------
@@ -432,6 +418,7 @@ def make_reward_fn(
       curriculum  — CurriculumScheduler: records rewards for promotion gates.
       run_manager — TrainingRunManager: streams batch stats to metrics.jsonl.
     """
+
     def reward_fn(prompts, completions, **kwargs):
         task_ids = kwargs.get("task_id", ["team_phishing_escalation"] * len(completions))
         seeds = kwargs.get("seed", [42] * len(completions))
@@ -440,12 +427,14 @@ def make_reward_fn(
         items = []
         for i, completion in enumerate(completions):
             text = completion[0]["content"] if isinstance(completion, list) else completion
-            items.append(CompletionItem(
-                text=text,
-                task_id=task_ids[i] if i < len(task_ids) else "team_phishing_escalation",
-                seed=seeds[i] if i < len(seeds) else 42,
-                step_index=step_indices[i] if i < len(step_indices) else 0,
-            ))
+            items.append(
+                CompletionItem(
+                    text=text,
+                    task_id=task_ids[i] if i < len(task_ids) else "team_phishing_escalation",
+                    seed=seeds[i] if i < len(seeds) else 42,
+                    step_index=step_indices[i] if i < len(step_indices) else 0,
+                )
+            )
 
         if evaluator is not None:
             rewards, quality_counts = evaluator.score_batch(items, role, replay_to_step)
@@ -481,8 +470,10 @@ def make_reward_fn(
                 **quality_counts,
             )
         if total >= 4:  # batch of meaningful size
+
             def pct(k):
                 return 100 * quality_counts[k] / total
+
             print(
                 f"[reward_fn] parse: strict {pct('strict'):.0f}% "
                 f"loose {pct('loose'):.0f}% fallback {pct('fallback'):.0f}% "
@@ -497,6 +488,7 @@ def make_reward_fn(
 # ---------------------------------------------------------------------------
 # Main training entry point
 # ---------------------------------------------------------------------------
+
 
 def _prime_red_team(client: httpx.Client, seed: int = 42, episode_count: int = 0) -> None:
     """Generate + load an adaptive red-team scenario so that
@@ -526,7 +518,7 @@ def _make_model_policy(model, tokenizer, role: str, max_new_tokens: int = 128):
                 do_sample=False,
                 pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id,
             )
-        completion = tokenizer.decode(out[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True)
+        completion = tokenizer.decode(out[0][inputs["input_ids"].shape[1] :], skip_special_tokens=True)
         return parse_action_from_text(completion, role) or {"action_type": "noop", "role": role}
 
     return policy
@@ -539,7 +531,10 @@ def train(
     per_device_train_batch_size: int = 2,
     gradient_accumulation_steps: int = 4,
     num_generations: int = 8,  # GRPO group size — must match plan (group=8)
-    max_prompt_length: int = 512,
+    # 768: the training/prompts.py observation shows per-alert progress and
+    # the env's feedback (worst case ~680 Qwen tokens). TRL truncates longer
+    # prompts from the left, i.e. the system prompt is lost first.
+    max_prompt_length: int = 768,
     max_completion_length: int = 256,
     learning_rate: float = 5e-6,
     output_dir: str = None,
@@ -579,12 +574,12 @@ def train(
     run_manager = TrainingRunManager(role=role, model_name=model_name, runs_dir=runs_dir)
     output_dir = output_dir or str(run_manager.checkpoints_dir)
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("SOC-Triage-Gym — GRPO Training")
     print(f"  role={role}  model={model_name}  epochs={num_train_epochs}")
     print(f"  tasks={tasks}  group_size={num_generations}")
     print(f"  run={run_manager.run_id}  curriculum={curriculum}  parallel_workers={parallel_workers}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     # ---- Connect to environment server ----
     # 180s so long team_lateral_team rollouts (68 steps) don't trip during dataset build.
@@ -603,33 +598,33 @@ def train(
     evaluator = None
     if parallel_workers > 1:
         evaluator = ParallelRewardEvaluator(
-            client_factory=lambda sid: httpx.Client(
-                base_url=SERVER_URL, timeout=180.0, headers={"X-Session-ID": sid}
-            ),
+            client_factory=lambda sid: httpx.Client(base_url=SERVER_URL, timeout=180.0, headers={"X-Session-ID": sid}),
             workers=parallel_workers,
         )
         print(f"[OK] Parallel reward evaluation: {parallel_workers} isolated server sessions")
 
-    run_manager.write_config({
-        "tasks": tasks,
-        "seeds": [SEEDS[0], SEEDS[-1]],
-        "num_train_epochs": num_train_epochs,
-        "per_device_train_batch_size": per_device_train_batch_size,
-        "gradient_accumulation_steps": gradient_accumulation_steps,
-        "num_generations": num_generations,
-        "max_prompt_length": max_prompt_length,
-        "max_completion_length": max_completion_length,
-        "learning_rate": learning_rate,
-        "lr_scheduler_type": lr_scheduler_type,
-        "warmup_ratio": warmup_ratio,
-        "save_total_limit": save_total_limit,
-        "use_unsloth": use_unsloth,
-        "curriculum": [s.name for s in scheduler.stages] if scheduler else None,
-        "parallel_workers": parallel_workers,
-        "early_stop_patience": early_stop_patience,
-        "eval_episodes": eval_episodes,
-        "output_dir": output_dir,
-    })
+    run_manager.write_config(
+        {
+            "tasks": tasks,
+            "seeds": [SEEDS[0], SEEDS[-1]],
+            "num_train_epochs": num_train_epochs,
+            "per_device_train_batch_size": per_device_train_batch_size,
+            "gradient_accumulation_steps": gradient_accumulation_steps,
+            "num_generations": num_generations,
+            "max_prompt_length": max_prompt_length,
+            "max_completion_length": max_completion_length,
+            "learning_rate": learning_rate,
+            "lr_scheduler_type": lr_scheduler_type,
+            "warmup_ratio": warmup_ratio,
+            "save_total_limit": save_total_limit,
+            "use_unsloth": use_unsloth,
+            "curriculum": [s.name for s in scheduler.stages] if scheduler else None,
+            "parallel_workers": parallel_workers,
+            "early_stop_patience": early_stop_patience,
+            "eval_episodes": eval_episodes,
+            "output_dir": output_dir,
+        }
+    )
 
     # ---- Build per-step prompt dataset (real GRPO) ----
     # With a curriculum, per-stage datasets are built inside the stage loop;
@@ -653,6 +648,7 @@ def train(
     if use_unsloth:
         try:
             from unsloth import FastLanguageModel
+
             model, tokenizer = FastLanguageModel.from_pretrained(
                 model_name=model_name,
                 max_seq_length=max_prompt_length + max_completion_length,
@@ -663,8 +659,7 @@ def train(
             model = FastLanguageModel.get_peft_model(
                 model,
                 r=16,
-                target_modules=["q_proj", "k_proj", "v_proj", "o_proj",
-                                 "gate_proj", "up_proj", "down_proj"],
+                target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
                 lora_alpha=16,
                 lora_dropout=0,
                 bias="none",
@@ -687,13 +682,15 @@ def train(
             print("Install: pip install 'trl>=0.11' 'peft>=0.14' 'transformers<5' datasets accelerate")
             print("\nFalling back to reward-curve dry-run (no model update)...")
             _dry_run_reward_curve(client, tasks, role)
-            run_manager.finalize({
-                "tasks": tasks,
-                "dataset_size": len(train_data),
-                "seed_range": f"{SEEDS[0]}..{SEEDS[-1]}",
-                "status": "dry_run_fallback",
-                "error": str(e),
-            })
+            run_manager.finalize(
+                {
+                    "tasks": tasks,
+                    "dataset_size": len(train_data),
+                    "seed_range": f"{SEEDS[0]}..{SEEDS[-1]}",
+                    "status": "dry_run_fallback",
+                    "error": str(e),
+                }
+            )
             return
         tokenizer = AutoTokenizer.from_pretrained(model_name, token=HF_TOKEN)
         if tokenizer.pad_token is None:
@@ -719,7 +716,8 @@ def train(
     # ---- Build reward function ----
     print(f"\n[3/4] Wiring reward function (role={role})...")
     reward_fn = make_reward_fn(
-        client, role,
+        client,
+        role,
         evaluator=evaluator,
         curriculum=scheduler,
         run_manager=run_manager,
@@ -737,10 +735,19 @@ def train(
         _grpo_params = set(inspect.signature(GRPOConfig.__init__).parameters)
 
         def _to_hf_dataset(rows: list[dict]) -> Dataset:
-            return Dataset.from_list([{"prompt": d["prompt"],
-                                       "task_id": d["task_id"],
-                                       "seed": d["seed"],
-                                       "step_index": d.get("step_index", 0)} for d in rows])
+            longest = check_prompt_budget(rows, tokenizer, max_prompt_length)
+            print(f"  prompt budget OK: longest {longest}/{max_prompt_length} tokens over {len(rows)} prompts")
+            return Dataset.from_list(
+                [
+                    {
+                        "prompt": d["prompt"],
+                        "task_id": d["task_id"],
+                        "seed": d["seed"],
+                        "step_index": d.get("step_index", 0),
+                    }
+                    for d in rows
+                ]
+            )
 
         def _build_config(run_tag: str) -> GRPOConfig:
             config_kwargs: dict = dict(
@@ -777,9 +784,8 @@ def train(
             if "bf16" in _grpo_params:
                 try:
                     import torch
-                    config_kwargs["bf16"] = bool(
-                        torch.cuda.is_available() and torch.cuda.is_bf16_supported()
-                    )
+
+                    config_kwargs["bf16"] = bool(torch.cuda.is_available() and torch.cuda.is_bf16_supported())
                 except ImportError:
                     pass
             return GRPOConfig(**config_kwargs)
@@ -789,6 +795,7 @@ def train(
         callbacks = []
         try:
             from training.callbacks import SOCGymCallback
+
             callbacks.append(SOCGymCallback(run_manager, early_stop_patience=early_stop_patience))
         except ImportError:
             pass
@@ -817,28 +824,37 @@ def train(
             while not scheduler.finished:
                 stage = scheduler.current
                 round_num += 1
-                print(f"\n--- Curriculum stage '{stage.name}' "
-                      f"(round {round_num}, tasks={stage.tasks}, "
-                      f"gate={stage.promotion_threshold}) ---")
+                print(
+                    f"\n--- Curriculum stage '{stage.name}' "
+                    f"(round {round_num}, tasks={stage.tasks}, "
+                    f"gate={stage.promotion_threshold}) ---"
+                )
                 if stage_rows is None:
                     if "red_team_generated" in stage.tasks:
                         _prime_red_team(client, seed=SEEDS[0], episode_count=round_num)
                     raw = build_step_dataset(client, stage.tasks, SEEDS, role)
                     random.shuffle(raw)
-                    stage_rows = raw[max(1, int(len(raw) * 0.1)):]
-                run_manager.log("stage_start", stage=stage.name, round=round_num,
-                                dataset=len(stage_rows), tasks=stage.tasks)
+                    stage_rows = raw[max(1, int(len(raw) * 0.1)) :]
+                run_manager.log(
+                    "stage_start", stage=stage.name, round=round_num, dataset=len(stage_rows), tasks=stage.tasks
+                )
                 total_examples += len(stage_rows)
                 _fit(stage_rows, f"soc-grpo-{role}-{stage.name}-r{round_num}")
                 decision = scheduler.end_round()
                 run_manager.log("curriculum_decision", **decision)
-                verdict = ("PROMOTED" if decision["promoted"]
-                           else "force-advanced" if decision["forced_advance"]
-                           else "repeating stage")
+                verdict = (
+                    "PROMOTED"
+                    if decision["promoted"]
+                    else "force-advanced"
+                    if decision["forced_advance"]
+                    else "repeating stage"
+                )
                 mean = decision["rolling_mean"]
-                print(f"  Stage '{stage.name}': mean reward "
-                      f"{mean if mean is None else round(mean, 3)} "
-                      f"vs gate {stage.promotion_threshold} → {verdict}")
+                print(
+                    f"  Stage '{stage.name}': mean reward "
+                    f"{mean if mean is None else round(mean, 3)} "
+                    f"vs gate {stage.promotion_threshold} → {verdict}"
+                )
                 if decision["promoted"] or decision["forced_advance"]:
                     stage_rows = None  # build the next stage's dataset next loop
         else:
@@ -864,26 +880,34 @@ def train(
             print(f"\n[eval] Held-out evaluation ({eval_episodes} seeds × {len(tasks)} tasks)...")
             policy = _make_model_policy(model, tokenizer, role)
             eval_report = evaluate_policy(
-                client, role, policy, oracle_action, tasks,
+                client,
+                role,
+                policy,
+                oracle_action,
+                tasks,
                 seeds=DEFAULT_EVAL_SEEDS[:eval_episodes],
             )
             run_manager.record_eval(eval_report, tag="held_out")
             is_best = run_manager.consider_best(eval_report["mean_score"], checkpoint_dir=output_dir)
-            print(f"  mean={eval_report['mean_score']:.3f} ± {eval_report['std_score']:.3f}"
-                  f"{'  (new best)' if is_best else ''}")
+            print(
+                f"  mean={eval_report['mean_score']:.3f} ± {eval_report['std_score']:.3f}"
+                f"{'  (new best)' if is_best else ''}"
+            )
 
         # ---- Finalize the run: MANIFEST.json + auto model card ----
         batches = run_manager.read_metrics("reward_batch")
         final_mean = batches[-1]["mean_reward"] if batches else None
-        run_manager.finalize({
-            "tasks": tasks,
-            "dataset_size": total_examples,
-            "seed_range": f"{SEEDS[0]}..{SEEDS[-1]}",
-            "final_mean_reward": final_mean,
-            "eval_mean_score": eval_report["mean_score"] if eval_report else None,
-            "output_dir": output_dir,
-            "curriculum_history": scheduler.history if scheduler else None,
-        })
+        run_manager.finalize(
+            {
+                "tasks": tasks,
+                "dataset_size": total_examples,
+                "seed_range": f"{SEEDS[0]}..{SEEDS[-1]}",
+                "final_mean_reward": final_mean,
+                "eval_mean_score": eval_report["mean_score"] if eval_report else None,
+                "output_dir": output_dir,
+                "curriculum_history": scheduler.history if scheduler else None,
+            }
+        )
         print(f"\n[run] Artifacts: {run_manager.run_dir}")
         print("      config.json · metrics.jsonl · checkpoints/ · eval/ · MODEL_CARD.md · MANIFEST.json")
 
@@ -892,13 +916,15 @@ def train(
         print("Install: pip install trl>=0.9.0 datasets")
         print("\nFalling back to reward-curve dry-run (no model update)...")
         _dry_run_reward_curve(client, tasks, role)
-        run_manager.finalize({
-            "tasks": tasks,
-            "dataset_size": len(train_data),
-            "seed_range": f"{SEEDS[0]}..{SEEDS[-1]}",
-            "status": "dry_run_fallback",
-            "error": str(e),
-        })
+        run_manager.finalize(
+            {
+                "tasks": tasks,
+                "dataset_size": len(train_data),
+                "seed_range": f"{SEEDS[0]}..{SEEDS[-1]}",
+                "status": "dry_run_fallback",
+                "error": str(e),
+            }
+        )
 
 
 def _random_action(obs: dict, role: str) -> dict:
@@ -909,24 +935,24 @@ def _random_action(obs: dict, role: str) -> dict:
     same kind of mistakes an untrained LLM would make (wrong IDs, wrong
     action for the current phase, over-escalation, etc.).
     """
-    tier1_actions = ["classify_alert", "enrich_indicator", "escalate_to_tier2",
-                     "phase_complete", "noop"]
-    tier2_actions = ["isolate_host", "block_ioc", "close_case",
-                     "phase_complete", "noop"]
+    tier1_actions = ["classify_alert", "enrich_indicator", "escalate_to_tier2", "phase_complete", "noop"]
+    tier2_actions = ["isolate_host", "block_ioc", "close_case", "phase_complete", "noop"]
     manager_actions = ["review_decision", "explain_team_behavior", "noop"]
-    pool = {"tier1": tier1_actions, "tier2": tier2_actions,
-            "manager": manager_actions}[role]
+    pool = {"tier1": tier1_actions, "tier2": tier2_actions, "manager": manager_actions}[role]
     action_type = random.choice(pool)
     alerts = obs.get("alert_queue") or []
     aid = alerts[0]["alert_id"] if alerts else "ALT-UNKNOWN"
     action: dict = {"action_type": action_type, "role": role}
     if action_type == "classify_alert":
-        action.update({"alert_id": aid,
-                       "classification": random.choice(["true_positive", "false_positive"]),
-                       "confidence": round(random.random(), 2)})
+        action.update(
+            {
+                "alert_id": aid,
+                "classification": random.choice(["true_positive", "false_positive"]),
+                "confidence": round(random.random(), 2),
+            }
+        )
     elif action_type == "enrich_indicator":
-        action.update({"indicator": "0.0.0.0", "indicator_type": "ip",
-                       "query_alert_id": aid})
+        action.update({"indicator": "0.0.0.0", "indicator_type": "ip", "query_alert_id": aid})
     elif action_type == "escalate_to_tier2":
         action.update({"alert_id": aid, "justification": "random"})
     elif action_type == "isolate_host":
@@ -951,9 +977,7 @@ def run_random_episode(
 ) -> float:
     """Run an episode where `role_to_train` uses the random policy and the
     other roles use the oracle. Mirrors run_episode() so scores are comparable."""
-    reset_resp = client.post(
-        "/reset", json={"task_id": task_id, "seed": seed, "mode": "team"}
-    )
+    reset_resp = client.post("/reset", json={"task_id": task_id, "seed": seed, "mode": "team"})
     reset_resp.raise_for_status()
     obs = reset_resp.json()
     step = 0
@@ -962,7 +986,8 @@ def run_random_episode(
         role = obs.get("current_role") or "tier1"
         action = _random_action(obs, role) if role == role_to_train else oracle_action(obs)
         step_resp = client.post(
-            "/step", content=json.dumps(action),
+            "/step",
+            content=json.dumps(action),
             headers={"Content-Type": "application/json"},
         )
         if step_resp.status_code != 200:
@@ -989,15 +1014,23 @@ def _compare_baselines(client, tasks, role, n_seeds: int = 10):
         for seed in SEEDS[:n_seeds]:
             ep += 1
             r_score = run_random_episode(client, task_id, seed, role_to_train=role)
-            o_score, _ = run_episode(client, task_id=task_id, seed=seed,
-                                     role_to_train=role)
+            o_score, _ = run_episode(client, task_id=task_id, seed=seed, role_to_train=role)
             random_scores.append(r_score)
             oracle_scores.append(o_score)
-            rows.append({"episode": ep, "task_id": task_id, "seed": seed,
-                         "random": r_score, "oracle": o_score,
-                         "delta": o_score - r_score})
-            print(f"  Ep {ep:3d} | {task_id} seed={seed} | "
-                  f"random={r_score:.3f} oracle={o_score:.3f} Δ={o_score - r_score:+.3f}")
+            rows.append(
+                {
+                    "episode": ep,
+                    "task_id": task_id,
+                    "seed": seed,
+                    "random": r_score,
+                    "oracle": o_score,
+                    "delta": o_score - r_score,
+                }
+            )
+            print(
+                f"  Ep {ep:3d} | {task_id} seed={seed} | "
+                f"random={r_score:.3f} oracle={o_score:.3f} Δ={o_score - r_score:+.3f}"
+            )
 
     csv_path = f"reward_comparison_baseline_{role}.csv"
     with open(csv_path, "w", newline="") as fh:
@@ -1019,27 +1052,27 @@ def _compare_baselines(client, tasks, role, n_seeds: int = 10):
 
         fig, ax = plt.subplots(figsize=(10, 4))
         x = range(1, ep + 1)
-        ax.plot(x, random_scores, alpha=0.35, color="#b64a3b",
-                label="Random policy (untrained baseline)")
-        ax.plot(x, oracle_scores, alpha=0.35, color="#2b4a3a",
-                label="Oracle heuristic (ceiling)")
+        ax.plot(x, random_scores, alpha=0.35, color="#b64a3b", label="Random policy (untrained baseline)")
+        ax.plot(x, oracle_scores, alpha=0.35, color="#2b4a3a", label="Oracle heuristic (ceiling)")
         w = min(5, ep)
         if w >= 2:
             r_smooth = np.convolve(random_scores, np.ones(w) / w, mode="valid")
             o_smooth = np.convolve(oracle_scores, np.ones(w) / w, mode="valid")
             ax.plot(range(w, ep + 1), r_smooth, linewidth=2, color="#b64a3b")
             ax.plot(range(w, ep + 1), o_smooth, linewidth=2, color="#2b4a3a")
-        ax.axhline(r_mean, linestyle=":", color="#b64a3b", alpha=0.6,
-                   label=f"Random μ={r_mean:.3f}")
-        ax.axhline(o_mean, linestyle="--", color="#2b4a3a", alpha=0.6,
-                   label=f"Oracle μ={o_mean:.3f}")
-        ax.fill_between(x, random_scores, oracle_scores,
-                        where=[o >= r for o, r in zip(oracle_scores, random_scores, strict=False)],
-                        alpha=0.08, color="#2b4a3a")
+        ax.axhline(r_mean, linestyle=":", color="#b64a3b", alpha=0.6, label=f"Random μ={r_mean:.3f}")
+        ax.axhline(o_mean, linestyle="--", color="#2b4a3a", alpha=0.6, label=f"Oracle μ={o_mean:.3f}")
+        ax.fill_between(
+            x,
+            random_scores,
+            oracle_scores,
+            where=[o >= r for o, r in zip(oracle_scores, random_scores, strict=False)],
+            alpha=0.08,
+            color="#2b4a3a",
+        )
         ax.set_xlabel("Episode")
         ax.set_ylabel("Task score")
-        ax.set_title(f"SOC-Triage-Gym — {role.upper()} baseline gap "
-                     f"(random vs oracle) | learnable Δ={gap:+.3f}")
+        ax.set_title(f"SOC-Triage-Gym — {role.upper()} baseline gap (random vs oracle) | learnable Δ={gap:+.3f}")
         ax.legend(loc="best", fontsize=8)
         ax.set_ylim(-0.05, 1.05)
         ax.grid(True, alpha=0.2)
@@ -1056,11 +1089,8 @@ def _dry_run_reward_curve(client, tasks, role):
 
     print("\n--- Dry-run reward curve (oracle heuristic) ---")
     episode_scores = []
-    for episode_num, (task_id, seed) in enumerate(
-        [(t, s) for t in tasks for s in SEEDS[:10]], start=1
-    ):
-        score, traj = run_episode(client, task_id=task_id, seed=seed,
-                                  role_to_train=role)
+    for episode_num, (task_id, seed) in enumerate([(t, s) for t in tasks for s in SEEDS[:10]], start=1):
+        score, traj = run_episode(client, task_id=task_id, seed=seed, role_to_train=role)
         episode_scores.append(score)
         print(f"  Episode {episode_num:3d} | {task_id} seed={seed} | score={score:.4f}")
 
@@ -1070,13 +1100,13 @@ def _dry_run_reward_curve(client, tasks, role):
     try:
         import matplotlib.pyplot as plt
         import numpy as np
+
         fig, ax = plt.subplots(figsize=(10, 4))
         x = range(1, len(episode_scores) + 1)
         ax.plot(x, episode_scores, alpha=0.4, label="Episode score")
         window = min(5, len(episode_scores))
         smoothed = np.convolve(episode_scores, np.ones(window) / window, mode="valid")
-        ax.plot(range(window, len(episode_scores) + 1), smoothed, linewidth=2,
-                label=f"Rolling avg (n={window})")
+        ax.plot(range(window, len(episode_scores) + 1), smoothed, linewidth=2, label=f"Rolling avg (n={window})")
         ax.axhline(avg, linestyle="--", color="gray", label=f"Mean={avg:.3f}")
         ax.set_xlabel("Episode")
         ax.set_ylabel("Score")
@@ -1094,40 +1124,51 @@ def _dry_run_reward_curve(client, tasks, role):
 # CLI
 # ---------------------------------------------------------------------------
 
+
 def main():
     parser = argparse.ArgumentParser(description="SOC-Triage-Gym v2 GRPO Training")
     parser.add_argument("--role", choices=["tier1", "tier2", "manager"], default="tier1")
-    parser.add_argument("--model", default="Qwen/Qwen2.5-1.5B-Instruct",
-                        help="HuggingFace model name or path")
+    parser.add_argument("--model", default="Qwen/Qwen2.5-1.5B-Instruct", help="HuggingFace model name or path")
     parser.add_argument("--epochs", type=int, default=3)
-    parser.add_argument("--group-size", type=int, default=8,
-                        help="GRPO group size (plan: 8)")
+    parser.add_argument("--group-size", type=int, default=8, help="GRPO group size (plan: 8)")
     parser.add_argument("--lr", type=float, default=5e-6)
     parser.add_argument("--output-dir", default=None)
-    parser.add_argument("--unsloth", action="store_true",
-                        help="Use Unsloth for 4-bit training (recommended for T4/A100)")
-    parser.add_argument("--curriculum", action="store_true",
-                        help="Staged easy→hard task curriculum with reward promotion gates; "
-                             "final stage mixes in adaptive red-team scenarios (RLVE)")
-    parser.add_argument("--parallel-rewards", type=int, default=1, metavar="N",
-                        help="Score GRPO completion groups across N isolated server "
-                             "sessions concurrently (default: 1 = sequential)")
-    parser.add_argument("--runs-dir", default="runs",
-                        help="Root for structured run artifacts (default: runs/)")
-    parser.add_argument("--early-stop-patience", type=int, default=0,
-                        help="Stop when train reward plateaus for N log events (0=off)")
-    parser.add_argument("--eval-episodes", type=int, default=0,
-                        help="Held-out eval episodes per task after training (seeds 100+, 0=off)")
-    parser.add_argument("--lr-scheduler", default="cosine",
-                        help="LR schedule: cosine (default), linear, constant")
+    parser.add_argument(
+        "--unsloth", action="store_true", help="Use Unsloth for 4-bit training (recommended for T4/A100)"
+    )
+    parser.add_argument(
+        "--curriculum",
+        action="store_true",
+        help="Staged easy→hard task curriculum with reward promotion gates; "
+        "final stage mixes in adaptive red-team scenarios (RLVE)",
+    )
+    parser.add_argument(
+        "--parallel-rewards",
+        type=int,
+        default=1,
+        metavar="N",
+        help="Score GRPO completion groups across N isolated server sessions concurrently (default: 1 = sequential)",
+    )
+    parser.add_argument("--runs-dir", default="runs", help="Root for structured run artifacts (default: runs/)")
+    parser.add_argument(
+        "--early-stop-patience", type=int, default=0, help="Stop when train reward plateaus for N log events (0=off)"
+    )
+    parser.add_argument(
+        "--eval-episodes",
+        type=int,
+        default=0,
+        help="Held-out eval episodes per task after training (seeds 100+, 0=off)",
+    )
+    parser.add_argument("--lr-scheduler", default="cosine", help="LR schedule: cosine (default), linear, constant")
     parser.add_argument("--warmup-ratio", type=float, default=0.05)
-    parser.add_argument("--dry-run", action="store_true",
-                        help="Skip model loading; just plot oracle reward curve")
-    parser.add_argument("--compare", action="store_true",
-                        help="Plot random-policy vs oracle baseline gap "
-                             "(artifact for the 20%% 'Showing Improvement' judging criterion)")
-    parser.add_argument("--compare-seeds", type=int, default=10,
-                        help="Seeds per task for --compare (default: 10)")
+    parser.add_argument("--dry-run", action="store_true", help="Skip model loading; just plot oracle reward curve")
+    parser.add_argument(
+        "--compare",
+        action="store_true",
+        help="Plot random-policy vs oracle baseline gap "
+        "(artifact for the 20%% 'Showing Improvement' judging criterion)",
+    )
+    parser.add_argument("--compare-seeds", type=int, default=10, help="Seeds per task for --compare (default: 10)")
     args = parser.parse_args()
 
     if args.compare:

@@ -1,4 +1,5 @@
 """EndUserReporter actor — noisy mailbox of user-submitted phishing reports."""
+
 from __future__ import annotations
 
 import uuid

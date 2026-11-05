@@ -5,6 +5,7 @@ short-but-perfect must earn 0, and only long-AND-substantive may saturate. The
 existing suite only imports the module for theme coverage; these pin the actual
 math at the floor, the cap, the quality gate, and the clamps.
 """
+
 from __future__ import annotations
 
 import pytest

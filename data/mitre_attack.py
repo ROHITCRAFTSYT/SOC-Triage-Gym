@@ -6,7 +6,6 @@ Covers Initial Access, Execution, Credential Access, Lateral Movement,
 Collection, Command & Control, and Exfiltration tactics.
 """
 
-
 TECHNIQUES: dict[str, dict[str, str]] = {
     # Initial Access
     "T1566": {
@@ -42,7 +41,6 @@ TECHNIQUES: dict[str, dict[str, str]] = {
         "description": "Adversaries may obtain and abuse credentials of a domain account.",
         "parent": "T1078",
     },
-
     # Execution
     "T1059": {
         "name": "Command and Scripting Interpreter",
@@ -72,7 +70,6 @@ TECHNIQUES: dict[str, dict[str, str]] = {
         "description": "An adversary may rely upon a user opening a malicious file in order to gain execution.",
         "parent": "T1204",
     },
-
     # Persistence
     "T1547": {
         "name": "Boot or Logon Autostart Execution",
@@ -96,14 +93,12 @@ TECHNIQUES: dict[str, dict[str, str]] = {
         "description": "Adversaries may abuse the Windows Task Scheduler to perform task scheduling.",
         "parent": "T1053",
     },
-
     # Privilege Escalation
     "T1055": {
         "name": "Process Injection",
         "tactic": "privilege-escalation",
         "description": "Adversaries may inject code into processes to evade process-based defenses.",
     },
-
     # Defense Evasion
     "T1027": {
         "name": "Obfuscated Files or Information",
@@ -116,7 +111,6 @@ TECHNIQUES: dict[str, dict[str, str]] = {
         "description": "Adversaries may obfuscate content during command execution to impede detection.",
         "parent": "T1027",
     },
-
     # Credential Access
     "T1110": {
         "name": "Brute Force",
@@ -151,7 +145,6 @@ TECHNIQUES: dict[str, dict[str, str]] = {
         "tactic": "credential-access",
         "description": "Adversaries can steal application access tokens as a means of acquiring credentials.",
     },
-
     # Discovery
     "T1046": {
         "name": "Network Service Discovery",
@@ -163,7 +156,6 @@ TECHNIQUES: dict[str, dict[str, str]] = {
         "tactic": "discovery",
         "description": "Adversaries may attempt to get a listing of accounts on a system or within an environment.",
     },
-
     # Lateral Movement
     "T1021": {
         "name": "Remote Services",
@@ -187,7 +179,6 @@ TECHNIQUES: dict[str, dict[str, str]] = {
         "tactic": "lateral-movement",
         "description": "Adversaries may transfer tools or other files between systems in a compromised environment.",
     },
-
     # Collection
     "T1074": {
         "name": "Data Staged",
@@ -211,7 +202,6 @@ TECHNIQUES: dict[str, dict[str, str]] = {
         "description": "Adversaries may use utilities to compress and/or encrypt collected data prior to exfiltration.",
         "parent": "T1560",
     },
-
     # Command and Control
     "T1071": {
         "name": "Application Layer Protocol",
@@ -240,7 +230,6 @@ TECHNIQUES: dict[str, dict[str, str]] = {
         "description": "Adversaries may encode data with a standard data encoding system to make the content undetectable.",
         "parent": "T1132",
     },
-
     # Exfiltration
     "T1041": {
         "name": "Exfiltration Over C2 Channel",
@@ -257,7 +246,6 @@ TECHNIQUES: dict[str, dict[str, str]] = {
         "tactic": "exfiltration",
         "description": "Adversaries may use an existing, legitimate external Web service to exfiltrate data.",
     },
-
     # Impact
     "T1486": {
         "name": "Data Encrypted for Impact",
@@ -268,6 +256,83 @@ TECHNIQUES: dict[str, dict[str, str]] = {
         "name": "Inhibit System Recovery",
         "tactic": "impact",
         "description": "Adversaries may delete or remove built-in data and turn off services designed to aid in the recovery.",
+    },
+    "T1485": {
+        "name": "Data Destruction",
+        "tactic": "impact",
+        "description": "Adversaries may destroy data and files on specific systems to interrupt availability.",
+    },
+    "T1489": {
+        "name": "Service Stop",
+        "tactic": "impact",
+        "description": "Adversaries may stop or disable services on a system to render them unavailable.",
+    },
+    # ------------------------------------------------------------------
+    # Techniques referenced by scenario ground truth (ransomware,
+    # cloud_compromise, insider_threat, apt_campaign). Every technique a
+    # scenario expects MUST be in this catalog: map_technique rejects unknown
+    # IDs, so a missing entry silently caps the technique score below 100%
+    # for a perfect agent. scenarios/validate.py enforces this.
+    # ------------------------------------------------------------------
+    "T1133": {
+        "name": "External Remote Services",
+        "tactic": "initial-access",
+        "description": "Adversaries may leverage external-facing remote services such as VPN or Citrix to gain access.",
+    },
+    "T1078.004": {
+        "name": "Cloud Accounts",
+        "tactic": "defense-evasion",
+        "description": "Adversaries may obtain and abuse credentials of a cloud account.",
+        "parent": "T1078",
+    },
+    "T1098": {
+        "name": "Account Manipulation",
+        "tactic": "persistence",
+        "description": "Adversaries may manipulate accounts to maintain or elevate access to victim systems.",
+    },
+    "T1098.001": {
+        "name": "Additional Cloud Credentials",
+        "tactic": "persistence",
+        "description": "Adversaries may add adversary-controlled credentials, such as access keys, to a cloud account.",
+        "parent": "T1098",
+    },
+    "T1562": {
+        "name": "Impair Defenses",
+        "tactic": "defense-evasion",
+        "description": "Adversaries may maliciously modify components of a victim environment to hinder defenses.",
+    },
+    "T1562.004": {
+        "name": "Disable or Modify System Firewall",
+        "tactic": "defense-evasion",
+        "description": "Adversaries may disable or modify system firewalls to bypass network usage controls.",
+        "parent": "T1562",
+    },
+    "T1562.008": {
+        "name": "Disable or Modify Cloud Logs",
+        "tactic": "defense-evasion",
+        "description": "Adversaries may disable or modify cloud logging, such as CloudTrail, to evade detection.",
+        "parent": "T1562",
+    },
+    "T1083": {
+        "name": "File and Directory Discovery",
+        "tactic": "discovery",
+        "description": "Adversaries may enumerate files and directories to find information within a file system.",
+    },
+    "T1530": {
+        "name": "Data from Cloud Storage",
+        "tactic": "collection",
+        "description": "Adversaries may access data from cloud storage, such as improperly secured buckets.",
+    },
+    "T1052": {
+        "name": "Exfiltration Over Physical Medium",
+        "tactic": "exfiltration",
+        "description": "Adversaries may attempt to exfiltrate data via a physical medium such as a removable drive.",
+    },
+    "T1052.001": {
+        "name": "Exfiltration over USB",
+        "tactic": "exfiltration",
+        "description": "Adversaries may attempt to exfiltrate data over a USB connected physical device.",
+        "parent": "T1052",
     },
 }
 
@@ -312,10 +377,9 @@ def normalize_technique_id(raw: str) -> str:
     still reject it with :func:`is_valid_technique`.
     """
     s = (raw or "").strip().upper()
-    for prefix in ("MITRE ATT&CK ", "MITRE ", "ATT&CK ", "ATTACK ", "TECHNIQUE ",
-                   "TECHNIQUE:", "MITRE:"):
+    for prefix in ("MITRE ATT&CK ", "MITRE ", "ATT&CK ", "ATTACK ", "TECHNIQUE ", "TECHNIQUE:", "MITRE:"):
         if s.startswith(prefix):
-            s = s[len(prefix):].strip()
+            s = s[len(prefix) :].strip()
             break
     # Peel off wrapping brackets/quotes and trailing sentence punctuation that
     # agents emit around the ID. Only leading/trailing characters are touched,
@@ -363,6 +427,4 @@ def get_sub_techniques(technique_id: str) -> list[str]:
     an empty list for sub-techniques and unknown IDs.
     """
     base = normalize_technique_id(technique_id)
-    return sorted(
-        tid for tid in TECHNIQUES if tid != base and get_parent_technique(tid) == base
-    )
+    return sorted(tid for tid in TECHNIQUES if tid != base and get_parent_technique(tid) == base)

@@ -1,9 +1,15 @@
-FROM python:3.11-slim
+# Base image pinned by digest for reproducible builds; Dependabot (docker
+# ecosystem) proposes digest bumps weekly.
+FROM python:3.11-slim@sha256:db20d8506e2f15b6db39b40b6015ca46bae855dec6dd326d462cfe79ae972893
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    SOC_GYM_LOG_FORMAT=json \
+    SOC_GYM_LOG_LEVEL=INFO
 
 WORKDIR /app
-
-# Install curl for healthcheck
-RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies (--prefer-binary avoids Rust/C compilation)
 COPY server/requirements.txt .
@@ -33,8 +39,14 @@ EXPOSE 7860
 #   SOC_GYM_SESSION_TTL        idle session eviction, seconds (default 3600)
 #   SOC_GYM_AUDIT_DIR          durable JSONL audit export directory
 #   SOC_GYM_AUDIT_MAX_EPISODES in-memory audit window (default 200)
+#   SOC_GYM_LOG_FORMAT         json (default in this image) | text
+#   SOC_GYM_LOG_LEVEL          DEBUG | INFO (default) | WARNING
 
+# Healthcheck uses the interpreter already in the image instead of installing
+# curl: one less package (and CVE feed) in the runtime image.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:7860/health || exit 1
+    CMD ["python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:7860/health', timeout=4).status == 200 else 1)"]
 
-CMD ["uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "7860"]
+# --no-access-log: the app's RequestLoggingMiddleware emits structured access
+# lines with request IDs; uvicorn's plain-text access log would duplicate them.
+CMD ["uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "7860", "--no-access-log"]

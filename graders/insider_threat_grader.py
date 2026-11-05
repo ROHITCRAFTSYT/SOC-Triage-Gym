@@ -11,7 +11,6 @@ Weights:
   response_score      0.15  -- quality of response for actual TPs
 """
 
-
 from graders.base import BaseGrader
 from models import AlertClassification, InvestigationState, ScenarioConfig
 
@@ -33,15 +32,11 @@ class InsiderThreatGrader(BaseGrader):
         f1 = self._compute_f1(investigations, gt)
         chain_score = self._attack_chain_score(investigations, gt)
         missed_tp_score = self._missed_tp_score(investigations, gt)
-        efficiency_score = self._efficiency_score(steps_used, max_steps)
+        efficiency_score = self._efficiency_score(steps_used, max_steps) * self._coverage(config, investigations)
         response_score = self._response_quality_score(config, investigations)
 
         final = (
-            0.25 * f1
-            + 0.25 * chain_score
-            + 0.20 * missed_tp_score
-            + 0.15 * efficiency_score
-            + 0.15 * response_score
+            0.25 * f1 + 0.25 * chain_score + 0.20 * missed_tp_score + 0.15 * efficiency_score + 0.15 * response_score
         )
 
         return self._clamp(final)
@@ -52,12 +47,11 @@ class InsiderThreatGrader(BaseGrader):
         f1 = self._compute_f1(investigations, gt)
         chain_score = self._attack_chain_score(investigations, gt)
         missed_tp_score = self._missed_tp_score(investigations, gt)
-        efficiency_score = self._efficiency_score(steps_used, max_steps)
+        efficiency_score = self._efficiency_score(steps_used, max_steps) * self._coverage(config, investigations)
         response_score = self._response_quality_score(config, investigations)
 
         final = self._clamp(
-            0.25 * f1 + 0.25 * chain_score + 0.20 * missed_tp_score
-            + 0.15 * efficiency_score + 0.15 * response_score
+            0.25 * f1 + 0.25 * chain_score + 0.20 * missed_tp_score + 0.15 * efficiency_score + 0.15 * response_score
         )
 
         # Count unclassified alerts
@@ -66,7 +60,7 @@ class InsiderThreatGrader(BaseGrader):
         if unclassified > 0:
             feedback_parts.append(f"{unclassified} alerts left unclassified.")
         if f1 < 0.8:
-            feedback_parts.append(f"F1 score {int(f1*100)}% -- check FP dismissal and TP escalation balance.")
+            feedback_parts.append(f"F1 score {int(f1 * 100)}% -- check FP dismissal and TP escalation balance.")
         if chain_score < 1.0:
             chains_pct = int(chain_score * 100)
             feedback_parts.append(f"Only {chains_pct}% of attack chains identified (3 chains expected).")
@@ -75,13 +69,17 @@ class InsiderThreatGrader(BaseGrader):
         if efficiency_score < 0.6:
             feedback_parts.append("Low efficiency -- too many steps used relative to budget.")
 
-        return final, {
-            "f1_score": round(f1, 3),
-            "attack_chains_found": round(chain_score, 3),
-            "true_positive_coverage": round(missed_tp_score, 3),
-            "efficiency": round(efficiency_score, 3),
-            "response_quality": round(response_score, 3),
-        }, " ".join(feedback_parts) or "Excellent insider threat investigation performance."
+        return (
+            final,
+            {
+                "f1_score": round(f1, 3),
+                "attack_chains_found": round(chain_score, 3),
+                "true_positive_coverage": round(missed_tp_score, 3),
+                "efficiency": round(efficiency_score, 3),
+                "response_quality": round(response_score, 3),
+            },
+            " ".join(feedback_parts) or "Excellent insider threat investigation performance.",
+        )
 
     def _compute_f1(
         self,
@@ -117,11 +115,7 @@ class InsiderThreatGrader(BaseGrader):
 
         precision = tp_count / (tp_count + fp_count) if (tp_count + fp_count) > 0 else 0.0
         recall = tp_count / (tp_count + fn_count) if (tp_count + fn_count) > 0 else 0.0
-        f1 = (
-            2 * precision * recall / (precision + recall)
-            if (precision + recall) > 0
-            else 0.0
-        )
+        f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
         return f1
 
     def _attack_chain_score(
@@ -144,8 +138,7 @@ class InsiderThreatGrader(BaseGrader):
             if not chain:
                 continue
             all_found = all(
-                investigations.get(aid, InvestigationState(alert_id=aid)).classification
-                in positive_classes
+                investigations.get(aid, InvestigationState(alert_id=aid)).classification in positive_classes
                 for aid in chain
             )
             if all_found:

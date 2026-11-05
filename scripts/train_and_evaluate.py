@@ -10,7 +10,10 @@ Produces:
     trained_vs_baseline.png                — eval plot for README / demo
     trained_vs_baseline.csv                — raw per-episode scores
     training_summary.json                  — metrics for demo.py to read
+    eval_trace.jsonl                       — every trained-policy completion with
+                                             parse quality, action and env response
 """
+
 from __future__ import annotations
 
 import json
@@ -40,8 +43,7 @@ def _check_deps() -> None:
     # so its monkeypatches apply. Also verify CUDA is reachable before we waste
     # 90 minutes on a CPU runtime.
     missing = []
-    for mod in ("torch", "unsloth", "trl", "peft", "datasets",
-                "transformers", "matplotlib", "httpx"):
+    for mod in ("torch", "unsloth", "trl", "peft", "datasets", "transformers", "matplotlib", "httpx"):
         try:
             __import__(mod)
         except ImportError:
@@ -55,12 +57,13 @@ def _check_deps() -> None:
     if missing:
         print(f"[fatal] missing deps: {missing}")
         print("  run in Colab:")
-        print('    !pip install -r server/requirements.txt --quiet')
-        print('    !pip install "trl>=0.11" "peft>=0.14" "datasets>=3" '
-              '"accelerate>=0.34" "transformers<5" "bitsandbytes>=0.43" '
-              'matplotlib --quiet')
-        print('    !pip install "unsloth[colab-new] @ '
-              'git+https://github.com/unslothai/unsloth.git" --quiet')
+        print("    !pip install -r server/requirements.txt --quiet")
+        print(
+            '    !pip install "trl>=0.11" "peft>=0.14" "datasets>=3" '
+            '"accelerate>=0.34" "transformers<5" "bitsandbytes>=0.43" '
+            "matplotlib --quiet"
+        )
+        print('    !pip install "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git" --quiet')
         print("  then RESTART RUNTIME, cd back in, re-run this script.")
         sys.exit(1)
 
@@ -72,7 +75,7 @@ ROLE = os.environ.get("ROLE", "tier1")
 MODEL_NAME = os.environ.get("MODEL_NAME", "Qwen/Qwen2.5-1.5B-Instruct")
 NUM_EPOCHS = int(os.environ.get("NUM_EPOCHS", "3"))
 NUM_GENERATIONS = int(os.environ.get("NUM_GENERATIONS", "8"))
-LEARNING_RATE = float(os.environ.get("LEARNING_RATE", "1e-5"))   # was 5e-6 default — too low for this env
+LEARNING_RATE = float(os.environ.get("LEARNING_RATE", "1e-5"))  # was 5e-6 default — too low for this env
 CKPT_DIR = ROOT / "checkpoints" / f"soc_grpo_{ROLE}"
 EVAL_SEEDS = list(range(100, 115))  # held-out, not in training
 
@@ -89,9 +92,9 @@ def ensure_server() -> subprocess.Popen | None:
 
     print(f"[server] starting uvicorn on {SERVER_URL} ...")
     proc = subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", "server.app:app",
-         "--host", "127.0.0.1", "--port", "7860"],
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        [sys.executable, "-m", "uvicorn", "server.app:app", "--host", "127.0.0.1", "--port", "7860"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
     )
     for _ in range(30):
         time.sleep(2)
@@ -136,7 +139,6 @@ def evaluate() -> dict:
         TIER1_TASKS,
         format_obs_prompt,
         oracle_action,
-        parse_action_from_text,
         run_episode,
     )
 
@@ -156,7 +158,7 @@ def evaluate() -> dict:
     print("\n[eval] loading trained checkpoint ...")
     model, tokenizer = FastLanguageModel.from_pretrained(
         model_name=str(CKPT_DIR),
-        max_seq_length=768,
+        max_seq_length=1024,  # prompt up to 768 tokens + 128 generated
         dtype=None,
         load_in_4bit=True,
     )
@@ -170,47 +172,49 @@ def evaluate() -> dict:
             "{% if add_generation_prompt %}<|im_start|>assistant\n{% endif %}"
         )
 
-    def run_trained(task_id: str, seed: int) -> float:
-        obs = client.post("/reset", json={"task_id": task_id, "seed": seed, "mode": "team"}).json()
-        step = 0
-        while not obs.get("done") and step < 80:
-            step += 1
-            role = obs.get("current_role") or "tier1"
-            if role == ROLE:
-                prompt = format_obs_prompt(obs, role, step)
-                messages = [
-                    {"role": "system", "content": ROLE_SYSTEM_PROMPTS[ROLE]},
-                    {"role": "user", "content": prompt},
-                ]
-                enc = tokenizer.apply_chat_template(
-                    messages, tokenize=True, add_generation_prompt=True, return_tensors="pt"
-                )
-                input_ids = enc if torch.is_tensor(enc) else enc["input_ids"]
-                input_ids = input_ids.to(model.device)
-                with torch.no_grad():
-                    out = model.generate(
-                        input_ids=input_ids, max_new_tokens=128, do_sample=False,
-                        pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id,
-                    )
-                text = tokenizer.decode(out[0][input_ids.shape[1]:], skip_special_tokens=True)
-                action = parse_action_from_text(text, role) or {"action_type": "noop", "role": role}
-            else:
-                action = oracle_action(obs)
-            resp = client.post("/step", content=json.dumps(action),
-                               headers={"Content-Type": "application/json"})
-            if resp.status_code != 200:
-                break
-            obs = resp.json()
-        return float(obs.get("task_score") or obs.get("cumulative_reward", 0.0))
+    from training.evaluation import diagnose_text_policy, run_text_policy_episode
+
+    def generate(obs: dict, step: int) -> str:
+        # Prompt, decoding and parsing are unchanged from the original eval so
+        # results stay comparable with the published adapter.
+        prompt = format_obs_prompt(obs, ROLE, step)
+        messages = [
+            {"role": "system", "content": ROLE_SYSTEM_PROMPTS[ROLE]},
+            {"role": "user", "content": prompt},
+        ]
+        enc = tokenizer.apply_chat_template(messages, tokenize=True, add_generation_prompt=True, return_tensors="pt")
+        input_ids = enc if torch.is_tensor(enc) else enc["input_ids"]
+        input_ids = input_ids.to(model.device)
+        with torch.no_grad():
+            out = model.generate(
+                input_ids=input_ids,
+                max_new_tokens=128,
+                do_sample=False,
+                pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id,
+            )
+        return tokenizer.decode(out[0][input_ids.shape[1] :], skip_special_tokens=True)
 
     print("\n[eval] trained policy ...")
     trained_scores = []
+    trained_episodes = []
     for task in TIER1_TASKS:
         for seed in EVAL_SEEDS:
-            s = run_trained(task, seed)
-            trained_scores.append(max(0.0, s))
-            print(f"  trained {task} seed={seed}: {trained_scores[-1]:.4f}")
+            ep = run_text_policy_episode(client, task, seed, ROLE, generate, oracle_action)
+            trained_episodes.append(ep)
+            trained_scores.append(max(0.0, ep["score"]))
+            print(
+                f"  trained {task} seed={seed}: {trained_scores[-1]:.4f}  "
+                f"escalated={ep['escalated']} rejected={ep['rejected']}"
+            )
     trained_avg = sum(trained_scores) / len(trained_scores)
+
+    # Every completion, with parse quality / action type / env response, so a
+    # score can be explained rather than guessed at.
+    with (ROOT / "eval_trace.jsonl").open("w", encoding="utf-8") as f:
+        for ep in trained_episodes:
+            f.write(json.dumps(ep) + "\n")
+    diagnostics = diagnose_text_policy(trained_episodes)
+    print(f"\n[eval] diagnostics: {json.dumps(diagnostics)}")
 
     return {
         "oracle_scores": oracle_scores,
@@ -221,6 +225,7 @@ def evaluate() -> dict:
         "role": ROLE,
         "model_name": MODEL_NAME,
         "eval_seeds": EVAL_SEEDS,
+        "diagnostics": diagnostics,
     }
 
 
@@ -228,6 +233,7 @@ def emit_artifacts(summary: dict) -> None:
     import csv
 
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import numpy as np
@@ -241,24 +247,33 @@ def emit_artifacts(summary: dict) -> None:
             w.writerow([i + 1, o, t])
 
     # JSON summary for demo.py
-    (ROOT / "training_summary.json").write_text(json.dumps({
-        "role": summary["role"],
-        "model_name": summary["model_name"],
-        "oracle_avg": summary["oracle_avg"],
-        "trained_avg": summary["trained_avg"],
-        "delta": summary["trained_avg"] - summary["oracle_avg"],
-        "n_episodes": summary["n_episodes"],
-    }, indent=2))
+    (ROOT / "training_summary.json").write_text(
+        json.dumps(
+            {
+                "role": summary["role"],
+                "model_name": summary["model_name"],
+                "oracle_avg": summary["oracle_avg"],
+                "trained_avg": summary["trained_avg"],
+                "delta": summary["trained_avg"] - summary["oracle_avg"],
+                "n_episodes": summary["n_episodes"],
+                "diagnostics": summary.get("diagnostics"),
+            },
+            indent=2,
+        )
+    )
 
     # Plot
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-    fig.suptitle(f"GRPO Training Results — role={summary['role']}",
-                 fontsize=14, fontweight="bold")
+    fig.suptitle(f"GRPO Training Results — role={summary['role']}", fontsize=14, fontweight="bold")
 
     ax = axes[0]
-    ax.bar(["Oracle baseline", "GRPO trained"],
-           [summary["oracle_avg"], summary["trained_avg"]],
-           color=["#4C72B0", "#DD8452"], alpha=0.85, edgecolor="black")
+    ax.bar(
+        ["Oracle baseline", "GRPO trained"],
+        [summary["oracle_avg"], summary["trained_avg"]],
+        color=["#4C72B0", "#DD8452"],
+        alpha=0.85,
+        edgecolor="black",
+    )
     ax.set_ylim(0, max(1.0, summary["trained_avg"] * 1.2))
     ax.set_ylabel("Episode score")
     ax.set_title("Mean held-out score")
@@ -268,15 +283,12 @@ def emit_artifacts(summary: dict) -> None:
 
     ax2 = axes[1]
     x = range(1, summary["n_episodes"] + 1)
-    ax2.plot(x, summary["oracle_scores"], "o-", alpha=0.5,
-             label="Oracle", color="#4C72B0")
-    ax2.plot(x, summary["trained_scores"], "s-", alpha=0.75,
-             label="GRPO trained", color="#DD8452")
+    ax2.plot(x, summary["oracle_scores"], "o-", alpha=0.5, label="Oracle", color="#4C72B0")
+    ax2.plot(x, summary["trained_scores"], "s-", alpha=0.75, label="GRPO trained", color="#DD8452")
     w = min(5, summary["n_episodes"])
     if summary["n_episodes"] >= w and w >= 2:
         sm = np.convolve(summary["trained_scores"], np.ones(w) / w, mode="valid")
-        ax2.plot(range(w, summary["n_episodes"] + 1), sm, linewidth=2.5,
-                 color="#C44E52", label="Trained (smoothed)")
+        ax2.plot(range(w, summary["n_episodes"] + 1), sm, linewidth=2.5, color="#C44E52", label="Trained (smoothed)")
     ax2.set_xlabel("Held-out episode")
     ax2.set_ylabel("Score")
     ax2.set_title("Per-episode (held-out seeds 100–114 × 2 tasks)")
@@ -288,9 +300,11 @@ def emit_artifacts(summary: dict) -> None:
     print(f"  {ROOT / 'trained_vs_baseline.png'}")
     print(f"  {csv_path}")
     print(f"  {ROOT / 'training_summary.json'}")
-    print(f"\n[summary] oracle={summary['oracle_avg']:.4f}  "
-          f"trained={summary['trained_avg']:.4f}  "
-          f"delta={summary['trained_avg'] - summary['oracle_avg']:+.4f}")
+    print(
+        f"\n[summary] oracle={summary['oracle_avg']:.4f}  "
+        f"trained={summary['trained_avg']:.4f}  "
+        f"delta={summary['trained_avg'] - summary['oracle_avg']:+.4f}"
+    )
 
 
 def main() -> None:
@@ -300,7 +314,7 @@ def main() -> None:
         summary = evaluate()
         emit_artifacts(summary)
         print("\n[done] next:")
-        print("  git add checkpoints/ trained_vs_baseline.* training_summary.json")
+        print("  git add checkpoints/ trained_vs_baseline.* training_summary.json eval_trace.jsonl")
         print("  git commit -m 'Add trained tier1 checkpoint + eval artifacts'")
         print("  git push")
     finally:

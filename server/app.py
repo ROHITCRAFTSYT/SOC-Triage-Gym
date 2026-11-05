@@ -26,7 +26,7 @@ from typing import Literal
 from fastapi import Body, Depends, FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, PlainTextResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +44,7 @@ from scenarios.red_team_generator import RedTeamGenerator
 from server.audit import AUDIT, trace_to_jsonl
 from server.environment import SOCEnvironment
 from server.landing_ui import UI_HTML
+from server.logging_config import RequestLoggingMiddleware, configure_logging
 from server.metrics import METRICS, MetricsMiddleware
 from server.page_ui import (
     render_metadata as _render_metadata_page,
@@ -99,6 +100,17 @@ def _do_reset(sess: SessionState, task_id: str, seed: int, mode: str) -> SOCObse
         seed=seed,
         mode=mode,
     )
+    logger.info(
+        "episode.reset",
+        extra={
+            "episode_id": sess.env._episode_id,
+            "session_id": sess.session_id,
+            "task_id": task_id,
+            "seed": seed,
+            "mode": mode,
+            "alerts": len(obs.alert_queue),
+        },
+    )
     return obs
 
 
@@ -118,9 +130,32 @@ def _do_step(sess: SessionState, action: SOCAction) -> SOCObservation:
         done=bool(obs.done),
         role=str(role) if role is not None else None,
     )
+    logger.debug(
+        "episode.step",
+        extra={
+            "episode_id": sess.env._episode_id,
+            "step": sess.env._step,
+            "action_type": action.action_type.value,
+            "reward": round(float(obs.reward), 4),
+            "done": bool(obs.done),
+        },
+    )
     if obs.done:
         METRICS.record_episode_complete(task, float(sess.env._cumulative_reward))
+        logger.info(
+            "episode.complete",
+            extra={
+                "episode_id": sess.env._episode_id,
+                "session_id": sess.session_id,
+                "task_id": task,
+                "seed": sess.env._config.seed if sess.env._config else None,
+                "steps": sess.env._step,
+                "task_score": obs.task_score,
+                "cumulative_reward": round(float(sess.env._cumulative_reward), 4),
+            },
+        )
     return obs
+
 
 TASKS = [
     {
@@ -128,6 +163,22 @@ TASKS = [
         "name": "Single-Alert Phishing Triage",
         "description": "Triage a single phishing email alert. Enrich IOCs, query logs, classify as TP or FP, map MITRE ATT&CK technique, recommend response.",
         "difficulty": "easy",
+        "max_steps": 15,
+        "reward_range": [0.0, 1.0],
+    },
+    {
+        "id": "ransomware",
+        "name": "Single-Alert Ransomware Triage",
+        "description": "Triage an endpoint ransomware alert. Distinguish a real detonation (mass encryption, shadow-copy deletion, ransom note, C2 beacon) from a benign backup agent; classify, map technique, recommend containment.",
+        "difficulty": "easy",
+        "max_steps": 15,
+        "reward_range": [0.0, 1.0],
+    },
+    {
+        "id": "cloud_compromise",
+        "name": "Single-Alert Cloud Account Compromise Triage",
+        "description": "Triage a cloud identity alert. Distinguish a real compromise (impossible travel, new access key, public bucket, CloudTrail disabled) from a benign admin on approved travel.",
+        "difficulty": "medium",
         "max_steps": 15,
         "reward_range": [0.0, 1.0],
     },
@@ -192,9 +243,12 @@ TASKS = [
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Warm the default session on startup so the first request is fast."""
+    """Configure logging and warm the default session so the first request is fast."""
+    configure_logging()
     _sessions.get_or_create(DEFAULT_SESSION_ID)
+    logger.info("server.start", extra={"version": VERSION, "tasks": len(TASKS)})
     yield
+    logger.info("server.stop")
     # Cleanup on shutdown (nothing needed for in-memory sessions)
 
 
@@ -225,37 +279,53 @@ app.add_middleware(
 # rejected (401/429) requests.
 app.add_middleware(SecurityMiddleware)
 app.add_middleware(MetricsMiddleware)
+# Outermost: binds the request ID and logs every request, including ones the
+# security middleware rejects.
+app.add_middleware(RequestLoggingMiddleware)
 
 
 # ---------------------------------------------------------------------------
 # Request / Response schemas
 # ---------------------------------------------------------------------------
 
+# Seeds are passed to random.Random, which accepts any int, but bounding them to
+# uint32 keeps them portable to numpy/torch seeding in training code and rejects
+# accidental floats/strings with a clear 422 instead of a silent coercion.
+_MAX_SEED = 2**32 - 1
+
+
 class ResetRequest(BaseModel):
     """Request body for POST /reset."""
-    task_id: str = "phishing"
-    seed: int = 42
+
+    task_id: str = Field(default="phishing", min_length=1, max_length=64)
+    seed: int = Field(default=42, ge=0, le=_MAX_SEED, strict=True)
     mode: Literal["tier1_solo", "team"] = "tier1_solo"
     # Optional body-level session selector for clients that can't set the
     # X-Session-ID header. Takes precedence over the header when present.
-    session_id: str | None = None
+    session_id: str | None = Field(default=None, max_length=128)
 
 
 class GenerateScenarioRequest(BaseModel):
     """Request body for POST /generate_scenario."""
-    seed: int = 42
-    difficulty_floor: float = 0.5
-    attack_patterns: list[str] = ["phishing", "lateral_movement", "insider_threat"]
-    noise_density: float = 0.6
-    ioc_freshness: float = 0.7
-    correlation_obfuscation: float = 0.3
-    blue_team_win_rate: float = 0.5
-    episode_count: int = 0
+
+    seed: int = Field(default=42, ge=0, le=_MAX_SEED, strict=True)
+    difficulty_floor: float = Field(default=0.5, ge=0.0, le=1.0)
+    attack_patterns: list[str] = Field(
+        default_factory=lambda: ["phishing", "lateral_movement", "insider_threat"],
+        min_length=1,
+        max_length=16,
+    )
+    noise_density: float = Field(default=0.6, ge=0.0, le=1.0)
+    ioc_freshness: float = Field(default=0.7, ge=0.0, le=1.0)
+    correlation_obfuscation: float = Field(default=0.3, ge=0.0, le=1.0)
+    blue_team_win_rate: float = Field(default=0.5, ge=0.0, le=1.0)
+    episode_count: int = Field(default=0, ge=0)
 
 
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
+
 
 @app.get("/health")
 def health():
@@ -282,7 +352,17 @@ def metadata():
         ),
         "tasks": [task["id"] for task in TASKS],
         "author": "rohitcraftsyt",
-        "tags": ["openenv", "cybersecurity", "soc", "siem", "mitre-attack", "reinforcement-learning", "multi-agent", "oversight", "self-improvement"],
+        "tags": [
+            "openenv",
+            "cybersecurity",
+            "soc",
+            "siem",
+            "mitre-attack",
+            "reinforcement-learning",
+            "multi-agent",
+            "oversight",
+            "self-improvement",
+        ],
     }
 
 
@@ -290,6 +370,7 @@ def metadata():
 def schema():
     """Action, observation and state JSON schemas (OpenEnv runtime spec)."""
     from models import EnvironmentState, SOCAction, SOCObservation
+
     return {
         "action": SOCAction.model_json_schema(),
         "observation": SOCObservation.model_json_schema(),
@@ -366,7 +447,10 @@ def mcp_endpoint(
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "log_source": {"type": "string", "enum": ["firewall", "proxy", "dns", "endpoint", "auth", "email_gateway", "ids", "cloud_trail"]},
+                    "log_source": {
+                        "type": "string",
+                        "enum": ["firewall", "proxy", "dns", "endpoint", "auth", "email_gateway", "ids", "cloud_trail"],
+                    },
                     "query_alert_id": {"type": "string", "description": "Alert ID to scope the query"},
                     "time_window_hours": {"type": "integer", "default": 24, "minimum": 1, "maximum": 168},
                 },
@@ -392,7 +476,10 @@ def mcp_endpoint(
                 "type": "object",
                 "properties": {
                     "alert_id": {"type": "string"},
-                    "classification": {"type": "string", "enum": ["true_positive", "false_positive", "benign_true_positive"]},
+                    "classification": {
+                        "type": "string",
+                        "enum": ["true_positive", "false_positive", "benign_true_positive"],
+                    },
                     "confidence": {"type": "number", "minimum": 0.0, "maximum": 1.0, "default": 0.8},
                 },
                 "required": ["alert_id", "classification"],
@@ -417,7 +504,19 @@ def mcp_endpoint(
                 "type": "object",
                 "properties": {
                     "alert_id": {"type": "string"},
-                    "response_action": {"type": "string", "enum": ["isolate_endpoint", "disable_account", "block_ip", "block_domain", "quarantine_file", "reset_password", "revoke_sessions", "no_action"]},
+                    "response_action": {
+                        "type": "string",
+                        "enum": [
+                            "isolate_endpoint",
+                            "disable_account",
+                            "block_ip",
+                            "block_domain",
+                            "quarantine_file",
+                            "reset_password",
+                            "revoke_sessions",
+                            "no_action",
+                        ],
+                    },
                 },
                 "required": ["alert_id", "response_action"],
             },
@@ -609,6 +708,7 @@ def root():
 def blog_md():
     """Raw blog.md so the landing-page modal can render it client-side via marked.js."""
     from pathlib import Path
+
     p = Path(__file__).resolve().parent.parent / "blog.md"
     if not p.exists():
         return PlainTextResponse("# blog.md not found\n", status_code=404)
@@ -619,6 +719,7 @@ def blog_md():
 # /ui/* — styled HTML accessors for the JSON-bearing endpoints.
 # API consumers keep hitting the raw routes; these are browser-facing.
 # ---------------------------------------------------------------------------
+
 
 @app.get("/ui/metadata", response_class=HTMLResponse, include_in_schema=False)
 def ui_metadata():
@@ -652,6 +753,7 @@ def ui_schema():
 # ---------------------------------------------------------------------------
 # REST Tool Endpoints (for LLM agents using direct REST tool calls)
 # ---------------------------------------------------------------------------
+
 
 @app.get("/tasks")
 def get_tasks():
@@ -819,7 +921,7 @@ def list_alerts(
         sess.ensure_episode()
         alerts = [a.model_dump() for a in sess.env._config.alerts]
         total = len(alerts)
-        page = alerts[offset: offset + limit]
+        page = alerts[offset : offset + limit]
         return {
             "total": total,
             "offset": offset,
@@ -979,6 +1081,7 @@ def query_log_source(
 # (Halluminate / Patronus / Mercor / Snorkel / Scaler AI Labs)
 # ---------------------------------------------------------------------------
 
+
 @app.get("/actors/messages")
 def actor_messages(role: str | None = Query(default=None), sess: SessionState = Depends(get_session)):
     """
@@ -1020,12 +1123,13 @@ def reward_config(sess: SessionState = Depends(get_session)):
 
 class RewardBlendUpdate(BaseModel):
     """Optional blend override."""
-    role_weight: float | None = None
-    team_weight: float | None = None
+
+    role_weight: float | None = Field(default=None, ge=0.0, le=1.0)
+    team_weight: float | None = Field(default=None, ge=0.0, le=1.0)
     token_scale_enabled: bool | None = None
-    token_scale_floor: int | None = None
-    token_scale_cap: int | None = None
-    token_scale_max_bonus: float | None = None
+    token_scale_floor: int | None = Field(default=None, ge=0)
+    token_scale_cap: int | None = Field(default=None, ge=1)
+    token_scale_max_bonus: float | None = Field(default=None, ge=0.0, le=1.0)
 
 
 @app.post("/reward/config")
@@ -1039,8 +1143,8 @@ def reward_config_update(patch: RewardBlendUpdate, sess: SessionState = Depends(
 
 
 class TokenBonusRequest(BaseModel):
-    text: str
-    content_quality: float = 0.5
+    text: str = Field(..., max_length=100_000)
+    content_quality: float = Field(default=0.5, ge=0.0, le=1.0)
 
 
 @app.post("/reward/token_bonus")
@@ -1182,6 +1286,7 @@ def themes_coverage():
 # Production operations endpoints — metrics, audit trail, session admin
 # ---------------------------------------------------------------------------
 
+
 @app.get("/metrics", response_class=PlainTextResponse)
 def metrics():
     """Prometheus text-format operational metrics (requests, episodes, steps, rewards)."""
@@ -1239,6 +1344,7 @@ def sessions_delete(session_id: str):
 # Application factory (for testing)
 # ---------------------------------------------------------------------------
 
+
 def create_app() -> FastAPI:
     """Return the FastAPI application instance."""
     return app
@@ -1258,10 +1364,11 @@ def main():
 
     host = os.environ.get("SOC_TRIAGE_HOST", "0.0.0.0")  # noqa: S104 - deploy default
     port = int(os.environ.get("SOC_TRIAGE_PORT", "7860"))
-    uvicorn.run("server.app:app", host=host, port=port, reload=False)
+    configure_logging()
+    # Our RequestLoggingMiddleware emits structured access lines; uvicorn's own
+    # access log would duplicate them in a different format.
+    uvicorn.run("server.app:app", host=host, port=port, reload=False, access_log=False)
 
 
 if __name__ == "__main__":
     main()
-
-

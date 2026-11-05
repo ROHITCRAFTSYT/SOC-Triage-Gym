@@ -112,10 +112,7 @@ class BaseGrader(ABC):
             # Give partial credit: exact match + parent technique credit
             exact_matches = mapped & expected
             # Parent technique credit (e.g., T1566 for T1566.001)
-            parent_credits = sum(
-                1 for t in expected
-                if t not in mapped and t.split(".")[0] in mapped
-            ) * 0.5
+            parent_credits = sum(1 for t in expected if t not in mapped and t.split(".")[0] in mapped) * 0.5
 
             alert_score = (len(exact_matches) + parent_credits) / len(expected)
             total_score += min(alert_score, 1.0)
@@ -176,9 +173,14 @@ class BaseGrader(ABC):
             expected = set(expected_actions)
 
             if gt_class == AlertClassification.FALSE_POSITIVE:
-                # For FPs, score whether agent correctly recommended no_action
+                # For FPs, score whether agent correctly recommended no_action.
+                # "No recommendation" only earns credit on an alert the agent
+                # actually triaged — otherwise an empty submission collects
+                # this component for free (reward-hacking regression).
                 from models import ResponseActionType
-                if ResponseActionType.NO_ACTION in recommended or not recommended:
+
+                triaged = inv is not None and inv.classification is not None
+                if ResponseActionType.NO_ACTION in recommended or (triaged and not recommended):
                     total_score += 1.0
                 else:
                     total_score += 0.0
@@ -191,6 +193,26 @@ class BaseGrader(ABC):
             total_alerts += 1
 
         return total_score / total_alerts if total_alerts > 0 else 1.0
+
+    def _coverage(
+        self,
+        config: ScenarioConfig,
+        investigations: dict[str, InvestigationState],
+    ) -> float:
+        """Fraction of alerts the agent classified, in [0, 1].
+
+        Used to gate components that would otherwise reward *inaction* —
+        efficiency in particular is maximal at zero steps, so an un-gated
+        efficiency term pays an agent for submitting without investigating.
+        """
+        if not config.alerts:
+            return 0.0
+        classified = sum(
+            1
+            for alert in config.alerts
+            if (inv := investigations.get(alert.alert_id)) is not None and inv.classification is not None
+        )
+        return classified / len(config.alerts)
 
     def _efficiency_score(self, steps_used: int, max_steps: int) -> float:
         """Score based on steps used vs budget. Lower is better."""

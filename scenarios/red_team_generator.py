@@ -1,4 +1,5 @@
 """Red-Team scenario generator for SOC-Triage-Gym v2 self-improvement curriculum."""
+
 import hashlib
 import random
 import string
@@ -73,11 +74,9 @@ class RedTeamGenerator:
         num_fp = max(0, round(num_tp * density / max(1 - density, 0.05)))
 
         tp_alerts = self._generate_attack_alerts(pattern, num_tp)
-        fp_alerts = self._generate_noise_alerts(num_fp, shared_ips=[
-            ip
-            for a in tp_alerts
-            for ip in a.indicators.get("ip", [])
-        ])
+        fp_alerts = self._generate_noise_alerts(
+            num_fp, shared_ips=[ip for a in tp_alerts for ip in a.indicators.get("ip", [])]
+        )
 
         all_alerts = tp_alerts + fp_alerts
         self._rng.shuffle(all_alerts)
@@ -171,30 +170,32 @@ class RedTeamGenerator:
             sender = f"billing@{self._malicious_domain()}"
 
             hours_ago = 2.0 - i * 0.3
-            alerts.append(AlertMeta(
-                alert_id=alert_id,
-                title="Suspicious Email with Malicious Link",
-                description=(
-                    f"Email security gateway flagged an inbound email from {sender} "
-                    f"containing a malicious link pointing to {malicious_domain}. "
-                    f"SPF/DKIM failed. Recipient: {victim_user}@acmecorp.com."
-                ),
-                severity=AlertSeverity.HIGH,
-                source_system="Email Security Gateway",
-                timestamp=self._timestamp(hours_ago=hours_ago),
-                rule_triggered=f"PHISH_LINK_{i + 1:03d}",
-                indicators={
-                    "ip": [attacker_ip],
-                    "domain": [malicious_domain],
-                    "file_hash": [file_hash],
-                    "email": [sender],
-                },
-                raw_log_snippet=(
-                    f"FROM={sender} TO={victim_user}@acmecorp.com "
-                    f"URL=http://{malicious_domain}/payload "
-                    f"SPF=fail DKIM=fail DMARC=fail"
-                ),
-            ))
+            alerts.append(
+                AlertMeta(
+                    alert_id=alert_id,
+                    title="Suspicious Email with Malicious Link",
+                    description=(
+                        f"Email security gateway flagged an inbound email from {sender} "
+                        f"containing a malicious link pointing to {malicious_domain}. "
+                        f"SPF/DKIM failed. Recipient: {victim_user}@acmecorp.com."
+                    ),
+                    severity=AlertSeverity.HIGH,
+                    source_system="Email Security Gateway",
+                    timestamp=self._timestamp(hours_ago=hours_ago),
+                    rule_triggered=f"PHISH_LINK_{i + 1:03d}",
+                    indicators={
+                        "ip": [attacker_ip],
+                        "domain": [malicious_domain],
+                        "file_hash": [file_hash],
+                        "email": [sender],
+                    },
+                    raw_log_snippet=(
+                        f"FROM={sender} TO={victim_user}@acmecorp.com "
+                        f"URL=http://{malicious_domain}/payload "
+                        f"SPF=fail DKIM=fail DMARC=fail"
+                    ),
+                )
+            )
         return alerts
 
     def _lateral_movement_alerts(self, count: int) -> list[AlertMeta]:
@@ -217,28 +218,29 @@ class RedTeamGenerator:
             severity = severities[min(i, len(severities) - 1)]
 
             hours_ago = 3.0 - i * 0.4
-            alerts.append(AlertMeta(
-                alert_id=alert_id,
-                title=f"Lateral Movement Detected via {protocol}",
-                description=(
-                    f"Anomalous {protocol} connection from {base_src_ip} to {dst_ip}. "
-                    f"User {src_user} accessed multiple hosts in a short time window. "
-                    f"Step {i + 1} in potential lateral movement chain."
-                ),
-                severity=severity,
-                source_system="EDR / Network IDS",
-                timestamp=self._timestamp(hours_ago=hours_ago),
-                rule_triggered=f"LATERAL_{protocol}_{i + 1:03d}",
-                indicators={
-                    "ip": [base_src_ip, dst_ip],
-                    "domain": [self._internal_domain()],
-                    "file_hash": [self._sha256()] if protocol == "SMB" else [],
-                },
-                raw_log_snippet=(
-                    f"src={base_src_ip} dst={dst_ip} proto={protocol} "
-                    f"user={src_user} action=connect status=success"
-                ),
-            ))
+            alerts.append(
+                AlertMeta(
+                    alert_id=alert_id,
+                    title=f"Lateral Movement Detected via {protocol}",
+                    description=(
+                        f"Anomalous {protocol} connection from {base_src_ip} to {dst_ip}. "
+                        f"User {src_user} accessed multiple hosts in a short time window. "
+                        f"Step {i + 1} in potential lateral movement chain."
+                    ),
+                    severity=severity,
+                    source_system="EDR / Network IDS",
+                    timestamp=self._timestamp(hours_ago=hours_ago),
+                    rule_triggered=f"LATERAL_{protocol}_{i + 1:03d}",
+                    indicators={
+                        "ip": [base_src_ip, dst_ip],
+                        "domain": [self._internal_domain()],
+                        "file_hash": [self._sha256()] if protocol == "SMB" else [],
+                    },
+                    raw_log_snippet=(
+                        f"src={base_src_ip} dst={dst_ip} proto={protocol} user={src_user} action=connect status=success"
+                    ),
+                )
+            )
         return alerts
 
     def _insider_threat_alerts(self, count: int) -> list[AlertMeta]:
@@ -253,30 +255,32 @@ class RedTeamGenerator:
             resource = self._rng.choice(["S3_bucket", "SharePoint_Library", "OneDrive_root", "HR_database"])
             mb_transferred = self._rng.randint(50, 2000)
 
-            alerts.append(AlertMeta(
-                alert_id=alert_id,
-                title=f"Anomalous Data Access — {resource.replace('_', ' ')}",
-                description=(
-                    f"User {insider_user} accessed {resource} at an unusual hour "
-                    f"and transferred {mb_transferred} MB. "
-                    f"Destination includes external cloud domain {cloud_domain}. "
-                    f"Access pattern deviates significantly from baseline."
-                ),
-                severity=AlertSeverity.MEDIUM,
-                source_system="UEBA / DLP",
-                timestamp=self._timestamp(hours_ago=hours_ago),
-                rule_triggered=f"INSIDER_DATA_ACCESS_{i + 1:03d}",
-                indicators={
-                    "ip": [insider_ip],
-                    "domain": [cloud_domain],
-                    "file_hash": [],
-                },
-                raw_log_snippet=(
-                    f"user={insider_user} src_ip={insider_ip} "
-                    f"resource={resource} bytes_out={mb_transferred * 1024 * 1024} "
-                    f"dst_domain={cloud_domain} time=03:{self._rng.randint(0, 59):02d}:00"
-                ),
-            ))
+            alerts.append(
+                AlertMeta(
+                    alert_id=alert_id,
+                    title=f"Anomalous Data Access — {resource.replace('_', ' ')}",
+                    description=(
+                        f"User {insider_user} accessed {resource} at an unusual hour "
+                        f"and transferred {mb_transferred} MB. "
+                        f"Destination includes external cloud domain {cloud_domain}. "
+                        f"Access pattern deviates significantly from baseline."
+                    ),
+                    severity=AlertSeverity.MEDIUM,
+                    source_system="UEBA / DLP",
+                    timestamp=self._timestamp(hours_ago=hours_ago),
+                    rule_triggered=f"INSIDER_DATA_ACCESS_{i + 1:03d}",
+                    indicators={
+                        "ip": [insider_ip],
+                        "domain": [cloud_domain],
+                        "file_hash": [],
+                    },
+                    raw_log_snippet=(
+                        f"user={insider_user} src_ip={insider_ip} "
+                        f"resource={resource} bytes_out={mb_transferred * 1024 * 1024} "
+                        f"dst_domain={cloud_domain} time=03:{self._rng.randint(0, 59):02d}:00"
+                    ),
+                )
+            )
         return alerts
 
     def _generate_noise_alerts(
@@ -290,12 +294,42 @@ class RedTeamGenerator:
         """
         shared_ips = shared_ips or []
         noise_templates = [
-            ("DNS Query Volume Spike", "DNS resolver flagged elevated query count from workstation.", "DNS_VOLUME_001", AlertSeverity.INFO),
-            ("Routine Admin Login Outside Hours", "Admin account authenticated outside business hours.", "AUTH_AFTER_HOURS_002", AlertSeverity.LOW),
-            ("Port Scan Detected — Internal", "Internal host performed sequential port scan (routine vulnerability assessment).", "PORTSCAN_INTERNAL_003", AlertSeverity.LOW),
-            ("File Compression Utility Execution", "7zip executed on workstation during backup window.", "COMPRESS_EXEC_004", AlertSeverity.INFO),
-            ("Large Email Attachment Sent", "Outbound email with attachment exceeding 10 MB size limit.", "EMAIL_SIZE_005", AlertSeverity.LOW),
-            ("Cloud Storage Access — Authorized", "SharePoint access from known corporate IP during work hours.", "CLOUD_ACCESS_006", AlertSeverity.INFO),
+            (
+                "DNS Query Volume Spike",
+                "DNS resolver flagged elevated query count from workstation.",
+                "DNS_VOLUME_001",
+                AlertSeverity.INFO,
+            ),
+            (
+                "Routine Admin Login Outside Hours",
+                "Admin account authenticated outside business hours.",
+                "AUTH_AFTER_HOURS_002",
+                AlertSeverity.LOW,
+            ),
+            (
+                "Port Scan Detected — Internal",
+                "Internal host performed sequential port scan (routine vulnerability assessment).",
+                "PORTSCAN_INTERNAL_003",
+                AlertSeverity.LOW,
+            ),
+            (
+                "File Compression Utility Execution",
+                "7zip executed on workstation during backup window.",
+                "COMPRESS_EXEC_004",
+                AlertSeverity.INFO,
+            ),
+            (
+                "Large Email Attachment Sent",
+                "Outbound email with attachment exceeding 10 MB size limit.",
+                "EMAIL_SIZE_005",
+                AlertSeverity.LOW,
+            ),
+            (
+                "Cloud Storage Access — Authorized",
+                "SharePoint access from known corporate IP during work hours.",
+                "CLOUD_ACCESS_006",
+                AlertSeverity.INFO,
+            ),
         ]
 
         alerts = []
@@ -312,23 +346,25 @@ class RedTeamGenerator:
                 and self.config.correlation_obfuscation > 0.5
                 and self._rng.random() < self.config.correlation_obfuscation - 0.5
             )
-            ip_list = ([self._rng.choice(shared_ips)] if inject_shared else [fp_ip])
+            ip_list = [self._rng.choice(shared_ips)] if inject_shared else [fp_ip]
 
-            alerts.append(AlertMeta(
-                alert_id=alert_id,
-                title=title,
-                description=description,
-                severity=severity,
-                source_system="SIEM",
-                timestamp=self._timestamp(hours_ago=hours_ago),
-                rule_triggered=rule,
-                indicators={
-                    "ip": ip_list,
-                    "domain": [],
-                    "file_hash": [],
-                },
-                raw_log_snippet=f"src={ip_list[0]} event={rule} status=observed",
-            ))
+            alerts.append(
+                AlertMeta(
+                    alert_id=alert_id,
+                    title=title,
+                    description=description,
+                    severity=severity,
+                    source_system="SIEM",
+                    timestamp=self._timestamp(hours_ago=hours_ago),
+                    rule_triggered=rule,
+                    indicators={
+                        "ip": ip_list,
+                        "domain": [],
+                        "file_hash": [],
+                    },
+                    raw_log_snippet=f"src={ip_list[0]} event={rule} status=observed",
+                )
+            )
         return alerts
 
     # ------------------------------------------------------------------
@@ -484,9 +520,7 @@ class RedTeamGenerator:
     # Internal: Log DB
     # ------------------------------------------------------------------
 
-    def _build_log_db(
-        self, alerts: list[AlertMeta]
-    ) -> dict[str, dict[str, list[LogEntry]]]:
+    def _build_log_db(self, alerts: list[AlertMeta]) -> dict[str, dict[str, list[LogEntry]]]:
         """
         Generate minimal log entries for every alert.
         TP alerts get suspicious log entries; FP alerts get benign entries.
@@ -515,18 +549,24 @@ class RedTeamGenerator:
                 # Benign firewall entry
                 log_db[LogSource.FIREWALL.value][aid].append(
                     self._make_log_entry(
-                        LogSource.FIREWALL, "outbound_connection",
-                        hours_ago=hours_ago, src_ip=src_ip,
-                        action="allowed", severity="info",
+                        LogSource.FIREWALL,
+                        "outbound_connection",
+                        hours_ago=hours_ago,
+                        src_ip=src_ip,
+                        action="allowed",
+                        severity="info",
                         details={"dst_port": 443, "protocol": "TCP", "bytes_sent": 512, "direction": "outbound"},
                     )
                 )
                 # Benign endpoint entry
                 log_db[LogSource.ENDPOINT.value][aid].append(
                     self._make_log_entry(
-                        LogSource.ENDPOINT, "process_created",
-                        hours_ago=hours_ago, src_ip=src_ip,
-                        action="execute", severity="info",
+                        LogSource.ENDPOINT,
+                        "process_created",
+                        hours_ago=hours_ago,
+                        src_ip=src_ip,
+                        action="execute",
+                        severity="info",
                         details={"process_name": "explorer.exe", "parent_process": "winlogon.exe"},
                     )
                 )
@@ -535,18 +575,31 @@ class RedTeamGenerator:
                 dst_ip = self._public_ip()
                 log_db[LogSource.FIREWALL.value][aid].append(
                     self._make_log_entry(
-                        LogSource.FIREWALL, "outbound_connection",
-                        hours_ago=hours_ago, src_ip=src_ip, dst_ip=dst_ip,
-                        action="allowed", severity="high",
-                        details={"dst_port": 443, "protocol": "TCP", "bytes_sent": 4096, "bytes_recv": 28672, "direction": "outbound"},
+                        LogSource.FIREWALL,
+                        "outbound_connection",
+                        hours_ago=hours_ago,
+                        src_ip=src_ip,
+                        dst_ip=dst_ip,
+                        action="allowed",
+                        severity="high",
+                        details={
+                            "dst_port": 443,
+                            "protocol": "TCP",
+                            "bytes_sent": 4096,
+                            "bytes_recv": 28672,
+                            "direction": "outbound",
+                        },
                     )
                 )
                 # Suspicious endpoint entry
                 log_db[LogSource.ENDPOINT.value][aid].append(
                     self._make_log_entry(
-                        LogSource.ENDPOINT, "process_created",
-                        hours_ago=hours_ago, src_ip=src_ip,
-                        action="execute", severity="high",
+                        LogSource.ENDPOINT,
+                        "process_created",
+                        hours_ago=hours_ago,
+                        src_ip=src_ip,
+                        action="execute",
+                        severity="high",
                         details={
                             "process_name": "cmd.exe",
                             "parent_process": "suspicious_payload.exe",
@@ -557,8 +610,11 @@ class RedTeamGenerator:
                 # IDS signature match for TP
                 log_db[LogSource.IDS.value][aid].append(
                     self._make_log_entry(
-                        LogSource.IDS, "signature_match",
-                        hours_ago=hours_ago, src_ip=src_ip, dst_ip=dst_ip,
+                        LogSource.IDS,
+                        "signature_match",
+                        hours_ago=hours_ago,
+                        src_ip=src_ip,
+                        dst_ip=dst_ip,
                         severity="critical",
                         details={
                             "signature": "MALWARE-CNC suspicious beacon",
@@ -574,9 +630,7 @@ class RedTeamGenerator:
     # Internal: Asset & User DB
     # ------------------------------------------------------------------
 
-    def _build_asset_and_user_db(
-        self, alerts: list[AlertMeta]
-    ) -> tuple:
+    def _build_asset_and_user_db(self, alerts: list[AlertMeta]) -> tuple:
         """Build one workstation asset + one user per alert."""
         asset_db: dict[str, AssetInfo] = {}
         user_db: dict[str, UserInfo] = {}
@@ -606,9 +660,7 @@ class RedTeamGenerator:
             if username not in user_db:
                 parts = username.split(".")
                 display = (
-                    f"{parts[0].capitalize()} {parts[1].capitalize()}"
-                    if len(parts) >= 2
-                    else username.capitalize()
+                    f"{parts[0].capitalize()} {parts[1].capitalize()}" if len(parts) >= 2 else username.capitalize()
                 )
                 user_db[username] = UserInfo(
                     user_id=f"USR-{username}",
@@ -733,10 +785,39 @@ class RedTeamGenerator:
         return "".join(self._rng.choices(string.hexdigits.lower()[:16], k=64))
 
     def _username(self) -> str:
-        first_names = ["john", "jane", "mike", "sarah", "david", "lisa", "tom", "emily",
-                       "robert", "anna", "james", "mary", "william", "patricia", "richard"]
-        last_names = ["smith", "jones", "williams", "brown", "davis", "miller", "wilson",
-                      "moore", "taylor", "anderson", "thomas", "jackson", "white", "harris"]
+        first_names = [
+            "john",
+            "jane",
+            "mike",
+            "sarah",
+            "david",
+            "lisa",
+            "tom",
+            "emily",
+            "robert",
+            "anna",
+            "james",
+            "mary",
+            "william",
+            "patricia",
+            "richard",
+        ]
+        last_names = [
+            "smith",
+            "jones",
+            "williams",
+            "brown",
+            "davis",
+            "miller",
+            "wilson",
+            "moore",
+            "taylor",
+            "anderson",
+            "thomas",
+            "jackson",
+            "white",
+            "harris",
+        ]
         return f"{self._rng.choice(first_names)}.{self._rng.choice(last_names)}"
 
     def _hostname(self, prefix: str = "WORKSTATION") -> str:

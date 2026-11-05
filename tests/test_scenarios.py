@@ -2,7 +2,6 @@
 Tests for scenario generation: alert counts, determinism, ground truth.
 """
 
-
 from models import AlertClassification
 from scenarios import SCENARIO_REGISTRY
 from scenarios.cloud_compromise import CloudCompromiseScenario
@@ -107,9 +106,7 @@ class TestGroundTruthCompleteness:
             gt = config.ground_truth
             alert_ids = {a.alert_id for a in config.alerts}
             classified_ids = set(gt.alert_classifications.keys())
-            assert alert_ids == classified_ids, (
-                f"{task_id}: alert IDs {alert_ids} != classified IDs {classified_ids}"
-            )
+            assert alert_ids == classified_ids, f"{task_id}: alert IDs {alert_ids} != classified IDs {classified_ids}"
 
 
 class TestRansomwareScenario:

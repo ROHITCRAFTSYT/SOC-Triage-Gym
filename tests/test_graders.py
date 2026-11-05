@@ -2,7 +2,6 @@
 Tests for all graders: PhishingGrader, LateralMovementGrader, QueueManagementGrader.
 """
 
-
 from graders.lateral_movement_grader import LateralMovementGrader
 from graders.phishing_grader import PhishingGrader
 from graders.queue_management_grader import QueueManagementGrader

@@ -14,7 +14,6 @@ FP-dismissal-rate: fraction of FP alerts correctly classified as
 false_positive.
 """
 
-
 from graders.base import BaseGrader
 from models import AlertClassification, InvestigationState, ScenarioConfig
 
@@ -28,9 +27,7 @@ def compute_team_metrics(
 
     # ---- TP-containment-rate ----
     tp_ids = [
-        alert_id
-        for alert_id, cls in gt.alert_classifications.items()
-        if cls != AlertClassification.FALSE_POSITIVE
+        alert_id for alert_id, cls in gt.alert_classifications.items() if cls != AlertClassification.FALSE_POSITIVE
     ]
     if tp_ids:
         tp_contained = 0
@@ -52,8 +49,8 @@ def compute_team_metrics(
         fp_dismissed = sum(
             1
             for alert_id in fp_ids
-            if investigations.get(alert_id, InvestigationState(alert_id=alert_id))
-            .classification == AlertClassification.FALSE_POSITIVE
+            if investigations.get(alert_id, InvestigationState(alert_id=alert_id)).classification
+            == AlertClassification.FALSE_POSITIVE
         )
         fp_dismissal_rate = fp_dismissed / len(fp_ids)
     else:
@@ -116,11 +113,13 @@ class TeamGrader(BaseGrader):
         """
         gt = config.ground_truth
         team_score, tp_containment_rate, fp_dismissal_rate = compute_team_metrics(config, investigations)
-        total_tps = len([
-            alert_id
-            for alert_id, cls in gt.alert_classifications.items()
-            if cls != AlertClassification.FALSE_POSITIVE
-        ])
+        total_tps = len(
+            [
+                alert_id
+                for alert_id, cls in gt.alert_classifications.items()
+                if cls != AlertClassification.FALSE_POSITIVE
+            ]
+        )
         tps_contained = int(round(tp_containment_rate * total_tps)) if total_tps else 0
         total_fps = len(gt.false_positive_ids)
         fps_dismissed = int(round(fp_dismissal_rate * total_fps)) if total_fps else 0

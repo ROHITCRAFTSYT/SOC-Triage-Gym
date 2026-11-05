@@ -7,7 +7,7 @@ PORT   ?= 7860
 
 .DEFAULT_GOAL := help
 
-.PHONY: help install lint fmt fmt-check test test-cov check-scenarios serve demo plots clean
+.PHONY: help install lint fmt fmt-check test test-cov check-scenarios benchmark serve demo plots clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -34,6 +34,9 @@ test-cov: ## Run tests with coverage (needs pytest-cov)
 
 check-scenarios: ## Validate every generated scenario's ground-truth integrity
 	python cli.py check-scenarios
+
+benchmark: ## Run baseline agents on every task and refresh benchmarks/results.{json,md}
+	$(PYTHON) benchmark.py --quiet --write benchmarks/
 
 serve: ## Start the OpenEnv server on $(PORT)
 	uvicorn server.app:app --host 0.0.0.0 --port $(PORT)

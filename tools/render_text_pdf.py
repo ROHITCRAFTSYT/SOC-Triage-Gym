@@ -45,7 +45,7 @@ def normalize_markdown(text: str) -> list[str]:
 def paginate(lines: list[str]) -> list[list[str]]:
     usable_height = PAGE_HEIGHT - TOP_MARGIN - BOTTOM_MARGIN
     lines_per_page = usable_height // LINE_HEIGHT
-    return [lines[i:i + lines_per_page] for i in range(0, len(lines), lines_per_page)] or [[]]
+    return [lines[i : i + lines_per_page] for i in range(0, len(lines), lines_per_page)] or [[]]
 
 
 def pdf_escape(text: str) -> str:
@@ -110,10 +110,7 @@ def write_pdf(input_path: Path, output_path: Path) -> None:
     for pos in xref_positions[1:]:
         pdf.extend(f"{pos:010d} 00000 n \n".encode("latin-1"))
 
-    trailer = (
-        f"trailer\n<< /Size {len(objects) + 1} /Root {catalog_id} 0 R >>\n"
-        f"startxref\n{xref_start}\n%%EOF\n"
-    )
+    trailer = f"trailer\n<< /Size {len(objects) + 1} /Root {catalog_id} 0 R >>\nstartxref\n{xref_start}\n%%EOF\n"
     pdf.extend(trailer.encode("latin-1"))
     output_path.write_bytes(pdf)
 

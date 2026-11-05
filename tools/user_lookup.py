@@ -10,7 +10,6 @@ Reward logic:
   -0.03  if user doesn't exist in DB and wasn't seen in any evidence
 """
 
-
 from models import InvestigationState, ScenarioConfig, UserInfo
 
 

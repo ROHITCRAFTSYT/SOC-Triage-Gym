@@ -1,4 +1,5 @@
 """SOC-Triage-Gym simulated tool implementations."""
+
 from tools.asset_lookup import lookup_asset
 from tools.correlation import correlate_alerts
 from tools.enrichment import enrich_indicator

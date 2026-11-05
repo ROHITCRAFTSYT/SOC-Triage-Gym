@@ -1,4 +1,5 @@
 """ThreatIntelFeed actor — pushes unsolicited IOC updates."""
+
 from __future__ import annotations
 
 import uuid

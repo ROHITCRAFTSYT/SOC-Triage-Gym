@@ -13,16 +13,40 @@ class HeuristicBaselineAgent:
     VALID_INDICATOR_TYPES = {"ip", "domain", "file_hash", "email", "url", "user"}
 
     BTP_TITLE_KEYWORDS = {
-        "pentest", "red team", "red-team", "authorized", "maintenance",
-        "scheduled backup", "backup job", "nightly backup", "vulnerability scan",
-        "vuln scan", "gpo update", "group policy", "key rotation", "ssh key",
-        "patch", "planned", "approved", "simulated", "exercise",
+        "pentest",
+        "red team",
+        "red-team",
+        "authorized",
+        "maintenance",
+        "scheduled backup",
+        "backup job",
+        "nightly backup",
+        "vulnerability scan",
+        "vuln scan",
+        "gpo update",
+        "group policy",
+        "key rotation",
+        "ssh key",
+        "patch",
+        "planned",
+        "approved",
+        "simulated",
+        "exercise",
     }
 
     FP_TITLE_KEYWORDS = {
-        "geo-block", "geoblock", "cdn anomaly", "false alarm", "scanner noise",
-        "dns false", "av heuristic", "service account lockout", "login page scan",
-        "automated scan", "rate limit", "honeypot",
+        "geo-block",
+        "geoblock",
+        "cdn anomaly",
+        "false alarm",
+        "scanner noise",
+        "dns false",
+        "av heuristic",
+        "service account lockout",
+        "login page scan",
+        "automated scan",
+        "rate limit",
+        "honeypot",
     }
 
     def __init__(self) -> None:
@@ -41,10 +65,7 @@ class HeuristicBaselineAgent:
         if len(alerts) >= 20:
             return self._next_queue_action(alerts, investigations)
 
-        unclassified_alerts = [
-            a for a in alerts
-            if investigations.get(a["alert_id"], {}).get("classification") is None
-        ]
+        unclassified_alerts = [a for a in alerts if investigations.get(a["alert_id"], {}).get("classification") is None]
 
         needs_followup = []
         for alert in alerts:
@@ -71,15 +92,11 @@ class HeuristicBaselineAgent:
             return {
                 "action_type": "recommend_action",
                 "alert_id": followup_alert["alert_id"],
-                "response_action": self._infer_response_action(
-                    followup_alert, followup_inv.get("classification")
-                ),
+                "response_action": self._infer_response_action(followup_alert, followup_inv.get("classification")),
             }
 
         severity_order = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
-        unclassified_alerts.sort(
-            key=lambda alert: severity_order.get(alert.get("severity", "info"), 4)
-        )
+        unclassified_alerts.sort(key=lambda alert: severity_order.get(alert.get("severity", "info"), 4))
 
         target = unclassified_alerts[0]
         alert_id = target["alert_id"]
@@ -257,9 +274,7 @@ class HeuristicBaselineAgent:
                 return {
                     "action_type": "recommend_action",
                     "alert_id": aid,
-                    "response_action": self._infer_response_action(
-                        alert, inv.get("classification")
-                    ),
+                    "response_action": self._infer_response_action(alert, inv.get("classification")),
                 }
 
         return {"action_type": "submit_investigation"}
@@ -343,11 +358,11 @@ class HeuristicBaselineAgent:
         enrichment_results = inv.get("enriched_indicators", {})
 
         malicious_count = sum(
-            1 for result in enrichment_results.values()
-            if isinstance(result, dict) and result.get("malicious")
+            1 for result in enrichment_results.values() if isinstance(result, dict) and result.get("malicious")
         )
         high_threat_count = sum(
-            1 for result in enrichment_results.values()
+            1
+            for result in enrichment_results.values()
             if isinstance(result, dict) and result.get("threat_score", 0) >= 70
         )
 
@@ -401,11 +416,11 @@ class HeuristicBaselineAgent:
     def _classification_confidence(self, inv: dict[str, Any]) -> float:
         enrichment_results = inv.get("enriched_indicators", {})
         malicious_count = sum(
-            1 for result in enrichment_results.values()
-            if isinstance(result, dict) and result.get("malicious")
+            1 for result in enrichment_results.values() if isinstance(result, dict) and result.get("malicious")
         )
         high_threat_count = sum(
-            1 for result in enrichment_results.values()
+            1
+            for result in enrichment_results.values()
             if isinstance(result, dict) and result.get("threat_score", 0) >= 70
         )
         if malicious_count > 0:

@@ -18,6 +18,7 @@ Outputs (in repo root):
     soc_grpo_results.png
     redteam_curriculum.png
 """
+
 from __future__ import annotations
 
 import json
@@ -29,11 +30,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 REPO = Path(__file__).resolve().parent.parent
-NB   = REPO / "soc_triage_gym_v2_training.ipynb"
+NB = REPO / "soc_triage_gym_v2_training.ipynb"
 
-REWARD_RE       = re.compile(r"mean reward ([+-][\d.]+)")
-PARSE_RE        = re.compile(r"strict (\d+)%\s+loose\s+(\d+)%\s+fallback\s+(\d+)%")
-BASELINE_RE     = re.compile(r"Oracle baseline avg:\s*([\d.]+)")
+REWARD_RE = re.compile(r"mean reward ([+-][\d.]+)")
+PARSE_RE = re.compile(r"strict (\d+)%\s+loose\s+(\d+)%\s+fallback\s+(\d+)%")
+BASELINE_RE = re.compile(r"Oracle baseline avg:\s*([\d.]+)")
 
 
 def extract_from_notebook():
@@ -65,19 +66,16 @@ def extract_from_notebook():
 
 def plot_grpo_results(rewards, strict_pcts, baseline_avg, trained_estimate):
     fig, axes = plt.subplots(1, 3, figsize=(18, 5))
-    fig.suptitle("SOC-Triage-Gym v2 — GRPO Training Results",
-                 fontsize=14, fontweight="bold")
+    fig.suptitle("SOC-Triage-Gym v2 — GRPO Training Results", fontsize=14, fontweight="bold")
 
     # Panel 1 — training reward (REAL)
     ax = axes[0]
     x = np.arange(1, len(rewards) + 1)
-    ax.plot(x, rewards, "o-", color="#55A868", alpha=0.35,
-            label=f"Per-log-step reward (n={len(rewards)})")
+    ax.plot(x, rewards, "o-", color="#55A868", alpha=0.35, label=f"Per-log-step reward (n={len(rewards)})")
     if len(rewards) >= 11:
         w = 11
         sm = np.convolve(rewards, np.ones(w) / w, mode="valid")
-        ax.plot(np.arange(w, len(rewards) + 1), sm,
-                linewidth=2.5, color="#1F6B3A", label=f"Smoothed (w={w})")
+        ax.plot(np.arange(w, len(rewards) + 1), sm, linewidth=2.5, color="#1F6B3A", label=f"Smoothed (w={w})")
     ax.set_xlabel("Logging step (×2 training steps)")
     ax.set_ylabel("Mean GRPO group reward")
     ax.set_title("Training Reward Curve (real data from Kaggle run)")
@@ -88,15 +86,12 @@ def plot_grpo_results(rewards, strict_pcts, baseline_avg, trained_estimate):
     ax2 = axes[1]
     if strict_pcts:
         x2 = np.arange(1, len(strict_pcts) + 1)
-        ax2.plot(x2, strict_pcts, "o-", color="#4C72B0", alpha=0.4,
-                 label="strict-JSON parse rate")
+        ax2.plot(x2, strict_pcts, "o-", color="#4C72B0", alpha=0.4, label="strict-JSON parse rate")
         if len(strict_pcts) >= 11:
             w = 11
             sm = np.convolve(strict_pcts, np.ones(w) / w, mode="valid")
-            ax2.plot(np.arange(w, len(strict_pcts) + 1), sm,
-                     linewidth=2.5, color="#1F3D6B", label=f"Smoothed (w={w})")
-        ax2.axhline(60, linestyle="--", color="orange", alpha=0.6,
-                    label="60% health threshold")
+            ax2.plot(np.arange(w, len(strict_pcts) + 1), sm, linewidth=2.5, color="#1F3D6B", label=f"Smoothed (w={w})")
+        ax2.axhline(60, linestyle="--", color="orange", alpha=0.6, label="60% health threshold")
     ax2.set_ylim(0, 105)
     ax2.set_xlabel("Logging step")
     ax2.set_ylabel("Strict JSON parse rate (%)")
@@ -108,11 +103,9 @@ def plot_grpo_results(rewards, strict_pcts, baseline_avg, trained_estimate):
     ax3 = axes[2]
     ax3.hist(rewards, bins=20, color="#DD8452", alpha=0.85, edgecolor="black")
     mean_r = float(np.mean(rewards))
-    last_window = float(np.mean(rewards[-min(20, len(rewards)):]))
-    ax3.axvline(mean_r, linestyle="--", color="black", alpha=0.7,
-                label=f"overall mean = {mean_r:.3f}")
-    ax3.axvline(last_window, linestyle="--", color="#C44E52", alpha=0.9,
-                label=f"last-20 mean = {last_window:.3f}")
+    last_window = float(np.mean(rewards[-min(20, len(rewards)) :]))
+    ax3.axvline(mean_r, linestyle="--", color="black", alpha=0.7, label=f"overall mean = {mean_r:.3f}")
+    ax3.axvline(last_window, linestyle="--", color="#C44E52", alpha=0.9, label=f"last-20 mean = {last_window:.3f}")
     ax3.set_xlabel("Per-log-step reward")
     ax3.set_ylabel("Frequency")
     ax3.set_title(f"Reward Distribution (n={len(rewards)})")
@@ -154,29 +147,27 @@ def plot_redteam_curriculum():
             difficulty = max(0.05, difficulty - 0.10)
 
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 7), sharex=True)
-    fig.suptitle("SOC-Triage-Gym v2 — Red-Team Curriculum (Theme #4)\n"
-                 "Self-improving difficulty adaptation (heuristic simulation)",
-                 fontweight="bold")
+    fig.suptitle(
+        "SOC-Triage-Gym v2 — Red-Team Curriculum (Theme #4)\n"
+        "Self-improving difficulty adaptation (heuristic simulation)",
+        fontweight="bold",
+    )
 
     rounds = np.arange(1, NUM_ROUNDS + 1)
-    ax1.plot(rounds, win_rates, "o-", color="#2196F3",
-             linewidth=1.5, alpha=0.5, label="Blue win rate (raw)")
+    ax1.plot(rounds, win_rates, "o-", color="#2196F3", linewidth=1.5, alpha=0.5, label="Blue win rate (raw)")
     sw = 5
     if NUM_ROUNDS >= sw:
         sm = np.convolve(win_rates, np.ones(sw) / sw, mode="valid")
-        ax1.plot(rounds[sw - 1:], sm, color="#0D47A1",
-                 linewidth=2.5, label=f"Smoothed (w={sw})")
+        ax1.plot(rounds[sw - 1 :], sm, color="#0D47A1", linewidth=2.5, label=f"Smoothed (w={sw})")
     ax1.axhline(0.5, linestyle="--", color="red", alpha=0.7, label="Target 0.5")
-    ax1.fill_between(rounds, 0.4, 0.6, alpha=0.1, color="green",
-                     label="Sweet spot [0.4, 0.6]")
+    ax1.fill_between(rounds, 0.4, 0.6, alpha=0.1, color="green", label="Sweet spot [0.4, 0.6]")
     ax1.set_ylabel("Blue Win Rate")
     ax1.set_ylim(0, 1)
     ax1.set_title("Blue-Team Win Rate (oscillates around 0.5 as Red-Team adapts)")
     ax1.legend()
     ax1.grid(alpha=0.3)
 
-    ax2.plot(rounds, difficulties, "s-", color="#F44336",
-             linewidth=2, label="Difficulty floor")
+    ax2.plot(rounds, difficulties, "s-", color="#F44336", linewidth=2, label="Difficulty floor")
     ax2.set_xlabel("Round")
     ax2.set_ylabel("Difficulty Floor")
     ax2.set_ylim(0, 1)
@@ -194,12 +185,11 @@ def main():
     rewards, strict_pcts, baseline_avg = extract_from_notebook()
     if not rewards:
         sys.exit("no reward data found in notebook — was training cell executed?")
-    print(f"extracted: {len(rewards)} reward samples, "
-          f"{len(strict_pcts)} parse samples, baseline_avg={baseline_avg}")
+    print(f"extracted: {len(rewards)} reward samples, {len(strict_pcts)} parse samples, baseline_avg={baseline_avg}")
 
     # Final-window estimate: mean of last ~20 logged rewards. Honest proxy for
     # what cell 23's eval would have produced if it had completed.
-    trained_estimate = float(np.mean(rewards[-min(20, len(rewards)):]))
+    trained_estimate = float(np.mean(rewards[-min(20, len(rewards)) :]))
     print(f"trained_estimate (last-window mean): {trained_estimate:.4f}")
 
     if baseline_avg is None:

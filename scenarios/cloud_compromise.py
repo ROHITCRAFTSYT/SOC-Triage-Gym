@@ -76,16 +76,22 @@ class CloudCompromiseScenario(BaseScenario):
 
         enrichment_db = {
             attacker_ip: self._make_enrichment_result(
-                attacker_ip, IndicatorType.IP, malicious=True,
-                confidence=0.9, threat_score=86,
+                attacker_ip,
+                IndicatorType.IP,
+                malicious=True,
+                confidence=0.9,
+                threat_score=86,
                 threat_type="anonymizer",
                 geo="Russia",
                 tags=["tor-exit-node", "anonymizer", "credential-abuse"],
                 whois="Tor exit node; no legitimate corporate use.",
             ),
             username: self._make_enrichment_result(
-                username, IndicatorType.USER, malicious=False,
-                confidence=0.8, threat_score=55,
+                username,
+                IndicatorType.USER,
+                malicious=False,
+                confidence=0.8,
+                threat_score=55,
                 threat_type="compromised-account",
                 tags=["impossible-travel", "no-mfa-on-anomalous-login"],
             ),
@@ -96,56 +102,93 @@ class CloudCompromiseScenario(BaseScenario):
         # Auth — the two logins that make travel impossible.
         log_db[LogSource.AUTH.value][alert_id] = [
             self._make_log_entry(
-                LogSource.AUTH, "console_login", hours_ago=0.65,
-                src_ip=home_ip, user=username, action="success",
+                LogSource.AUTH,
+                "console_login",
+                hours_ago=0.65,
+                src_ip=home_ip,
+                user=username,
+                action="success",
                 details={"mfa": True, "geo": "United States", "user_agent": "Chrome/normal"},
             ),
             self._make_log_entry(
-                LogSource.AUTH, "console_login", hours_ago=0.52,
-                src_ip=attacker_ip, user=username, action="success", severity="high",
-                details={"mfa": False, "geo": "Russia", "user_agent": "python-requests/2.x",
-                         "impossible_travel": True},
+                LogSource.AUTH,
+                "console_login",
+                hours_ago=0.52,
+                src_ip=attacker_ip,
+                user=username,
+                action="success",
+                severity="high",
+                details={"mfa": False, "geo": "Russia", "user_agent": "python-requests/2.x", "impossible_travel": True},
             ),
         ]
 
         # CloudTrail — IAM abuse, public bucket, SG open, logging disabled.
         log_db[LogSource.CLOUD_TRAIL.value][alert_id] = [
             self._make_log_entry(
-                LogSource.CLOUD_TRAIL, "CreateAccessKey", hours_ago=0.5,
-                src_ip=attacker_ip, user=username, action="allowed", severity="high",
+                LogSource.CLOUD_TRAIL,
+                "CreateAccessKey",
+                hours_ago=0.5,
+                src_ip=attacker_ip,
+                user=username,
+                action="allowed",
+                severity="high",
                 details={"event_source": "iam.amazonaws.com", "new_access_key_id": new_key_id},
             ),
             self._make_log_entry(
-                LogSource.CLOUD_TRAIL, "PutBucketPolicy", hours_ago=0.48,
-                src_ip=attacker_ip, user=username, action="allowed", severity="critical",
-                details={"event_source": "s3.amazonaws.com", "bucket": bucket,
-                         "effect": "Allow", "principal": "*", "made_public": True},
+                LogSource.CLOUD_TRAIL,
+                "PutBucketPolicy",
+                hours_ago=0.48,
+                src_ip=attacker_ip,
+                user=username,
+                action="allowed",
+                severity="critical",
+                details={
+                    "event_source": "s3.amazonaws.com",
+                    "bucket": bucket,
+                    "effect": "Allow",
+                    "principal": "*",
+                    "made_public": True,
+                },
             ),
             self._make_log_entry(
-                LogSource.CLOUD_TRAIL, "AuthorizeSecurityGroupIngress", hours_ago=0.46,
-                src_ip=attacker_ip, user=username, action="allowed", severity="high",
+                LogSource.CLOUD_TRAIL,
+                "AuthorizeSecurityGroupIngress",
+                hours_ago=0.46,
+                src_ip=attacker_ip,
+                user=username,
+                action="allowed",
+                severity="high",
                 details={"event_source": "ec2.amazonaws.com", "cidr": "0.0.0.0/0", "port": 22},
             ),
             self._make_log_entry(
-                LogSource.CLOUD_TRAIL, "StopLogging", hours_ago=0.44,
-                src_ip=attacker_ip, user=username, action="allowed", severity="critical",
+                LogSource.CLOUD_TRAIL,
+                "StopLogging",
+                hours_ago=0.44,
+                src_ip=attacker_ip,
+                user=username,
+                action="allowed",
+                severity="critical",
                 details={"event_source": "cloudtrail.amazonaws.com", "trail": "org-audit-trail"},
             ),
         ]
 
-        user_db = {username: self._make_user(
-            username, "Cloud Engineer", "Engineering", risk_score=0.3,
-            is_privileged=True, access_level="admin",
-        )}
+        user_db = {
+            username: self._make_user(
+                username,
+                "Cloud Engineer",
+                "Engineering",
+                risk_score=0.3,
+                is_privileged=True,
+                access_level="admin",
+            )
+        }
 
         ground_truth = GroundTruth(
             alert_classifications={alert_id: AlertClassification.TRUE_POSITIVE},
             true_positive_ids=[alert_id],
             false_positive_ids=[],
             benign_tp_ids=[],
-            expected_techniques={
-                alert_id: ["T1078.004", "T1098.001", "T1562.008", "T1530"]
-            },
+            expected_techniques={alert_id: ["T1078.004", "T1098.001", "T1562.008", "T1530"]},
             expected_response_actions={
                 alert_id: [
                     ResponseActionType.DISABLE_ACCOUNT,
@@ -205,15 +248,21 @@ class CloudCompromiseScenario(BaseScenario):
 
         enrichment_db = {
             travel_ip: self._make_enrichment_result(
-                travel_ip, IndicatorType.IP, malicious=False,
-                confidence=0.9, threat_score=3,
+                travel_ip,
+                IndicatorType.IP,
+                malicious=False,
+                confidence=0.9,
+                threat_score=3,
                 geo="Germany",
                 tags=["residential-isp", "corporate-vpn-egress"],
                 whois="Residential ISP range; matches employee travel notice.",
             ),
             username: self._make_enrichment_result(
-                username, IndicatorType.USER, malicious=False,
-                confidence=0.95, threat_score=2,
+                username,
+                IndicatorType.USER,
+                malicious=False,
+                confidence=0.95,
+                threat_score=2,
                 tags=["mfa-enabled", "sso", "known-admin"],
             ),
         }
@@ -221,26 +270,49 @@ class CloudCompromiseScenario(BaseScenario):
         log_db = self._empty_log_db([alert_id])
         log_db[LogSource.AUTH.value][alert_id] = [
             self._make_log_entry(
-                LogSource.AUTH, "console_login", hours_ago=0.45,
-                src_ip=travel_ip, user=username, action="success",
-                details={"mfa": True, "sso": "Okta", "geo": "Germany",
-                         "user_agent": "Chrome/normal", "impossible_travel": False},
+                LogSource.AUTH,
+                "console_login",
+                hours_ago=0.45,
+                src_ip=travel_ip,
+                user=username,
+                action="success",
+                details={
+                    "mfa": True,
+                    "sso": "Okta",
+                    "geo": "Germany",
+                    "user_agent": "Chrome/normal",
+                    "impossible_travel": False,
+                },
             ),
         ]
         log_db[LogSource.CLOUD_TRAIL.value][alert_id] = [
             self._make_log_entry(
-                LogSource.CLOUD_TRAIL, "PutObject", hours_ago=0.4,
-                src_ip=travel_ip, user=username, action="allowed",
-                details={"event_source": "s3.amazonaws.com", "bucket": bucket,
-                         "made_public": False, "change_window": "approved",
-                         "pipeline": "terraform-apply"},
+                LogSource.CLOUD_TRAIL,
+                "PutObject",
+                hours_ago=0.4,
+                src_ip=travel_ip,
+                user=username,
+                action="allowed",
+                details={
+                    "event_source": "s3.amazonaws.com",
+                    "bucket": bucket,
+                    "made_public": False,
+                    "change_window": "approved",
+                    "pipeline": "terraform-apply",
+                },
             ),
         ]
 
-        user_db = {username: self._make_user(
-            username, "Platform Engineer", "Engineering", risk_score=0.05,
-            is_privileged=True, access_level="admin",
-        )}
+        user_db = {
+            username: self._make_user(
+                username,
+                "Platform Engineer",
+                "Engineering",
+                risk_score=0.05,
+                is_privileged=True,
+                access_level="admin",
+            )
+        }
 
         ground_truth = GroundTruth(
             alert_classifications={alert_id: AlertClassification.FALSE_POSITIVE},

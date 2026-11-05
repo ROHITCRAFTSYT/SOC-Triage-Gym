@@ -19,3 +19,11 @@ updates:
     groups:
       python-dependencies:
         patterns: ["*"]
+
+  # Base image digest pinned in the Dockerfile
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7

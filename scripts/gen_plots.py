@@ -7,6 +7,7 @@ Usage:
     python -m uvicorn server.app:app --port 7860 &
     python scripts/gen_plots.py
 """
+
 import json
 import os
 import sys
@@ -25,24 +26,23 @@ SERVER_URL = os.getenv("SERVER_URL", "http://localhost:7860")
 OUT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-def _run_oracle_episode(client: httpx.Client, task_id: str, seed: int, mode: str = "team",
-                        max_steps: int = 80) -> float:
+def _run_oracle_episode(
+    client: httpx.Client, task_id: str, seed: int, mode: str = "team", max_steps: int = 80
+) -> float:
     reset = client.post("/reset", json={"task_id": task_id, "seed": seed, "mode": mode}).json()
     obs = reset
     step = 0
     while not obs.get("done", False) and step < max_steps:
         step += 1
         action = oracle_action(obs)
-        r = client.post("/step", content=json.dumps(action),
-                        headers={"Content-Type": "application/json"})
+        r = client.post("/step", content=json.dumps(action), headers={"Content-Type": "application/json"})
         if r.status_code != 200:
             break
         obs = r.json()
     return float(obs.get("task_score") or obs.get("cumulative_reward", 0.0))
 
 
-def gen_redteam_curriculum(client: httpx.Client, num_rounds: int = 15,
-                            eps_per_round: int = 5) -> None:
+def gen_redteam_curriculum(client: httpx.Client, num_rounds: int = 15, eps_per_round: int = 5) -> None:
     """
     Drive the Red-Team Generator's `adapt_difficulty` loop with a simulated
     blue-team analyst of fixed skill level (skill=0.55). The scenario is
@@ -55,6 +55,7 @@ def gen_redteam_curriculum(client: httpx.Client, num_rounds: int = 15,
     trained policy would replace the simulated blue.
     """
     import random as _r
+
     _rng = _r.Random(42)
     BLUE_SKILL = 0.55
 
@@ -69,8 +70,10 @@ def gen_redteam_curriculum(client: httpx.Client, num_rounds: int = 15,
         winrate = wins / eps_per_round
         difficulty_hist.append(diff)
         winrate_hist.append(winrate)
-        print(f"  Round {round_num+1:2d} | diff={diff:.2f} | "
-              f"blue_win_rate={winrate:.2f} (p_win={p_win:.2f}, skill={BLUE_SKILL})")
+        print(
+            f"  Round {round_num + 1:2d} | diff={diff:.2f} | "
+            f"blue_win_rate={winrate:.2f} (p_win={p_win:.2f}, skill={BLUE_SKILL})"
+        )
         generator = generator.adapt_difficulty(winrate)
 
     rounds = range(1, num_rounds + 1)
@@ -97,8 +100,14 @@ def gen_redteam_curriculum(client: httpx.Client, num_rounds: int = 15,
 
 
 def gen_task_difficulty(client: httpx.Client, n_episodes: int = 20) -> None:
-    tasks = ["phishing", "lateral_movement", "queue_management", "insider_threat",
-             "team_phishing_escalation", "team_lateral_team"]
+    tasks = [
+        "phishing",
+        "lateral_movement",
+        "queue_management",
+        "insider_threat",
+        "team_phishing_escalation",
+        "team_lateral_team",
+    ]
     results = {}
     for task in tasks:
         mode = "team" if task.startswith("team_") else "tier1_solo"
@@ -118,8 +127,7 @@ def gen_task_difficulty(client: httpx.Client, n_episodes: int = 20) -> None:
     fig, ax = plt.subplots(figsize=(11, 5))
     labels = list(results.keys())
     data = [results[t] for t in labels]
-    bp = ax.boxplot(data, labels=[lbl.replace("_", "\n") for lbl in labels],
-                     patch_artist=True, showmeans=True)
+    bp = ax.boxplot(data, labels=[lbl.replace("_", "\n") for lbl in labels], patch_artist=True, showmeans=True)
     palette = ["#4C72B0", "#55A868", "#C44E52", "#8172B2", "#CCB974", "#64B5CD"]
     for patch, color in zip(bp["boxes"], palette, strict=False):
         patch.set_facecolor(color)
@@ -127,8 +135,7 @@ def gen_task_difficulty(client: httpx.Client, n_episodes: int = 20) -> None:
     ax.set_ylabel("Oracle Episode Score")
     ax.set_ylim(0, 1.0)
     ax.axhline(0.5, linestyle="--", color="gray", alpha=0.5)
-    ax.set_title(f"SOC-Triage-Gym v2 — Oracle Score Distribution ({n_episodes} eps/task)",
-                 fontweight="bold")
+    ax.set_title(f"SOC-Triage-Gym v2 — Oracle Score Distribution ({n_episodes} eps/task)", fontweight="bold")
     plt.tight_layout()
     path = os.path.join(OUT_DIR, "task_difficulty.png")
     plt.savefig(path, dpi=150, bbox_inches="tight")

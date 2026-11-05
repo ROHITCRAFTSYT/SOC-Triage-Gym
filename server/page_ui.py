@@ -146,7 +146,7 @@ def _shell(title: str, eyebrow: str, file_no: str, lede: str, inner: str) -> str
         '<link rel="preconnect" href="https://fonts.googleapis.com">'
         '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
         '<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1'
-        '&family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..900,0..100;1,9..144,300..900,0..100'
+        "&family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..900,0..100;1,9..144,300..900,0..100"
         '&family=JetBrains+Mono:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">'
     )
     return f"""<!DOCTYPE html>
@@ -264,29 +264,25 @@ def _raw_block(data: Any) -> str:
 # ─── renderers for each endpoint ─────────────────────────────────────────────
 def render_metadata(data: dict) -> HTMLResponse:
     """Render /metadata as a styled dossier page."""
-    tags_html = "".join(
-        f'<span class="tag">{html.escape(t)}</span>' for t in data.get("tags", [])
-    )
-    tasks_html = "".join(
-        f'<span class="chip">{html.escape(t)}</span>' for t in data.get("tasks", [])
-    )
+    tags_html = "".join(f'<span class="tag">{html.escape(t)}</span>' for t in data.get("tags", []))
+    tasks_html = "".join(f'<span class="chip">{html.escape(t)}</span>' for t in data.get("tasks", []))
     inner = f"""
 <div class="kv">
   <div class="key">Name</div>
-  <div class="val"><code>{html.escape(str(data.get('name','')))}</code></div>
+  <div class="val"><code>{html.escape(str(data.get("name", "")))}</code></div>
 
   <div class="key">Version</div>
-  <div class="val">{html.escape(str(data.get('version','')))}</div>
+  <div class="val">{html.escape(str(data.get("version", "")))}</div>
 
   <div class="key">Author</div>
-  <div class="val">{html.escape(str(data.get('author','')))}
+  <div class="val">{html.escape(str(data.get("author", "")))}
     <a href="https://github.com/ROHITCRAFTSYT/-Metas-OpenEnv-2" target="_blank" rel="noopener" style="margin-left:12px">↗ source</a>
   </div>
 
   <div class="key">Description</div>
-  <div class="val" style="max-width:72ch">{html.escape(str(data.get('description','')))}</div>
+  <div class="val" style="max-width:72ch">{html.escape(str(data.get("description", "")))}</div>
 
-  <div class="key">Tasks ({len(data.get('tasks', []))})</div>
+  <div class="key">Tasks ({len(data.get("tasks", []))})</div>
   <div class="val"><div class="chips">{tasks_html}</div></div>
 
   <div class="key">Tags</div>
@@ -297,7 +293,7 @@ def render_metadata(data: dict) -> HTMLResponse:
 """
     return HTMLResponse(
         _shell(
-            title='Environment <em>Metadata</em>',
+            title="Environment <em>Metadata</em>",
             eyebrow="/metadata",
             file_no="003.Ma",
             lede=(
@@ -313,8 +309,12 @@ def render_metadata(data: dict) -> HTMLResponse:
 def render_tasks(tasks: list[dict]) -> HTMLResponse:
     """Render /tasks as a numbered bibliography."""
     difficulty_class = {
-        "easy": "e", "medium": "m", "hard": "h",
-        "expert": "x", "super-hard": "x", "adaptive": "a",
+        "easy": "e",
+        "medium": "m",
+        "hard": "h",
+        "expert": "x",
+        "super-hard": "x",
+        "adaptive": "a",
     }
     rows = []
     for idx, t in enumerate(tasks, 1):
@@ -330,14 +330,14 @@ def render_tasks(tasks: list[dict]) -> HTMLResponse:
             f'<div class="diff {cls}">{html.escape(diff)}</div>'
             f'<div class="steps">{steps} steps</div>'
             f'<div class="mode"><code style="font-family:\'JetBrains Mono\',monospace;font-size:10px;letter-spacing:.06em;background:var(--paper-2);border:.5px solid var(--hairline);padding:2px 6px">{tid}</code></div>'
-            f'</div>'
+            f"</div>"
         )
     inner = f"""
 <div class="task-index">
   <div class="row head">
     <div>CODE</div><div>SCENARIO</div><div>DIFFICULTY</div><div>STEPS</div><div>TASK ID</div>
   </div>
-  {''.join(rows)}
+  {"".join(rows)}
 </div>
 
 <div style="margin-top:36px;padding:22px 26px;background:var(--paper-2);border-left:3px solid var(--stamp);font-family:'Fraunces',serif;font-size:14px;line-height:1.6;color:var(--ink-soft);max-width:78ch">
@@ -353,7 +353,7 @@ def render_tasks(tasks: list[dict]) -> HTMLResponse:
 """
     return HTMLResponse(
         _shell(
-            title='Task <em>Catalogue</em>',
+            title="Task <em>Catalogue</em>",
             eyebrow="/tasks",
             file_no="003.Tk",
             lede=(
@@ -381,7 +381,7 @@ def render_themes(data: dict) -> HTMLResponse:
             f'<div class="k">Theme · {i:02d}</div>'
             f'<div class="v"><em>{html.escape(theme.replace("_", " "))}</em></div>'
             f'<div class="d">{badge}</div>'
-            f'</div>'
+            f"</div>"
         )
 
     def_rows = "".join(
@@ -389,7 +389,7 @@ def render_themes(data: dict) -> HTMLResponse:
         f'<div class="n">{i:02d}</div>'
         f'<div class="k">Defense · {i:02d}</div>'
         f'<div class="v" style="font-family:\'JetBrains Mono\',monospace;font-size:15px;letter-spacing:.02em">{html.escape(d)}</div>'
-        f'</div>'
+        f"</div>"
         for i, d in enumerate(defenses, 1)
     )
 
@@ -401,12 +401,12 @@ def render_themes(data: dict) -> HTMLResponse:
   <div class="card">
     <div class="k">§ RLVR</div>
     <div class="v"><em>Verifiable rewards</em></div>
-    <div class="d">Programmatic graders. See <code>{html.escape(str(rlvr_rlve.get('rlvr_verifiers', 'graders/')))}</code>.</div>
+    <div class="d">Programmatic graders. See <code>{html.escape(str(rlvr_rlve.get("rlvr_verifiers", "graders/")))}</code>.</div>
   </div>
   <div class="card">
     <div class="k">§ RLVE</div>
     <div class="v"><em>Adaptive environment</em></div>
-    <div class="d">Red-team curriculum that rewrites itself. See <code>{html.escape(str(rlvr_rlve.get('rlve_adaptive_environment', 'scenarios/red_team_generator.py')))}</code>.</div>
+    <div class="d">Red-team curriculum that rewrites itself. See <code>{html.escape(str(rlvr_rlve.get("rlve_adaptive_environment", "scenarios/red_team_generator.py")))}</code>.</div>
   </div>
 </div>
 """
@@ -415,7 +415,7 @@ def render_themes(data: dict) -> HTMLResponse:
 <div class="eyebrow">Theme Coverage · {sum(1 for v in coverage.values() if v)} / {len(coverage)}</div>
 <h2>A machine-checkable <em>manifest</em>.</h2>
 <div class="grid-2" style="margin-top:22px">
-{''.join(covered_cards)}
+{"".join(covered_cards)}
 </div>
 
 <h2 style="margin-top:56px">Six reward-hack <em>defenses</em>.</h2>
@@ -429,7 +429,7 @@ def render_themes(data: dict) -> HTMLResponse:
 """
     return HTMLResponse(
         _shell(
-            title='Theme <em>Coverage</em>',
+            title="Theme <em>Coverage</em>",
             eyebrow="/themes/coverage",
             file_no="003.Th",
             lede=(
@@ -485,7 +485,7 @@ def render_state(data: dict) -> HTMLResponse:
 """
     return HTMLResponse(
         _shell(
-            title='Environment <em>State</em>',
+            title="Environment <em>State</em>",
             eyebrow="/state",
             file_no="003.St",
             lede=(
@@ -508,12 +508,9 @@ def render_schema(data: dict) -> HTMLResponse:
 
     def card(name: str, obj: Any) -> str:
         props = list(pick_keys(obj))
-        chips = "".join(
-            f'<span class="chip" style="margin:2px">{html.escape(p)}</span>'
-            for p in props[:18]
-        )
+        chips = "".join(f'<span class="chip" style="margin:2px">{html.escape(p)}</span>' for p in props[:18])
         more = (
-            f'<span class="chip" style="margin:2px;border-style:dashed">+{len(props)-18} more</span>'
+            f'<span class="chip" style="margin:2px;border-style:dashed">+{len(props) - 18} more</span>'
             if len(props) > 18
             else ""
         )
@@ -522,12 +519,10 @@ def render_schema(data: dict) -> HTMLResponse:
             f'<div class="k">Model</div>'
             f'<div class="v"><em>{html.escape(name)}</em></div>'
             f'<div class="d" style="margin-top:12px"><div class="chips">{chips}{more}</div></div>'
-            f'</div>'
+            f"</div>"
         )
 
-    cards = "".join(
-        card(n, data.get(n, {})) for n in ("action", "observation", "state")
-    )
+    cards = "".join(card(n, data.get(n, {})) for n in ("action", "observation", "state"))
 
     inner = f"""
 <div class="grid-2" style="grid-template-columns:repeat(3,1fr)">
@@ -545,7 +540,7 @@ def render_schema(data: dict) -> HTMLResponse:
 """
     return HTMLResponse(
         _shell(
-            title='JSON <em>Schema</em>',
+            title="JSON <em>Schema</em>",
             eyebrow="/schema",
             file_no="003.Sc",
             lede=(

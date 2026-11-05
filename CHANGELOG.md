@@ -6,7 +6,85 @@ loosely follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed (reward/grading — affects comparability with earlier runs)
+- `ransomware` and `cloud_compromise` had no grader: every episode scored 0
+  ("No grader registered"). Both now use the single-alert grader.
+- 13 ATT&CK techniques expected by scenario ground truth (cloud_compromise,
+  ransomware, insider_threat, apt_campaign) were missing from the catalog, so
+  `map_technique` rejected them and full technique credit was unreachable.
+  The scenario validator now flags uncatalogued expected techniques.
+- Loop-penalty signature ignored `technique_id`, `response_action`,
+  `classification` and `ticket_id`, so distinct correct actions on one alert
+  were penalised as loops (−0.30 on a perfect phishing run). Per-step shaping
+  rewards for correct trajectories are now higher; terminal scores unchanged.
+- Empty submissions earned free credit (up to 0.24 on queue_management, 0.40 on
+  false-positive single-alert seeds) from efficiency, policy-compliance and
+  "no action on an FP" components. These are now gated on triage coverage, and
+  inaction scores the 0.001 floor on every task.
+- Ticket IDs were `uuid4`, making team-mode observations and the manager-judge
+  trajectory hash non-deterministic. They are now per-episode sequential
+  (`TKT-EP0001`).
+- Ending team-mode triage with zero escalations announced a −0.10 penalty but
+  applied it only to the running total. The step reward returned (what
+  per-step GRPO trains on) was +0.001, making "phase_complete immediately" one
+  of the few non-negative actions an untrained policy could find. The penalty
+  now reaches the step reward, and applies only when the scenario requires an
+  escalation.
+- Team-mode feedback told Tier-1 "All alerts classified. Call
+  submit_investigation to finalize." In team mode that ends the whole episode
+  and skips Tier-2 and the Manager: a correctly-triaging policy that followed
+  the hint scored 0.001 (vs 0.999 escalating). Team mode now says to escalate
+  true positives and phase_complete; solo mode is unchanged.
+- In team mode any role could end the episode with `submit_investigation`:
+  the shortcut ran before the per-role action check, so even Tier-2 (whose
+  action set never allowed it) could skip the remaining phases. Only the
+  Manager may submit now; Tier-1/Tier-2 get the standard wrong-role penalty
+  and play continues. `inference.py`'s timeout path and the baseline `submit`
+  agent use `phase_complete` for non-manager roles.
+- Held-out text-policy eval (`scripts/train_and_evaluate.py`) aborted an
+  episode on the first rejected action and kept nothing but the score. It now
+  records every completion (parse quality, action type, env response) to
+  `eval_trace.jsonl`, adds a diagnostics block to `training_summary.json`, and
+  continues past rejected actions. At least five distinct failure modes all
+  score exactly 0.001 on team tasks, so the score alone can't say why.
+
+### Changed (training — invalidates comparison with the published adapter)
+- LLM-policy prompts moved to `training/prompts.py` and rewritten. The old
+  observation prompt hid the agent's own progress (classifications, evidence,
+  escalations) and the env's feedback, showed only IP indicators, and the
+  system prompt listed no action fields or allowed values. The new one shows
+  per-alert status, the last result, all indicator types (hashes for Tier-2
+  only), and field schemas generated from the `models` enums. The prompt's
+  step number now comes from the env, fixing a train (0-based) / eval
+  (1-based) mismatch. A text-only policy reading just this prompt matches the
+  full-observation heuristic (0.999 / 0.800 on the team tasks).
+- `max_prompt_length` 512 → 768 (worst case is ~676 Qwen2.5 tokens), eval
+  `max_seq_length` 768 → 1024, notebook `max_seq_length` 768 → 896.
+  `check_prompt_budget` tokenises every training prompt with the real
+  tokenizer and fails if any would be truncated (TRL truncates from the left,
+  dropping the system prompt first). The notebook's 3B default may now exceed
+  T4 memory; the published adapter is 1.5B.
+
 ### Added
+- `baselines.py` (submit / random / heuristic / oracle agents + in-process
+  runner) and a rewritten `benchmark.py` that prints a leaderboard, checks
+  determinism across repeats and exits 1 on divergence. Results are committed in
+  `benchmarks/` and checked for freshness in CI. The old HTTP `--server` mode is
+  removed (the `/baseline` endpoint remains).
+- Structured logging (`server/logging_config.py`): JSON or text via
+  `SOC_GYM_LOG_FORMAT`, request IDs (`X-Request-ID`), `episode.reset` /
+  `episode.complete` events.
+- Input validation: bounded string lengths on `SOCAction`, strict uint32 seeds,
+  `time_window_hours` 1–168, ranges on curriculum and reward-config knobs.
+- README: dropped the hackathon pitch (prize/theme claims, "why this project
+  wins", judge-demo and judging-criteria sections); the theme table is now a
+  neutral feature map. Training results are labelled as pre-fix, and the
+  "trained policy underfit" explanation is replaced by what the eval
+  investigation actually found.
+- CI: blocking format check, Python 3.13, coverage gate, benchmark/determinism
+  job, Docker build + smoke test, zizmor workflow audit.
+- Docker: base image pinned by digest (Dependabot-managed), Python healthcheck
+  instead of curl, JSON logs by default.
 - New `cloud_compromise` scenario: a single-alert cloud identity-compromise task
   with true-positive (impossible-travel login, IAM access-key creation, a bucket
   made public, a security group opened, CloudTrail `StopLogging`) and

@@ -77,15 +77,21 @@ class RansomwareScenario(BaseScenario):
 
         enrichment_db = {
             payload_hash: self._make_enrichment_result(
-                payload_hash, IndicatorType.FILE_HASH, malicious=True,
-                confidence=0.98, threat_score=98,
+                payload_hash,
+                IndicatorType.FILE_HASH,
+                malicious=True,
+                confidence=0.98,
+                threat_score=98,
                 threat_type="ransomware",
                 tags=["ransomware", family.lower(), "unsigned", "dropper"],
                 malware=[family],
             ),
             c2_domain: self._make_enrichment_result(
-                c2_domain, IndicatorType.DOMAIN, malicious=True,
-                confidence=0.94, threat_score=91,
+                c2_domain,
+                IndicatorType.DOMAIN,
+                malicious=True,
+                confidence=0.94,
+                threat_score=91,
                 threat_type="command-and-control",
                 geo="Russia",
                 tags=["c2", "ransomware-c2", family.lower()],
@@ -93,8 +99,11 @@ class RansomwareScenario(BaseScenario):
                 whois="Registered 6 days ago via anonymous registrar.",
             ),
             c2_ip: self._make_enrichment_result(
-                c2_ip, IndicatorType.IP, malicious=True,
-                confidence=0.93, threat_score=90,
+                c2_ip,
+                IndicatorType.IP,
+                malicious=True,
+                confidence=0.93,
+                threat_score=90,
                 threat_type="command-and-control",
                 geo="Russia",
                 tags=["c2", "bulletproof-hosting", family.lower()],
@@ -107,9 +116,14 @@ class RansomwareScenario(BaseScenario):
         # Endpoint — unsigned payload, shadow-copy deletion, mass encryption, ransom note.
         log_db[LogSource.ENDPOINT.value][alert_id] = [
             self._make_log_entry(
-                LogSource.ENDPOINT, "process_created", hours_ago=0.8,
-                hostname=victim_host, src_ip=victim_ip, user=victim_username,
-                action="execute", severity="critical",
+                LogSource.ENDPOINT,
+                "process_created",
+                hours_ago=0.8,
+                hostname=victim_host,
+                src_ip=victim_ip,
+                user=victim_username,
+                action="execute",
+                severity="critical",
                 details={
                     "process_name": "svchost32.exe",
                     "process_path": f"C:\\Users\\{victim_username}\\AppData\\Local\\Temp\\svchost32.exe",
@@ -120,8 +134,12 @@ class RansomwareScenario(BaseScenario):
                 },
             ),
             self._make_log_entry(
-                LogSource.ENDPOINT, "process_created", hours_ago=0.75,
-                hostname=victim_host, user=victim_username, action="execute",
+                LogSource.ENDPOINT,
+                "process_created",
+                hours_ago=0.75,
+                hostname=victim_host,
+                user=victim_username,
+                action="execute",
                 severity="critical",
                 details={
                     "process_name": "vssadmin.exe",
@@ -131,8 +149,12 @@ class RansomwareScenario(BaseScenario):
                 },
             ),
             self._make_log_entry(
-                LogSource.ENDPOINT, "file_modification_burst", hours_ago=0.7,
-                hostname=victim_host, user=victim_username, action="encrypt",
+                LogSource.ENDPOINT,
+                "file_modification_burst",
+                hours_ago=0.7,
+                hostname=victim_host,
+                user=victim_username,
+                action="encrypt",
                 severity="critical",
                 details={
                     "files_modified": 4127,
@@ -147,44 +169,67 @@ class RansomwareScenario(BaseScenario):
         # DNS + Firewall — C2 beacon.
         log_db[LogSource.DNS.value][alert_id] = [
             self._make_log_entry(
-                LogSource.DNS, "dns_query", hours_ago=0.78,
-                hostname=victim_host, src_ip=victim_ip,
+                LogSource.DNS,
+                "dns_query",
+                hours_ago=0.78,
+                hostname=victim_host,
+                src_ip=victim_ip,
                 details={"query": c2_domain, "response": c2_ip, "record_type": "A"},
             ),
         ]
         log_db[LogSource.FIREWALL.value][alert_id] = [
             self._make_log_entry(
-                LogSource.FIREWALL, "outbound_connection", hours_ago=0.76,
-                src_ip=victim_ip, dst_ip=c2_ip, action="allowed", severity="high",
-                details={"dst_port": 443, "protocol": "TCP", "bytes_sent": 12800,
-                         "direction": "outbound"},
+                LogSource.FIREWALL,
+                "outbound_connection",
+                hours_ago=0.76,
+                src_ip=victim_ip,
+                dst_ip=c2_ip,
+                action="allowed",
+                severity="high",
+                details={"dst_port": 443, "protocol": "TCP", "bytes_sent": 12800, "direction": "outbound"},
             ),
         ]
         log_db[LogSource.IDS.value][alert_id] = [
             self._make_log_entry(
-                LogSource.IDS, "signature_match", hours_ago=0.77,
-                src_ip=victim_ip, dst_ip=c2_ip, severity="critical",
-                details={"signature": f"MALWARE-CNC {family} ransomware checkin",
-                         "category": "Malware-CnC", "priority": 1},
+                LogSource.IDS,
+                "signature_match",
+                hours_ago=0.77,
+                src_ip=victim_ip,
+                dst_ip=c2_ip,
+                severity="critical",
+                details={
+                    "signature": f"MALWARE-CNC {family} ransomware checkin",
+                    "category": "Malware-CnC",
+                    "priority": 1,
+                },
             ),
         ]
 
-        asset_db = {victim_host: self._make_asset(
-            victim_host, "workstation", victim_username, self._department(),
-            victim_ip, criticality="high",
-        )}
-        user_db = {victim_username: self._make_user(
-            victim_username, "Finance Analyst", "Finance", risk_score=0.2,
-        )}
+        asset_db = {
+            victim_host: self._make_asset(
+                victim_host,
+                "workstation",
+                victim_username,
+                self._department(),
+                victim_ip,
+                criticality="high",
+            )
+        }
+        user_db = {
+            victim_username: self._make_user(
+                victim_username,
+                "Finance Analyst",
+                "Finance",
+                risk_score=0.2,
+            )
+        }
 
         ground_truth = GroundTruth(
             alert_classifications={alert_id: AlertClassification.TRUE_POSITIVE},
             true_positive_ids=[alert_id],
             false_positive_ids=[],
             benign_tp_ids=[],
-            expected_techniques={
-                alert_id: ["T1486", "T1490", "T1489", "T1071.001", "T1083"]
-            },
+            expected_techniques={alert_id: ["T1486", "T1490", "T1489", "T1071.001", "T1083"]},
             expected_response_actions={
                 alert_id: [
                     ResponseActionType.ISOLATE_ENDPOINT,
@@ -193,9 +238,7 @@ class RansomwareScenario(BaseScenario):
                     ResponseActionType.BLOCK_DOMAIN,
                 ]
             },
-            relevant_log_sources={
-                alert_id: [LogSource.ENDPOINT, LogSource.DNS, LogSource.FIREWALL, LogSource.IDS]
-            },
+            relevant_log_sources={alert_id: [LogSource.ENDPOINT, LogSource.DNS, LogSource.FIREWALL, LogSource.IDS]},
             relevant_indicators={alert_id: [payload_hash, c2_domain, c2_ip]},
         )
 
@@ -253,20 +296,29 @@ class RansomwareScenario(BaseScenario):
 
         enrichment_db = {
             agent_hash: self._make_enrichment_result(
-                agent_hash, IndicatorType.FILE_HASH, malicious=False,
-                confidence=0.97, threat_score=0,
+                agent_hash,
+                IndicatorType.FILE_HASH,
+                malicious=False,
+                confidence=0.97,
+                threat_score=0,
                 tags=["backup-software", "code-signed", "clean"],
             ),
             vendor_domain: self._make_enrichment_result(
-                vendor_domain, IndicatorType.DOMAIN, malicious=False,
-                confidence=0.99, threat_score=0,
+                vendor_domain,
+                IndicatorType.DOMAIN,
+                malicious=False,
+                confidence=0.99,
+                threat_score=0,
                 geo="United States",
                 tags=["legitimate", "trusted", "software-vendor"],
                 whois="Registered 10+ years ago. WHOIS matches vendor registration.",
             ),
             vendor_ip: self._make_enrichment_result(
-                vendor_ip, IndicatorType.IP, malicious=False,
-                confidence=0.95, threat_score=1,
+                vendor_ip,
+                IndicatorType.IP,
+                malicious=False,
+                confidence=0.95,
+                threat_score=1,
                 geo="United States",
                 tags=["legitimate", "cloud-backup-endpoint"],
             ),
@@ -275,8 +327,13 @@ class RansomwareScenario(BaseScenario):
         log_db = self._empty_log_db([alert_id])
         log_db[LogSource.ENDPOINT.value][alert_id] = [
             self._make_log_entry(
-                LogSource.ENDPOINT, "process_created", hours_ago=0.5,
-                hostname=host, src_ip=host_ip, user=username, action="execute",
+                LogSource.ENDPOINT,
+                "process_created",
+                hours_ago=0.5,
+                hostname=host,
+                src_ip=host_ip,
+                user=username,
+                action="execute",
                 details={
                     "process_name": f"{agent.replace(' ', '')}.exe",
                     "parent_process": "services.exe",
@@ -287,8 +344,12 @@ class RansomwareScenario(BaseScenario):
                 },
             ),
             self._make_log_entry(
-                LogSource.ENDPOINT, "file_access_burst", hours_ago=0.45,
-                hostname=host, user=username, action="read",
+                LogSource.ENDPOINT,
+                "file_access_burst",
+                hours_ago=0.45,
+                hostname=host,
+                user=username,
+                action="read",
                 details={
                     "files_read": 51230,
                     "files_modified": 0,
@@ -300,12 +361,23 @@ class RansomwareScenario(BaseScenario):
             ),
         ]
 
-        asset_db = {host: self._make_asset(
-            host, "workstation", username, self._department(), host_ip,
-        )}
-        user_db = {username: self._make_user(
-            username, "Operations Specialist", "Operations", risk_score=0.05,
-        )}
+        asset_db = {
+            host: self._make_asset(
+                host,
+                "workstation",
+                username,
+                self._department(),
+                host_ip,
+            )
+        }
+        user_db = {
+            username: self._make_user(
+                username,
+                "Operations Specialist",
+                "Operations",
+                risk_score=0.05,
+            )
+        }
 
         ground_truth = GroundTruth(
             alert_classifications={alert_id: AlertClassification.FALSE_POSITIVE},

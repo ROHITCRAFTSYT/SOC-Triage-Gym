@@ -11,7 +11,6 @@ Weights:
   efficiency      0.10  — steps used vs. budget
 """
 
-
 from graders.base import BaseGrader
 from models import InvestigationState, ScenarioConfig
 
@@ -43,7 +42,7 @@ class LateralMovementGrader(BaseGrader):
         response_score = self._response_quality(config, investigations)
 
         # ---- Efficiency Score (0.10) ----
-        efficiency_score = self._efficiency_score(steps_used, max_steps)
+        efficiency_score = self._efficiency_score(steps_used, max_steps) * self._coverage(config, investigations)
 
         # ---- Weighted sum ----
         final = (
@@ -63,28 +62,37 @@ class LateralMovementGrader(BaseGrader):
         technique_score = self._technique_accuracy(config, investigations, only_tps=True)
         chain_score = self._chain_reconstruction_score(investigations, gt.kill_chain_order or [])
         response_score = self._response_quality(config, investigations)
-        efficiency_score = self._efficiency_score(steps_used, max_steps)
+        efficiency_score = self._efficiency_score(steps_used, max_steps) * self._coverage(config, investigations)
 
         final = self._clamp(
-            0.30 * classification_score + 0.20 * technique_score
-            + 0.20 * chain_score + 0.20 * response_score + 0.10 * efficiency_score
+            0.30 * classification_score
+            + 0.20 * technique_score
+            + 0.20 * chain_score
+            + 0.20 * response_score
+            + 0.10 * efficiency_score
         )
 
         feedback_parts = []
         if classification_score < 0.8:
-            feedback_parts.append(f"Classification accuracy {int(classification_score*100)}% — some alerts misclassified.")
+            feedback_parts.append(
+                f"Classification accuracy {int(classification_score * 100)}% — some alerts misclassified."
+            )
         if chain_score < 0.8:
-            feedback_parts.append(f"Kill chain reconstruction {int(chain_score*100)}% — correlate adjacent alerts.")
+            feedback_parts.append(f"Kill chain reconstruction {int(chain_score * 100)}% — correlate adjacent alerts.")
         if technique_score < 0.8:
-            feedback_parts.append(f"ATT&CK technique mapping {int(technique_score*100)}%.")
+            feedback_parts.append(f"ATT&CK technique mapping {int(technique_score * 100)}%.")
 
-        return final, {
-            "classification": round(classification_score, 3),
-            "technique_mapping": round(technique_score, 3),
-            "kill_chain_reconstruction": round(chain_score, 3),
-            "response_quality": round(response_score, 3),
-            "efficiency": round(efficiency_score, 3),
-        }, " ".join(feedback_parts) or "Strong performance across all components."
+        return (
+            final,
+            {
+                "classification": round(classification_score, 3),
+                "technique_mapping": round(technique_score, 3),
+                "kill_chain_reconstruction": round(chain_score, 3),
+                "response_quality": round(response_score, 3),
+                "efficiency": round(efficiency_score, 3),
+            },
+            " ".join(feedback_parts) or "Strong performance across all components.",
+        )
 
     def _chain_reconstruction_score(
         self,
@@ -109,8 +117,7 @@ class LateralMovementGrader(BaseGrader):
 
         # Check each adjacent pair in the kill chain
         chain_pairs = [
-            tuple(sorted([kill_chain_order[i], kill_chain_order[i + 1]]))
-            for i in range(len(kill_chain_order) - 1)
+            tuple(sorted([kill_chain_order[i], kill_chain_order[i + 1]])) for i in range(len(kill_chain_order) - 1)
         ]
 
         matched = sum(1 for pair in chain_pairs if pair in found_pairs)

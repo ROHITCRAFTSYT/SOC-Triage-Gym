@@ -10,7 +10,6 @@ Reward logic:
    0.00  if this exact pair was already correlated this episode
 """
 
-
 from models import AlertMeta, CorrelatedEvent, CorrelationType, InvestigationState, ScenarioConfig
 
 # Map indicator key names to CorrelationType enum values

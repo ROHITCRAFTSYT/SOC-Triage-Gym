@@ -74,9 +74,18 @@ class BaseScenario(ABC):
     def _legit_domain(self) -> str:
         """Generate a recognizable legitimate domain."""
         companies = [
-            "microsoft.com", "google.com", "amazonaws.com", "cloudflare.com",
-            "office365.com", "dropbox.com", "salesforce.com", "okta.com",
-            "zoom.us", "github.com", "slack.com", "atlassian.com",
+            "microsoft.com",
+            "google.com",
+            "amazonaws.com",
+            "cloudflare.com",
+            "office365.com",
+            "dropbox.com",
+            "salesforce.com",
+            "okta.com",
+            "zoom.us",
+            "github.com",
+            "slack.com",
+            "atlassian.com",
         ]
         return self.rng.choice(companies)
 
@@ -102,10 +111,39 @@ class BaseScenario(ABC):
     # ------------------------------------------------------------------
 
     def _username(self) -> str:
-        first_names = ["john", "jane", "mike", "sarah", "david", "lisa", "tom", "emily",
-                       "robert", "anna", "james", "mary", "william", "patricia", "richard"]
-        last_names = ["smith", "jones", "williams", "brown", "davis", "miller", "wilson",
-                      "moore", "taylor", "anderson", "thomas", "jackson", "white", "harris"]
+        first_names = [
+            "john",
+            "jane",
+            "mike",
+            "sarah",
+            "david",
+            "lisa",
+            "tom",
+            "emily",
+            "robert",
+            "anna",
+            "james",
+            "mary",
+            "william",
+            "patricia",
+            "richard",
+        ]
+        last_names = [
+            "smith",
+            "jones",
+            "williams",
+            "brown",
+            "davis",
+            "miller",
+            "wilson",
+            "moore",
+            "taylor",
+            "anderson",
+            "thomas",
+            "jackson",
+            "white",
+            "harris",
+        ]
         return f"{self.rng.choice(first_names)}.{self.rng.choice(last_names)}"
 
     def _hostname(self, prefix: str = "WORKSTATION") -> str:

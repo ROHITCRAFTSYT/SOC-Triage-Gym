@@ -15,6 +15,7 @@ Cross-app business rule enforced here:
 This is a thin, in-memory ticket store. Deterministic by construction
 because IDs include a monotonic counter rather than uuid4.
 """
+
 from __future__ import annotations
 
 from models import AgentRole, TicketSLA

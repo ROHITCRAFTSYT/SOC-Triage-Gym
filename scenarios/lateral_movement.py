@@ -33,7 +33,7 @@ class LateralMovementScenario(BaseScenario):
 
     def generate(self) -> ScenarioConfig:
         # ---- Shared IOCs across the kill chain ----
-        ext_c2_ip = self._public_ip()           # attacker's C2 server (appears in Alert 1 + Alert 5)
+        ext_c2_ip = self._public_ip()  # attacker's C2 server (appears in Alert 1 + Alert 5)
         ext_c2_domain = self._malicious_domain()
         phishing_domain = self._malicious_domain()
         phishing_ip = self._public_ip()
@@ -42,14 +42,14 @@ class LateralMovementScenario(BaseScenario):
         mimikatz_hash = self._sha256()
         archive_hash = self._sha256()
 
-        victim_host1 = self._hostname("WORKSTATION")   # initial compromise
+        victim_host1 = self._hostname("WORKSTATION")  # initial compromise
         victim_ip1 = self._private_ip()
-        victim_username = self._username()              # compromised user (appears in Alerts 2, 3, 4)
+        victim_username = self._username()  # compromised user (appears in Alerts 2, 3, 4)
 
-        lateral_host = self._hostname("SERVER")         # target of lateral movement
+        lateral_host = self._hostname("SERVER")  # target of lateral movement
         lateral_ip = self._private_ip()
 
-        file_server = "FS-01"                           # file server for staging
+        file_server = "FS-01"  # file server for staging
         file_server_ip = self._private_ip()
 
         attacker_email = f"invoice@{phishing_domain}"
@@ -167,56 +167,81 @@ class LateralMovementScenario(BaseScenario):
         # ---- Enrichment DB ----
         enrichment_db = {
             phishing_ip: self._make_enrichment_result(
-                phishing_ip, IndicatorType.IP, malicious=True,
-                confidence=0.88, threat_score=82,
-                threat_type="phishing", geo="Nigeria",
+                phishing_ip,
+                IndicatorType.IP,
+                malicious=True,
+                confidence=0.88,
+                threat_score=82,
+                threat_type="phishing",
+                geo="Nigeria",
                 tags=["phishing-actor", "smtp-relay"],
             ),
             phishing_domain: self._make_enrichment_result(
-                phishing_domain, IndicatorType.DOMAIN, malicious=True,
-                confidence=0.90, threat_score=85,
+                phishing_domain,
+                IndicatorType.DOMAIN,
+                malicious=True,
+                confidence=0.90,
+                threat_score=85,
                 threat_type="phishing",
                 tags=["newly-registered", "lookalike-domain"],
                 whois="Registered 2 days ago.",
             ),
             dropper_hash: self._make_enrichment_result(
-                dropper_hash, IndicatorType.FILE_HASH, malicious=True,
-                confidence=0.97, threat_score=95,
+                dropper_hash,
+                IndicatorType.FILE_HASH,
+                malicious=True,
+                confidence=0.97,
+                threat_score=95,
                 threat_type="malware",
                 tags=["macro-dropper", "office-macro"],
                 malware=["Trickbot-dropper"],
             ),
             attacker_email: self._make_enrichment_result(
-                attacker_email, IndicatorType.EMAIL, malicious=True,
-                confidence=0.82, threat_score=75,
+                attacker_email,
+                IndicatorType.EMAIL,
+                malicious=True,
+                confidence=0.82,
+                threat_score=75,
                 threat_type="phishing",
                 tags=["phishing-sender"],
             ),
             ext_c2_ip: self._make_enrichment_result(
-                ext_c2_ip, IndicatorType.IP, malicious=True,
-                confidence=0.96, threat_score=94,
+                ext_c2_ip,
+                IndicatorType.IP,
+                malicious=True,
+                confidence=0.96,
+                threat_score=94,
                 threat_type="command-and-control",
                 geo="Netherlands",
                 tags=["c2-server", "cobalt-strike-beacon"],
                 malware=["CobaltStrike"],
             ),
             ext_c2_domain: self._make_enrichment_result(
-                ext_c2_domain, IndicatorType.DOMAIN, malicious=True,
-                confidence=0.95, threat_score=91,
+                ext_c2_domain,
+                IndicatorType.DOMAIN,
+                malicious=True,
+                confidence=0.95,
+                threat_score=91,
                 threat_type="command-and-control",
                 tags=["c2", "cobalt-strike"],
                 malware=["CobaltStrike"],
             ),
             mimikatz_hash: self._make_enrichment_result(
-                mimikatz_hash, IndicatorType.FILE_HASH, malicious=True,
-                confidence=0.99, threat_score=100,
+                mimikatz_hash,
+                IndicatorType.FILE_HASH,
+                malicious=True,
+                confidence=0.99,
+                threat_score=100,
                 threat_type="credential-dumping",
                 tags=["mimikatz", "credential-theft", "lsass-dump"],
                 malware=["Mimikatz"],
             ),
             archive_hash: self._make_enrichment_result(
-                archive_hash, IndicatorType.FILE_HASH, malicious=False,
-                confidence=0.3, threat_score=15,
+                archive_hash,
+                IndicatorType.FILE_HASH,
+                malicious=False,
+                confidence=0.3,
+                threat_score=15,
                 tags=["archive", "zip", "potential-staging"],
             ),
         }
@@ -227,72 +252,98 @@ class LateralMovementScenario(BaseScenario):
         # Alert 1 logs: Email gateway + endpoint execution
         log_db[LogSource.EMAIL_GATEWAY.value][aid1] = [
             self._make_log_entry(
-                LogSource.EMAIL_GATEWAY, "email_received",
-                hours_ago=4.0, src_ip=phishing_ip, user=victim_username,
+                LogSource.EMAIL_GATEWAY,
+                "email_received",
+                hours_ago=4.0,
+                src_ip=phishing_ip,
+                user=victim_username,
                 action="delivered",
                 details={
-                    "from": attacker_email, "attachment": "Q4_Invoice.docm",
+                    "from": attacker_email,
+                    "attachment": "Q4_Invoice.docm",
                     "attachment_hash": dropper_hash,
-                    "spf": "fail", "dkim": "fail", "dmarc": "fail",
+                    "spf": "fail",
+                    "dkim": "fail",
+                    "dmarc": "fail",
                     "macro_detected": True,
-                }
+                },
             ),
         ]
         log_db[LogSource.ENDPOINT.value][aid1] = [
             self._make_log_entry(
-                LogSource.ENDPOINT, "macro_execution",
-                hours_ago=3.8, hostname=victim_host1, user=victim_username,
+                LogSource.ENDPOINT,
+                "macro_execution",
+                hours_ago=3.8,
+                hostname=victim_host1,
+                user=victim_username,
                 action="execute",
                 details={
-                    "process": "WINWORD.EXE", "document": "Q4_Invoice.docm",
-                    "hash": dropper_hash, "macro_behavior": "downloads_payload",
+                    "process": "WINWORD.EXE",
+                    "document": "Q4_Invoice.docm",
+                    "hash": dropper_hash,
+                    "macro_behavior": "downloads_payload",
                     "hostname": victim_host1,
-                }
+                },
             ),
         ]
 
         # Alert 2 logs: EDR + IDS
         log_db[LogSource.ENDPOINT.value][aid2] = [
             self._make_log_entry(
-                LogSource.ENDPOINT, "lsass_memory_access",
-                hours_ago=3.5, hostname=victim_host1, user=victim_username,
-                action="read_memory", severity="critical",
+                LogSource.ENDPOINT,
+                "lsass_memory_access",
+                hours_ago=3.5,
+                hostname=victim_host1,
+                user=victim_username,
+                action="read_memory",
+                severity="critical",
                 details={
                     "process": "chrome_helper.exe",
                     "hash": mimikatz_hash,
                     "target_process": "lsass.exe",
                     "access_flags": "0x1fffff",
                     "hostname": victim_host1,
-                }
+                },
             ),
             self._make_log_entry(
-                LogSource.ENDPOINT, "powershell_execution",
-                hours_ago=3.4, hostname=victim_host1, user=victim_username,
+                LogSource.ENDPOINT,
+                "powershell_execution",
+                hours_ago=3.4,
+                hostname=victim_host1,
+                user=victim_username,
                 action="execute",
                 details={
                     "cmdline": "powershell -enc JABzAGUAYwByAGUAdAAgAD0AIAB...",
-                    "encoded": True, "hostname": victim_host1,
-                }
+                    "encoded": True,
+                    "hostname": victim_host1,
+                },
             ),
         ]
         log_db[LogSource.IDS.value][aid2] = [
             self._make_log_entry(
-                LogSource.IDS, "signature_match",
-                hours_ago=3.5, src_ip=victim_ip1, severity="critical",
+                LogSource.IDS,
+                "signature_match",
+                hours_ago=3.5,
+                src_ip=victim_ip1,
+                severity="critical",
                 details={
                     "signature": "INDICATOR-COMPROMISE Mimikatz credential dumper",
                     "category": "Trojan-Activity",
                     "priority": 1,
-                }
+                },
             ),
         ]
 
         # Alert 3 logs: Auth + Firewall
         log_db[LogSource.AUTH.value][aid3] = [
             self._make_log_entry(
-                LogSource.AUTH, "rdp_login",
-                hours_ago=3.0, src_ip=victim_ip1, dst_ip=lateral_ip,
-                user=victim_username, hostname=lateral_host,
+                LogSource.AUTH,
+                "rdp_login",
+                hours_ago=3.0,
+                src_ip=victim_ip1,
+                dst_ip=lateral_ip,
+                user=victim_username,
+                hostname=lateral_host,
                 action="login_success",
                 details={
                     "auth_type": "NTLM",
@@ -300,23 +351,29 @@ class LateralMovementScenario(BaseScenario):
                     "dst_host": lateral_host,
                     "first_time_user_host": True,
                     "port": 3389,
-                }
+                },
             ),
         ]
         log_db[LogSource.FIREWALL.value][aid3] = [
             self._make_log_entry(
-                LogSource.FIREWALL, "connection_allowed",
-                hours_ago=3.0, src_ip=victim_ip1, dst_ip=lateral_ip,
+                LogSource.FIREWALL,
+                "connection_allowed",
+                hours_ago=3.0,
+                src_ip=victim_ip1,
+                dst_ip=lateral_ip,
                 action="allow",
-                details={"dst_port": 3389, "protocol": "TCP"}
+                details={"dst_port": 3389, "protocol": "TCP"},
             ),
         ]
 
         # Alert 4 logs: Endpoint (file creation) + Firewall
         log_db[LogSource.ENDPOINT.value][aid4] = [
             self._make_log_entry(
-                LogSource.ENDPOINT, "file_created",
-                hours_ago=2.0, hostname=file_server, user=victim_username,
+                LogSource.ENDPOINT,
+                "file_created",
+                hours_ago=2.0,
+                hostname=file_server,
+                user=victim_username,
                 src_ip=lateral_ip,
                 details={
                     "file_path": "C:\\Temp\\backup_2024.zip",
@@ -324,80 +381,108 @@ class LateralMovementScenario(BaseScenario):
                     "tool_used": "7za.exe",
                     "hash": archive_hash,
                     "hostname": file_server,
-                }
+                },
             ),
         ]
         log_db[LogSource.AUTH.value][aid4] = [
             self._make_log_entry(
-                LogSource.AUTH, "smb_access",
-                hours_ago=2.1, src_ip=lateral_ip, dst_ip=file_server_ip,
-                user=victim_username, hostname=file_server,
+                LogSource.AUTH,
+                "smb_access",
+                hours_ago=2.1,
+                src_ip=lateral_ip,
+                dst_ip=file_server_ip,
+                user=victim_username,
+                hostname=file_server,
                 action="share_accessed",
                 details={
-                    "share": "\\\\FS-01\\Finance", "access": "read+write",
-                }
+                    "share": "\\\\FS-01\\Finance",
+                    "access": "read+write",
+                },
             ),
         ]
 
         # Alert 5 logs: Firewall + Proxy + IDS
         log_db[LogSource.FIREWALL.value][aid5] = [
             self._make_log_entry(
-                LogSource.FIREWALL, "large_outbound_transfer",
-                hours_ago=1.5, src_ip=lateral_ip, dst_ip=ext_c2_ip,
-                action="allowed", severity="critical",
+                LogSource.FIREWALL,
+                "large_outbound_transfer",
+                hours_ago=1.5,
+                src_ip=lateral_ip,
+                dst_ip=ext_c2_ip,
+                action="allowed",
+                severity="critical",
                 details={
-                    "dst_port": 443, "protocol": "TCP",
-                    "bytes_out": 3338035200, "duration_seconds": 2700,
+                    "dst_port": 443,
+                    "protocol": "TCP",
+                    "bytes_out": 3338035200,
+                    "duration_seconds": 2700,
                     "avg_throughput_mbps": 9.9,
-                }
+                },
             ),
         ]
         log_db[LogSource.PROXY.value][aid5] = [
             self._make_log_entry(
-                LogSource.PROXY, "https_request",
-                hours_ago=1.5, src_ip=lateral_ip, hostname=file_server,
+                LogSource.PROXY,
+                "https_request",
+                hours_ago=1.5,
+                src_ip=lateral_ip,
+                hostname=file_server,
                 dst_ip=ext_c2_ip,
                 details={
                     "url": f"https://{ext_c2_domain}/upload",
                     "method": "POST",
                     "bytes_out": 3338035200,
                     "user_agent": "WinHTTP/1.0",
-                }
+                },
             ),
         ]
         log_db[LogSource.IDS.value][aid5] = [
             self._make_log_entry(
-                LogSource.IDS, "signature_match",
-                hours_ago=1.5, src_ip=lateral_ip, dst_ip=ext_c2_ip,
+                LogSource.IDS,
+                "signature_match",
+                hours_ago=1.5,
+                src_ip=lateral_ip,
+                dst_ip=ext_c2_ip,
                 severity="critical",
                 details={
                     "signature": "MALWARE-CNC CobaltStrike beacon POST",
                     "category": "Malware-CnC",
                     "priority": 1,
-                }
+                },
             ),
         ]
 
         # ---- Asset DB ----
         asset_db = {
             victim_host1: self._make_asset(
-                victim_host1, "workstation", victim_username,
-                "Finance", victim_ip1, criticality="medium"
+                victim_host1, "workstation", victim_username, "Finance", victim_ip1, criticality="medium"
             ),
             lateral_host: self._make_asset(
-                lateral_host, "application_server", "svc.app",
-                "IT", lateral_ip, criticality="high", os="Windows Server 2019"
+                lateral_host,
+                "application_server",
+                "svc.app",
+                "IT",
+                lateral_ip,
+                criticality="high",
+                os="Windows Server 2019",
             ),
             file_server: self._make_asset(
-                file_server, "file_server", "svc.storage",
-                "IT", file_server_ip, criticality="critical", os="Windows Server 2019"
+                file_server,
+                "file_server",
+                "svc.storage",
+                "IT",
+                file_server_ip,
+                criticality="critical",
+                os="Windows Server 2019",
             ),
         }
 
         # ---- User DB ----
         user_db = {
             victim_username: self._make_user(
-                victim_username, "Finance Manager", "Finance",
+                victim_username,
+                "Finance Manager",
+                "Finance",
                 risk_score=0.45,
             ),
         }

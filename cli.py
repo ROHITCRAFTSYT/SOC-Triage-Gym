@@ -48,16 +48,18 @@ def _cmd_demo(args: argparse.Namespace) -> int:
 
 
 def _cmd_benchmark(args: argparse.Namespace) -> int:
-    argv = ["benchmark.py"]
+    argv: list[str] = []
     if args.task:
         argv += ["--task", args.task]
     if args.seeds:
         argv += ["--seeds", args.seeds]
-    sys.argv = argv
+    if args.agents:
+        argv += ["--agents", args.agents]
+    if args.write:
+        argv += ["--write", args.write]
     from benchmark import main as benchmark_main
 
-    benchmark_main()
-    return 0
+    return benchmark_main(argv)
 
 
 def _cmd_tasks(args: argparse.Namespace) -> int:
@@ -230,6 +232,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_bench = sub.add_parser("benchmark", help="Run the deterministic multi-seed benchmark.")
     p_bench.add_argument("--task", default=None)
     p_bench.add_argument("--seeds", default=None, help="Comma-separated seed list.")
+    p_bench.add_argument("--agents", default=None, help="Comma-separated agents (submit,random,heuristic,oracle).")
+    p_bench.add_argument("--write", default=None, metavar="DIR", help="Write results.json/results.md into DIR.")
     p_bench.set_defaults(func=_cmd_benchmark)
 
     p_tasks = sub.add_parser("tasks", help="Print the task catalog.")
@@ -241,9 +245,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_val.add_argument("--api-key", default=None)
     p_val.set_defaults(func=_cmd_validate)
 
-    p_check = sub.add_parser(
-        "check-scenarios", help="Validate generated scenarios' ground-truth integrity."
-    )
+    p_check = sub.add_parser("check-scenarios", help="Validate generated scenarios' ground-truth integrity.")
     p_check.add_argument("--seeds", default=None, help="Comma-separated seed list.")
     p_check.set_defaults(func=_cmd_check_scenarios)
 
@@ -256,15 +258,17 @@ def build_parser() -> argparse.ArgumentParser:
     p_train.add_argument("--role", choices=["tier1", "tier2", "manager"], default="tier1")
     p_train.add_argument("--model", default=None, help="HF model name (default: Qwen2.5-1.5B-Instruct)")
     p_train.add_argument("--epochs", type=int, default=None)
-    p_train.add_argument("--curriculum", action="store_true",
-                         help="Staged easy→hard curriculum with promotion gates")
-    p_train.add_argument("--parallel-rewards", type=int, default=0, metavar="N",
-                         help="Concurrent reward scoring across N server sessions")
-    p_train.add_argument("--eval-episodes", type=int, default=0,
-                         help="Held-out eval episodes per task after training")
+    p_train.add_argument("--curriculum", action="store_true", help="Staged easy→hard curriculum with promotion gates")
+    p_train.add_argument(
+        "--parallel-rewards",
+        type=int,
+        default=0,
+        metavar="N",
+        help="Concurrent reward scoring across N server sessions",
+    )
+    p_train.add_argument("--eval-episodes", type=int, default=0, help="Held-out eval episodes per task after training")
     p_train.add_argument("--unsloth", action="store_true")
-    p_train.add_argument("--dry-run", action="store_true",
-                         help="No model — just plot the oracle reward curve")
+    p_train.add_argument("--dry-run", action="store_true", help="No model — just plot the oracle reward curve")
     p_train.set_defaults(func=_cmd_train)
 
     p_runs = sub.add_parser("runs", help="List structured training runs and their results.")

@@ -49,9 +49,9 @@ def _ensure_server(url: str):
     except Exception:
         print(f"→ Starting server subprocess on {url} ...")
         proc = subprocess.Popen(
-            [sys.executable, "-m", "uvicorn", "server.app:app",
-             "--host", "127.0.0.1", "--port", "7860"],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            [sys.executable, "-m", "uvicorn", "server.app:app", "--host", "127.0.0.1", "--port", "7860"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
         )
         for _ in range(30):
             time.sleep(1)
@@ -112,14 +112,13 @@ def main():
     proc = _ensure_server(args.server)
     try:
         with httpx.Client(base_url=args.server, timeout=120) as c:
-
             # ---- Beat 1: Untrained baseline ----
             _banner("1/5 · Untrained baseline (no-op policy)", "①")
             base = _run_untrained(c, args.task, args.seed)
             score_baseline = base.get("score", 0.0)
             steps_baseline = base.get("steps_used", "?")
             print(f"  task={args.task}  seed={args.seed}")
-            print(f"  score = {score_baseline*100:.1f}%   steps = {steps_baseline}")
+            print(f"  score = {score_baseline * 100:.1f}%   steps = {steps_baseline}")
             print("  (agent has not learned to investigate — submits blindly)")
 
             # ---- Beat 2: Verifier breakdown ----
@@ -130,7 +129,7 @@ def main():
                 for k, v in list(breakdown.items())[:10]:
                     print(f"  {k:<34} {v}")
             else:
-                print(f"  overall = {grader.get('score', 0.0)*100:.1f}%")
+                print(f"  overall = {grader.get('score', 0.0) * 100:.1f}%")
                 print(f"  notes   = {grader.get('message', grader.get('notes', '—'))}")
 
             # ---- Beat 3: Trained attempt ----
@@ -139,28 +138,30 @@ def main():
             # fall back to the oracle proxy so the demo still runs end-to-end.
             import json as _json
             import os as _os
+
             _summary_path = _os.path.join(_os.path.dirname(__file__), "training_summary.json")
             if _os.path.exists(_summary_path):
                 _s = _json.loads(open(_summary_path).read())
                 _banner("3/5 · Trained attempt (GRPO checkpoint, held-out seeds)", "③")
                 score_trained = float(_s.get("trained_avg", 0.0))
-                steps_trained = f"{_s.get('n_episodes','?')} eps"
-                print(f"  score = {score_trained*100:.1f}%   episodes = {steps_trained}")
-                print(f"  (loaded from training_summary.json · role={_s.get('role')}"
-                      f" · model={_s.get('model_name')})")
+                steps_trained = f"{_s.get('n_episodes', '?')} eps"
+                print(f"  score = {score_trained * 100:.1f}%   episodes = {steps_trained}")
+                print(f"  (loaded from training_summary.json · role={_s.get('role')} · model={_s.get('model_name')})")
             else:
                 _banner("3/5 · Trained attempt (scripted oracle proxy)", "③")
                 trained = _run_baseline(c, args.task, args.seed)
                 score_trained = trained.get("score", 0.0)
                 steps_trained = trained.get("steps_used", "?")
-                print(f"  score = {score_trained*100:.1f}%   steps = {steps_trained}")
-                print("  (oracle proxy · run scripts/train_and_evaluate.py to"
-                      " produce training_summary.json and replace this beat)")
+                print(f"  score = {score_trained * 100:.1f}%   steps = {steps_trained}")
+                print(
+                    "  (oracle proxy · run scripts/train_and_evaluate.py to"
+                    " produce training_summary.json and replace this beat)"
+                )
 
             # ---- Beat 4: Measurable delta ----
             _banner("4/5 · Measurable delta", "④")
             delta = score_trained - score_baseline
-            print(f"  Δreward = {delta*100:+.2f} pp")
+            print(f"  Δreward = {delta * 100:+.2f} pp")
             print("  determinism: same seed → same score ✓")
 
             # ---- Beat 5: Safeguards ----

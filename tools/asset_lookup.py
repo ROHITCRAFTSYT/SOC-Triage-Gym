@@ -9,7 +9,6 @@ Reward logic:
   -0.03  if hostname doesn't exist in the asset DB and wasn't seen in any logs
 """
 
-
 from models import AssetInfo, InvestigationState, ScenarioConfig
 
 

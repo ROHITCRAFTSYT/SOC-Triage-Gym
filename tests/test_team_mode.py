@@ -22,6 +22,7 @@ from server.environment import SOCEnvironment
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def env():
     return SOCEnvironment()
@@ -36,6 +37,7 @@ def team_env(env):
 @pytest.fixture
 def app_client():
     from server.app import app
+
     with TestClient(app) as client:
         yield client
 
@@ -43,6 +45,7 @@ def app_client():
 # ---------------------------------------------------------------------------
 # Backward compatibility
 # ---------------------------------------------------------------------------
+
 
 def test_solo_reset_unchanged(env):
     """tier1_solo mode must behave identically to Round 1 baseline."""
@@ -77,6 +80,7 @@ def test_solo_step_unchanged(env):
 # Team mode reset
 # ---------------------------------------------------------------------------
 
+
 def test_team_reset_phase_triage(team_env):
     obs = team_env._build_observation(role=AgentRole.TIER1, reward=0.0)
     assert obs.episode_mode == EpisodeMode.TEAM
@@ -101,15 +105,29 @@ def test_team_reset_state(team_env):
 # Tier-1 phase actions
 # ---------------------------------------------------------------------------
 
+
 def test_tier1_classify_correct_reward(team_env):
     env = team_env
     alert_id = env._config.alerts[0].alert_id
     ip = list(env._config.alerts[0].indicators.get("ip", ["1.2.3.4"]))[0]
-    env.step(SOCAction(action_type=ActionType.ENRICH_INDICATOR, indicator=ip, indicator_type="ip",
-                       query_alert_id=alert_id, role=AgentRole.TIER1))
-    obs = env.step(SOCAction(action_type=ActionType.CLASSIFY_ALERT, alert_id=alert_id,
-                              classification=AlertClassification.TRUE_POSITIVE, confidence=0.9,
-                              role=AgentRole.TIER1))
+    env.step(
+        SOCAction(
+            action_type=ActionType.ENRICH_INDICATOR,
+            indicator=ip,
+            indicator_type="ip",
+            query_alert_id=alert_id,
+            role=AgentRole.TIER1,
+        )
+    )
+    obs = env.step(
+        SOCAction(
+            action_type=ActionType.CLASSIFY_ALERT,
+            alert_id=alert_id,
+            classification=AlertClassification.TRUE_POSITIVE,
+            confidence=0.9,
+            role=AgentRole.TIER1,
+        )
+    )
     assert obs.reward > 0
 
 
@@ -117,12 +135,31 @@ def test_tier1_escalate_to_tier2_creates_ticket(team_env):
     env = team_env
     alert_id = env._config.alerts[0].alert_id
     ip = list(env._config.alerts[0].indicators.get("ip", ["1.2.3.4"]))[0]
-    env.step(SOCAction(action_type=ActionType.ENRICH_INDICATOR, indicator=ip, indicator_type="ip",
-                       query_alert_id=alert_id, role=AgentRole.TIER1))
-    env.step(SOCAction(action_type=ActionType.CLASSIFY_ALERT, alert_id=alert_id,
-                        classification=AlertClassification.TRUE_POSITIVE, role=AgentRole.TIER1))
-    env.step(SOCAction(action_type=ActionType.ESCALATE_TO_TIER2, alert_id=alert_id,
-                        justification="Confirmed TP", role=AgentRole.TIER1))
+    env.step(
+        SOCAction(
+            action_type=ActionType.ENRICH_INDICATOR,
+            indicator=ip,
+            indicator_type="ip",
+            query_alert_id=alert_id,
+            role=AgentRole.TIER1,
+        )
+    )
+    env.step(
+        SOCAction(
+            action_type=ActionType.CLASSIFY_ALERT,
+            alert_id=alert_id,
+            classification=AlertClassification.TRUE_POSITIVE,
+            role=AgentRole.TIER1,
+        )
+    )
+    env.step(
+        SOCAction(
+            action_type=ActionType.ESCALATE_TO_TIER2,
+            alert_id=alert_id,
+            justification="Confirmed TP",
+            role=AgentRole.TIER1,
+        )
+    )
     assert len(env._tickets) == 1
     assert env._tickets[0].kind == TicketKind.ESCALATION
     assert env._tickets[0].from_role == AgentRole.TIER1
@@ -132,8 +169,7 @@ def test_tier1_escalate_to_tier2_creates_ticket(team_env):
 
 def test_tier1_wrong_role_rejected(team_env):
     """A Tier-2 action submitted by tier1 role must be rejected."""
-    obs = team_env.step(SOCAction(action_type=ActionType.ISOLATE_HOST,
-                                   target_host="somehost", role=AgentRole.TIER1))
+    obs = team_env.step(SOCAction(action_type=ActionType.ISOLATE_HOST, target_host="somehost", role=AgentRole.TIER1))
     assert obs.reward < 0
 
 
@@ -146,10 +182,23 @@ def test_over_escalation_penalty(team_env):
     # With 5 escalated out of 1 total alert, ratio > 0.3
     alert_id = env._config.alerts[0].alert_id
     ip = list(env._config.alerts[0].indicators.get("ip", ["1.2.3.4"]))[0]
-    env.step(SOCAction(action_type=ActionType.ENRICH_INDICATOR, indicator=ip, indicator_type="ip",
-                        query_alert_id=alert_id, role=AgentRole.TIER1))
-    obs = env.step(SOCAction(action_type=ActionType.ESCALATE_TO_TIER2, alert_id=alert_id,
-                              justification="escalating", role=AgentRole.TIER1))
+    env.step(
+        SOCAction(
+            action_type=ActionType.ENRICH_INDICATOR,
+            indicator=ip,
+            indicator_type="ip",
+            query_alert_id=alert_id,
+            role=AgentRole.TIER1,
+        )
+    )
+    obs = env.step(
+        SOCAction(
+            action_type=ActionType.ESCALATE_TO_TIER2,
+            alert_id=alert_id,
+            justification="escalating",
+            role=AgentRole.TIER1,
+        )
+    )
     # reward should be penalised vs normal escalation of required alert
     assert obs.reward < 0.20  # penalty applied even on required escalation
 
@@ -158,16 +207,31 @@ def test_over_escalation_penalty(team_env):
 # Phase transitions
 # ---------------------------------------------------------------------------
 
+
 def _escalate_one(env):
     """Helper: escalate the first alert so T1 phase_complete doesn't short-circuit."""
     alert_id = env._config.alerts[0].alert_id
     ip = list(env._config.alerts[0].indicators.get("ip", ["1.2.3.4"]))[0]
-    env.step(SOCAction(action_type=ActionType.ENRICH_INDICATOR, indicator=ip, indicator_type="ip",
-                        query_alert_id=alert_id, role=AgentRole.TIER1))
-    env.step(SOCAction(action_type=ActionType.CLASSIFY_ALERT, alert_id=alert_id,
-                        classification=AlertClassification.TRUE_POSITIVE, role=AgentRole.TIER1))
-    env.step(SOCAction(action_type=ActionType.ESCALATE_TO_TIER2, alert_id=alert_id,
-                        justification="TP", role=AgentRole.TIER1))
+    env.step(
+        SOCAction(
+            action_type=ActionType.ENRICH_INDICATOR,
+            indicator=ip,
+            indicator_type="ip",
+            query_alert_id=alert_id,
+            role=AgentRole.TIER1,
+        )
+    )
+    env.step(
+        SOCAction(
+            action_type=ActionType.CLASSIFY_ALERT,
+            alert_id=alert_id,
+            classification=AlertClassification.TRUE_POSITIVE,
+            role=AgentRole.TIER1,
+        )
+    )
+    env.step(
+        SOCAction(action_type=ActionType.ESCALATE_TO_TIER2, alert_id=alert_id, justification="TP", role=AgentRole.TIER1)
+    )
     return alert_id
 
 
@@ -200,16 +264,36 @@ def test_oversight_submit_ends_episode(team_env):
 # Tier-2 containment tools
 # ---------------------------------------------------------------------------
 
+
 def _advance_to_tier2(env):
     """Helper: run T1 phase with escalation, advance to T2."""
     alert_id = env._config.alerts[0].alert_id
     ip = list(env._config.alerts[0].indicators.get("ip", ["1.2.3.4"]))[0]
-    env.step(SOCAction(action_type=ActionType.ENRICH_INDICATOR, indicator=ip, indicator_type="ip",
-                        query_alert_id=alert_id, role=AgentRole.TIER1))
-    env.step(SOCAction(action_type=ActionType.CLASSIFY_ALERT, alert_id=alert_id,
-                        classification=AlertClassification.TRUE_POSITIVE, role=AgentRole.TIER1))
-    env.step(SOCAction(action_type=ActionType.ESCALATE_TO_TIER2, alert_id=alert_id,
-                        justification="TP confirmed", role=AgentRole.TIER1))
+    env.step(
+        SOCAction(
+            action_type=ActionType.ENRICH_INDICATOR,
+            indicator=ip,
+            indicator_type="ip",
+            query_alert_id=alert_id,
+            role=AgentRole.TIER1,
+        )
+    )
+    env.step(
+        SOCAction(
+            action_type=ActionType.CLASSIFY_ALERT,
+            alert_id=alert_id,
+            classification=AlertClassification.TRUE_POSITIVE,
+            role=AgentRole.TIER1,
+        )
+    )
+    env.step(
+        SOCAction(
+            action_type=ActionType.ESCALATE_TO_TIER2,
+            alert_id=alert_id,
+            justification="TP confirmed",
+            role=AgentRole.TIER1,
+        )
+    )
     env.step(SOCAction(action_type=ActionType.PHASE_COMPLETE, role=AgentRole.TIER1))
     return alert_id
 
@@ -217,8 +301,9 @@ def _advance_to_tier2(env):
 def test_tier2_forensic_timeline(team_env):
     alert_id = _advance_to_tier2(team_env)
     host = list(team_env._config.alerts[0].indicators.get("hostname", ["WORKSTATION-ALPHA"]))[0]
-    obs = team_env.step(SOCAction(action_type=ActionType.FORENSIC_TIMELINE, alert_id=alert_id,
-                                   target_host=host, role=AgentRole.TIER2))
+    obs = team_env.step(
+        SOCAction(action_type=ActionType.FORENSIC_TIMELINE, alert_id=alert_id, target_host=host, role=AgentRole.TIER2)
+    )
     assert len(obs.containment_results) > 0
     assert obs.containment_results[-1].action_type == "forensic_timeline"
     assert obs.containment_results[-1].success is True
@@ -228,6 +313,7 @@ def test_tier2_isolate_host_positive(team_env):
     alert_id = _advance_to_tier2(team_env)
     # Find a host that is actually in a TP alert's indicators for this scenario.
     from models import AlertClassification as _AC
+
     tp_host = None
     for a in team_env._config.alerts:
         gt = team_env._config.ground_truth.alert_classifications.get(a.alert_id)
@@ -238,9 +324,11 @@ def test_tier2_isolate_host_positive(team_env):
                 break
     if tp_host is None:
         pytest.skip("No TP host indicator available in this scenario")
-    obs = team_env.step(SOCAction(action_type=ActionType.ISOLATE_HOST, alert_id=alert_id,
-                                   target_host=tp_host, role=AgentRole.TIER2))
+    obs = team_env.step(
+        SOCAction(action_type=ActionType.ISOLATE_HOST, alert_id=alert_id, target_host=tp_host, role=AgentRole.TIER2)
+    )
     import re
+
     m = re.search(r"role=(-?[\d.]+)", obs.message)
     assert m is not None
     assert float(m.group(1)) > 0, "TP host isolation role-specific reward should be positive"
@@ -249,8 +337,9 @@ def test_tier2_isolate_host_positive(team_env):
 
 def test_tier2_close_case_creates_closure_ticket(team_env):
     alert_id = _advance_to_tier2(team_env)
-    team_env.step(SOCAction(action_type=ActionType.CLOSE_CASE, alert_id=alert_id,
-                              justification="Contained", role=AgentRole.TIER2))
+    team_env.step(
+        SOCAction(action_type=ActionType.CLOSE_CASE, alert_id=alert_id, justification="Contained", role=AgentRole.TIER2)
+    )
     closure_tickets = [t for t in team_env._tickets if t.kind == TicketKind.CLOSURE]
     assert len(closure_tickets) == 1
     assert closure_tickets[0].from_role == AgentRole.TIER2
@@ -260,19 +349,20 @@ def test_tier2_close_case_creates_closure_ticket(team_env):
 # Manager oversight
 # ---------------------------------------------------------------------------
 
+
 def _advance_to_manager(env):
     alert_id = _advance_to_tier2(env)
     host = list(env._config.alerts[0].indicators.get("hostname", ["WORKSTATION-ALPHA"]))[0]
-    env.step(SOCAction(action_type=ActionType.CLOSE_CASE, alert_id=alert_id,
-                        justification="Contained", role=AgentRole.TIER2))
+    env.step(
+        SOCAction(action_type=ActionType.CLOSE_CASE, alert_id=alert_id, justification="Contained", role=AgentRole.TIER2)
+    )
     env.step(SOCAction(action_type=ActionType.PHASE_COMPLETE, role=AgentRole.TIER2))
     return alert_id
 
 
 def test_manager_review_decision_positive(team_env):
     alert_id = _advance_to_manager(team_env)
-    obs = team_env.step(SOCAction(action_type=ActionType.REVIEW_DECISION, alert_id=alert_id,
-                                   role=AgentRole.MANAGER))
+    obs = team_env.step(SOCAction(action_type=ActionType.REVIEW_DECISION, alert_id=alert_id, role=AgentRole.MANAGER))
     assert obs.reward > 0
     assert obs.manager_review_result is not None
     assert obs.manager_review_result.action_type == "review_decision"
@@ -285,8 +375,9 @@ def test_manager_explain_team_behavior_heuristic_score(team_env):
         f"Tier-1 escalated the alert after finding malicious IP indicators. "
         f"Tier-2 isolated the host and blocked the C2 domain. No inconsistencies found."
     )
-    obs = team_env.step(SOCAction(action_type=ActionType.EXPLAIN_TEAM_BEHAVIOR,
-                                   explanation_text=explanation, role=AgentRole.MANAGER))
+    obs = team_env.step(
+        SOCAction(action_type=ActionType.EXPLAIN_TEAM_BEHAVIOR, explanation_text=explanation, role=AgentRole.MANAGER)
+    )
     assert obs.reward > 0
 
 
@@ -296,10 +387,16 @@ def test_manager_flag_inconsistency_spurious_penalty(team_env):
     # In team mode, step_reward = 0.6 * role_specific + 0.4 * team_f1, so the blended
     # total may be positive even when role_specific is negative. Verify the role-specific
     # component (logged in message as "Blended reward: role=X") is negative.
-    obs = team_env.step(SOCAction(action_type=ActionType.FLAG_INCONSISTENCY,
-                                   alert_id="ALT-TEAM-001", flag_reason="Suspicious",
-                                   role=AgentRole.MANAGER))
+    obs = team_env.step(
+        SOCAction(
+            action_type=ActionType.FLAG_INCONSISTENCY,
+            alert_id="ALT-TEAM-001",
+            flag_reason="Suspicious",
+            role=AgentRole.MANAGER,
+        )
+    )
     import re
+
     match = re.search(r"role=(-?[\d.]+)", obs.message)
     assert match is not None, f"Expected blended reward in message, got: {obs.message}"
     role_component = float(match.group(1))
@@ -310,6 +407,7 @@ def test_manager_flag_inconsistency_spurious_penalty(team_env):
 # Team reward and episode score
 # ---------------------------------------------------------------------------
 
+
 def test_full_team_episode_produces_score(team_env):
     """Complete end-to-end team episode must return task_score > 0."""
     env = team_env
@@ -318,24 +416,37 @@ def test_full_team_episode_produces_score(team_env):
     host = list(env._config.alerts[0].indicators.get("hostname", ["WORKSTATION-ALPHA"]))[0]
 
     # T1 phase
-    env.step(SOCAction(action_type=ActionType.ENRICH_INDICATOR, indicator=ip, indicator_type="ip",
-                        query_alert_id=alert_id, role=AgentRole.TIER1))
-    env.step(SOCAction(action_type=ActionType.CLASSIFY_ALERT, alert_id=alert_id,
-                        classification=AlertClassification.TRUE_POSITIVE, role=AgentRole.TIER1))
-    env.step(SOCAction(action_type=ActionType.ESCALATE_TO_TIER2, alert_id=alert_id,
-                        justification="TP", role=AgentRole.TIER1))
+    env.step(
+        SOCAction(
+            action_type=ActionType.ENRICH_INDICATOR,
+            indicator=ip,
+            indicator_type="ip",
+            query_alert_id=alert_id,
+            role=AgentRole.TIER1,
+        )
+    )
+    env.step(
+        SOCAction(
+            action_type=ActionType.CLASSIFY_ALERT,
+            alert_id=alert_id,
+            classification=AlertClassification.TRUE_POSITIVE,
+            role=AgentRole.TIER1,
+        )
+    )
+    env.step(
+        SOCAction(action_type=ActionType.ESCALATE_TO_TIER2, alert_id=alert_id, justification="TP", role=AgentRole.TIER1)
+    )
     env.step(SOCAction(action_type=ActionType.PHASE_COMPLETE, role=AgentRole.TIER1))
 
     # T2 phase
-    env.step(SOCAction(action_type=ActionType.ISOLATE_HOST, alert_id=alert_id,
-                        target_host=host, role=AgentRole.TIER2))
-    env.step(SOCAction(action_type=ActionType.CLOSE_CASE, alert_id=alert_id,
-                        justification="Done", role=AgentRole.TIER2))
+    env.step(SOCAction(action_type=ActionType.ISOLATE_HOST, alert_id=alert_id, target_host=host, role=AgentRole.TIER2))
+    env.step(
+        SOCAction(action_type=ActionType.CLOSE_CASE, alert_id=alert_id, justification="Done", role=AgentRole.TIER2)
+    )
     env.step(SOCAction(action_type=ActionType.PHASE_COMPLETE, role=AgentRole.TIER2))
 
     # Manager phase
-    env.step(SOCAction(action_type=ActionType.REVIEW_DECISION, alert_id=alert_id,
-                        role=AgentRole.MANAGER))
+    env.step(SOCAction(action_type=ActionType.REVIEW_DECISION, alert_id=alert_id, role=AgentRole.MANAGER))
     obs = env.step(SOCAction(action_type=ActionType.SUBMIT_INVESTIGATION, role=AgentRole.MANAGER))
 
     assert obs.done is True
@@ -353,8 +464,15 @@ def test_team_reward_breakdown_per_role(team_env):
     env = team_env
     alert_id = env._config.alerts[0].alert_id
     ip = list(env._config.alerts[0].indicators.get("ip", ["1.2.3.4"]))[0]
-    env.step(SOCAction(action_type=ActionType.ENRICH_INDICATOR, indicator=ip, indicator_type="ip",
-                        query_alert_id=alert_id, role=AgentRole.TIER1))
+    env.step(
+        SOCAction(
+            action_type=ActionType.ENRICH_INDICATOR,
+            indicator=ip,
+            indicator_type="ip",
+            query_alert_id=alert_id,
+            role=AgentRole.TIER1,
+        )
+    )
     t1_pre = env._tier1_reward
     env.step(SOCAction(action_type=ActionType.PHASE_COMPLETE, role=AgentRole.TIER1))
     assert env._tier2_reward == 0.0  # T2 hasn't acted yet
@@ -365,14 +483,23 @@ def test_team_reward_breakdown_per_role(team_env):
 # Ticket visibility (role-filtered observations)
 # ---------------------------------------------------------------------------
 
+
 def test_tier2_sees_escalation_tickets_only(team_env):
     env = team_env
     alert_id = env._config.alerts[0].alert_id
     ip = list(env._config.alerts[0].indicators.get("ip", ["1.2.3.4"]))[0]
-    env.step(SOCAction(action_type=ActionType.ENRICH_INDICATOR, indicator=ip, indicator_type="ip",
-                        query_alert_id=alert_id, role=AgentRole.TIER1))
-    env.step(SOCAction(action_type=ActionType.ESCALATE_TO_TIER2, alert_id=alert_id,
-                        justification="TP", role=AgentRole.TIER1))
+    env.step(
+        SOCAction(
+            action_type=ActionType.ENRICH_INDICATOR,
+            indicator=ip,
+            indicator_type="ip",
+            query_alert_id=alert_id,
+            role=AgentRole.TIER1,
+        )
+    )
+    env.step(
+        SOCAction(action_type=ActionType.ESCALATE_TO_TIER2, alert_id=alert_id, justification="TP", role=AgentRole.TIER1)
+    )
     env.step(SOCAction(action_type=ActionType.PHASE_COMPLETE, role=AgentRole.TIER1))
     obs = env._build_observation(role=AgentRole.TIER2, reward=0.0)
     assert any(t.kind == TicketKind.ESCALATION for t in obs.tickets)
@@ -382,10 +509,18 @@ def test_tier2_sees_only_escalated_alerts(team_env):
     env = team_env
     alert_id = env._config.alerts[0].alert_id
     ip = list(env._config.alerts[0].indicators.get("ip", ["1.2.3.4"]))[0]
-    env.step(SOCAction(action_type=ActionType.ENRICH_INDICATOR, indicator=ip, indicator_type="ip",
-                        query_alert_id=alert_id, role=AgentRole.TIER1))
-    env.step(SOCAction(action_type=ActionType.ESCALATE_TO_TIER2, alert_id=alert_id,
-                        justification="TP", role=AgentRole.TIER1))
+    env.step(
+        SOCAction(
+            action_type=ActionType.ENRICH_INDICATOR,
+            indicator=ip,
+            indicator_type="ip",
+            query_alert_id=alert_id,
+            role=AgentRole.TIER1,
+        )
+    )
+    env.step(
+        SOCAction(action_type=ActionType.ESCALATE_TO_TIER2, alert_id=alert_id, justification="TP", role=AgentRole.TIER1)
+    )
     env.step(SOCAction(action_type=ActionType.PHASE_COMPLETE, role=AgentRole.TIER1))
     obs = env._build_observation(role=AgentRole.TIER2, reward=0.0)
     assert all(a.alert_id in env._escalated_alert_ids for a in obs.alert_queue)
@@ -401,6 +536,7 @@ def test_tier1_does_not_see_tier2_tickets(team_env):
 # ---------------------------------------------------------------------------
 # Team-mode graders
 # ---------------------------------------------------------------------------
+
 
 def test_team_grader_perfect_score():
     from graders.team_grader import TeamGrader
@@ -441,6 +577,7 @@ def test_red_team_grader_inverse_of_blue():
 # ---------------------------------------------------------------------------
 # Red-Team Generator
 # ---------------------------------------------------------------------------
+
 
 def test_red_team_generator_deterministic():
     from models import RedTeamConfig
@@ -485,6 +622,7 @@ def test_red_team_adapt_difficulty_decreases():
 # ---------------------------------------------------------------------------
 # HTTP API — team endpoints
 # ---------------------------------------------------------------------------
+
 
 def test_api_reset_team_mode(app_client):
     resp = app_client.post("/reset", json={"task_id": "team_phishing_escalation", "seed": 42, "mode": "team"})
@@ -531,16 +669,31 @@ def test_api_team_lateral_team_reset(app_client):
 # Regression tests for reward-hack / correctness fixes (B1-B6)
 # ---------------------------------------------------------------------------
 
+
 def test_team_f1_delta_not_sticky(team_env):
     """After classifying correctly, NOOP spam must NOT keep yielding team_f1 reward."""
     alert_id = team_env._config.alerts[0].alert_id
     ip = list(team_env._config.alerts[0].indicators.get("ip", ["1.2.3.4"]))[0]
-    team_env.step(SOCAction(action_type=ActionType.ENRICH_INDICATOR, indicator=ip,
-                             indicator_type="ip", query_alert_id=alert_id, role=AgentRole.TIER1))
-    team_env.step(SOCAction(action_type=ActionType.CLASSIFY_ALERT, alert_id=alert_id,
-                             classification=AlertClassification.TRUE_POSITIVE, role=AgentRole.TIER1))
+    team_env.step(
+        SOCAction(
+            action_type=ActionType.ENRICH_INDICATOR,
+            indicator=ip,
+            indicator_type="ip",
+            query_alert_id=alert_id,
+            role=AgentRole.TIER1,
+        )
+    )
+    team_env.step(
+        SOCAction(
+            action_type=ActionType.CLASSIFY_ALERT,
+            alert_id=alert_id,
+            classification=AlertClassification.TRUE_POSITIVE,
+            role=AgentRole.TIER1,
+        )
+    )
 
     import re
+
     team_components = []
     for _ in range(5):
         obs = team_env.step(SOCAction(action_type=ActionType.NOOP, role=AgentRole.TIER1))
@@ -549,18 +702,24 @@ def test_team_f1_delta_not_sticky(team_env):
             team_components.append(float(m.group(1)))
 
     # Delta should be ~0 on every NOOP after the classification-driven delta was consumed.
-    assert all(abs(t) < 0.01 for t in team_components[1:]), \
+    assert all(abs(t) < 0.01 for t in team_components[1:]), (
         f"team_f1 delta should be ~0 after consumption, got {team_components}"
+    )
 
 
 def test_close_case_idempotency(team_env):
     """Second close_case on same alert must yield negative reward (no farming)."""
     alert_id = _advance_to_tier2(team_env)
-    obs1 = team_env.step(SOCAction(action_type=ActionType.CLOSE_CASE, alert_id=alert_id,
-                                     justification="Contained", role=AgentRole.TIER2))
-    obs2 = team_env.step(SOCAction(action_type=ActionType.CLOSE_CASE, alert_id=alert_id,
-                                     justification="Contained again", role=AgentRole.TIER2))
+    obs1 = team_env.step(
+        SOCAction(action_type=ActionType.CLOSE_CASE, alert_id=alert_id, justification="Contained", role=AgentRole.TIER2)
+    )
+    obs2 = team_env.step(
+        SOCAction(
+            action_type=ActionType.CLOSE_CASE, alert_id=alert_id, justification="Contained again", role=AgentRole.TIER2
+        )
+    )
     import re
+
     m = re.search(r"role=(-?[\d.]+)", obs2.message)
     assert m is not None
     assert float(m.group(1)) < 0, "Duplicate close_case should be penalized"
@@ -600,16 +759,109 @@ def test_over_escalation_threshold_off_by_one():
     env._escalated_alert_ids = [f"fake-{i}" for i in range(2)]  # already 2/8=0.25 (boundary)
     alert_id = env._config.alerts[0].alert_id
     ip = list(env._config.alerts[0].indicators.get("ip", ["1.2.3.4"]))[0]
-    env.step(SOCAction(action_type=ActionType.ENRICH_INDICATOR, indicator=ip,
-                        indicator_type="ip", query_alert_id=alert_id, role=AgentRole.TIER1))
-    env.step(SOCAction(action_type=ActionType.CLASSIFY_ALERT, alert_id=alert_id,
-                        classification=AlertClassification.TRUE_POSITIVE, role=AgentRole.TIER1))
-    obs = env.step(SOCAction(action_type=ActionType.ESCALATE_TO_TIER2, alert_id=alert_id,
-                              justification="escalating", role=AgentRole.TIER1))
+    env.step(
+        SOCAction(
+            action_type=ActionType.ENRICH_INDICATOR,
+            indicator=ip,
+            indicator_type="ip",
+            query_alert_id=alert_id,
+            role=AgentRole.TIER1,
+        )
+    )
+    env.step(
+        SOCAction(
+            action_type=ActionType.CLASSIFY_ALERT,
+            alert_id=alert_id,
+            classification=AlertClassification.TRUE_POSITIVE,
+            role=AgentRole.TIER1,
+        )
+    )
+    obs = env.step(
+        SOCAction(
+            action_type=ActionType.ESCALATE_TO_TIER2,
+            alert_id=alert_id,
+            justification="escalating",
+            role=AgentRole.TIER1,
+        )
+    )
     # 3/8 = 0.375 > 0.25 triggers penalty
     import re
+
     m = re.search(r"role=(-?[\d.]+)", obs.message)
     assert m is not None
     role_component = float(m.group(1))
     # Normal escalation reward is higher; penalty (-0.08) applied should lower it substantially
     assert role_component < 0.20
+
+
+# ---------------------------------------------------------------------------
+# Only the Manager may finalise a team episode
+# ---------------------------------------------------------------------------
+
+
+def _advance_to(env, role):
+    """Drive the episode with the scripted team policy until `role` is acting."""
+    from train_grpo import oracle_action
+
+    obs = env._build_observation(role=env._current_role(), reward=0.0).model_dump(mode="json")
+    while (obs.get("current_role") or "tier1") != role:
+        assert not obs["done"], f"episode ended before {role} acted"
+        obs = env.step(SOCAction.model_validate(oracle_action(obs))).model_dump(mode="json")
+    return obs
+
+
+@pytest.mark.parametrize("role", ["tier1", "tier2"])
+def test_non_manager_cannot_submit_in_team_mode(role):
+    """Regression: the submit shortcut ran before the role check, so tier-1 (and
+    tier-2, whose action set never allowed it) could end the episode mid-triage."""
+    env = SOCEnvironment()
+    env.reset("team_phishing_escalation", seed=42, mode="team")
+    _advance_to(env, role)
+    phase_before = env._phase
+    obs = env.step(SOCAction(action_type="submit_investigation", role=role))
+    assert not obs.done
+    assert env._phase == phase_before
+    assert obs.reward < 0
+    assert f"not allowed for role {role}" in obs.message
+
+
+def test_manager_can_still_submit():
+    env = SOCEnvironment()
+    env.reset("team_phishing_escalation", seed=42, mode="team")
+    _advance_to(env, "manager")
+    obs = env.step(SOCAction(action_type="submit_investigation", role="manager"))
+    assert obs.done and obs.task_score is not None
+
+
+def test_tier1_submit_after_correct_triage_no_longer_ends_episode():
+    """The trap end to end: correct triage, then the old 'call submit' hint."""
+    env = SOCEnvironment()
+    obs = env.reset("team_phishing_escalation", seed=100, mode="team")
+    alert = obs.alert_queue[0]
+    env.step(
+        SOCAction(
+            action_type="enrich_indicator", indicator=alert.indicators["ip"][0], indicator_type="ip", role="tier1"
+        )
+    )
+    env.step(
+        SOCAction(action_type="classify_alert", alert_id=alert.alert_id, classification="true_positive", role="tier1")
+    )
+    obs = env.step(SOCAction(action_type="submit_investigation", role="tier1"))
+    assert not obs.done, "tier-1 must not be able to skip Tier-2 and the Manager"
+    env.step(SOCAction(action_type="escalate_to_tier2", alert_id=alert.alert_id, role="tier1"))
+    obs = env.step(SOCAction(action_type="phase_complete", role="tier1"))
+    assert obs.current_role.value == "tier2"
+
+
+def test_submit_rejected_without_role_field():
+    """Clients that omit `role` are attributed to the acting role and still blocked."""
+    env = SOCEnvironment()
+    env.reset("team_phishing_escalation", seed=42, mode="team")
+    obs = env.step(SOCAction(action_type="submit_investigation"))
+    assert not obs.done
+
+
+def test_solo_mode_submit_unchanged():
+    env = SOCEnvironment()
+    env.reset("phishing", seed=42)
+    assert env.step(SOCAction(action_type="submit_investigation")).done

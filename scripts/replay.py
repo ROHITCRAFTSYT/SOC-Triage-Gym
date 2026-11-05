@@ -16,6 +16,7 @@ re-run any reward number in our leaderboard themselves — credibility win.
 Also runnable without a live server: pass --in-process to replay via
 SOCEnvironment directly.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -90,11 +91,14 @@ def _replay_http(events: Iterable[dict], base_url: str) -> list[float]:
     for ev in events:
         kind = ev.get("kind")
         if kind == "reset":
-            _post("/reset", {
-                "task_id": ev.get("task_id", "phishing"),
-                "seed": ev.get("seed", 42),
-                "mode": ev.get("mode", "tier1_solo"),
-            })
+            _post(
+                "/reset",
+                {
+                    "task_id": ev.get("task_id", "phishing"),
+                    "seed": ev.get("seed", 42),
+                    "mode": ev.get("mode", "tier1_solo"),
+                },
+            )
         elif kind == "step":
             obs = _post("/step", ev["action"])
             rewards.append(float(obs.get("reward", 0.0)))
@@ -105,10 +109,8 @@ def main() -> int:
     p = argparse.ArgumentParser(description="Deterministic SOC-Triage-Gym episode replay.")
     p.add_argument("episode_file", type=Path)
     p.add_argument("--base-url", default="http://localhost:7860")
-    p.add_argument("--in-process", action="store_true",
-                   help="Replay via SOCEnvironment directly (no HTTP).")
-    p.add_argument("--expected-total", type=float, default=None,
-                   help="If provided, assert cumulative reward matches.")
+    p.add_argument("--in-process", action="store_true", help="Replay via SOCEnvironment directly (no HTTP).")
+    p.add_argument("--expected-total", type=float, default=None, help="If provided, assert cumulative reward matches.")
     p.add_argument("--tolerance", type=float, default=1e-6)
     args = p.parse_args()
 
@@ -121,11 +123,7 @@ def main() -> int:
         print("[replay] empty episode file", file=sys.stderr)
         return 2
 
-    rewards = (
-        _replay_in_process(events)
-        if args.in_process
-        else _replay_http(events, args.base_url)
-    )
+    rewards = _replay_in_process(events) if args.in_process else _replay_http(events, args.base_url)
 
     total = sum(rewards)
     print(f"[replay] {len(rewards)} steps replayed, cumulative reward = {total:.6f}")
@@ -134,8 +132,7 @@ def main() -> int:
         diff = abs(total - args.expected_total)
         if diff > args.tolerance:
             print(
-                f"[replay] FAIL: expected {args.expected_total:.6f} "
-                f"got {total:.6f} (|Δ|={diff:.2e})",
+                f"[replay] FAIL: expected {args.expected_total:.6f} got {total:.6f} (|Δ|={diff:.2e})",
                 file=sys.stderr,
             )
             return 1
