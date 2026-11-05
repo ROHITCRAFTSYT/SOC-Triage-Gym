@@ -30,12 +30,34 @@ loosely follows [Semantic Versioning](https://semver.org/).
   of the few non-negative actions an untrained policy could find. The penalty
   now reaches the step reward, and applies only when the scenario requires an
   escalation.
+- Team-mode feedback told Tier-1 "All alerts classified. Call
+  submit_investigation to finalize." In team mode that ends the whole episode
+  and skips Tier-2 and the Manager: a correctly-triaging policy that followed
+  the hint scored 0.001 (vs 0.999 escalating). Team mode now says to escalate
+  true positives and phase_complete; solo mode is unchanged.
 - Held-out text-policy eval (`scripts/train_and_evaluate.py`) aborted an
   episode on the first rejected action and kept nothing but the score. It now
   records every completion (parse quality, action type, env response) to
   `eval_trace.jsonl`, adds a diagnostics block to `training_summary.json`, and
   continues past rejected actions. At least five distinct failure modes all
   score exactly 0.001 on team tasks, so the score alone can't say why.
+
+### Changed (training — invalidates comparison with the published adapter)
+- LLM-policy prompts moved to `training/prompts.py` and rewritten. The old
+  observation prompt hid the agent's own progress (classifications, evidence,
+  escalations) and the env's feedback, showed only IP indicators, and the
+  system prompt listed no action fields or allowed values. The new one shows
+  per-alert status, the last result, all indicator types (hashes for Tier-2
+  only), and field schemas generated from the `models` enums. The prompt's
+  step number now comes from the env, fixing a train (0-based) / eval
+  (1-based) mismatch. A text-only policy reading just this prompt matches the
+  full-observation heuristic (0.999 / 0.800 on the team tasks).
+- `max_prompt_length` 512 → 768 (worst case is ~676 Qwen2.5 tokens), eval
+  `max_seq_length` 768 → 1024, notebook `max_seq_length` 768 → 896.
+  `check_prompt_budget` tokenises every training prompt with the real
+  tokenizer and fails if any would be truncated (TRL truncates from the left,
+  dropping the system prompt first). The notebook's 3B default may now exceed
+  T4 memory; the published adapter is 1.5B.
 
 ### Added
 - `baselines.py` (submit / random / heuristic / oracle agents + in-process

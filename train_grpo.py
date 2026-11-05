@@ -38,6 +38,7 @@ import httpx
 
 from training.curriculum import default_team_curriculum
 from training.evaluation import DEFAULT_EVAL_SEEDS, evaluate_policy
+from training.prompts import ROLE_SYSTEM_PROMPTS, check_prompt_budget, format_obs_prompt
 from training.rewards import (
     CompletionItem,
     ParallelRewardEvaluator,
@@ -78,29 +79,9 @@ MANAGER_TASKS = _default_tier1
 _n_seeds = int(os.getenv("SOC_TRAIN_N_SEEDS", "50"))
 SEEDS = list(range(42, 42 + _n_seeds))
 
-# Per-role system prompts (must match inference.py)
-ROLE_SYSTEM_PROMPTS = {
-    "tier1": (
-        "You are a Tier-1 SOC Analyst. Triage incoming security alerts quickly and accurately.\n"
-        "Respond with a JSON action. Available actions: enrich_indicator, query_logs, correlate_alerts,\n"
-        "check_asset, check_user, classify_alert, map_technique, recommend_action,\n"
-        "escalate_to_tier2, phase_complete, noop.\n"
-        'Always include: {"action_type": "...", "role": "tier1", ...}\n'
-        "Escalate to Tier-2 only confirmed true positives needing containment."
-    ),
-    "tier2": (
-        "You are a Tier-2 SOC Responder. Investigate escalated tickets and contain confirmed threats.\n"
-        "Respond with a JSON action. Available actions: forensic_timeline, sandbox_detonate,\n"
-        "memory_analysis, isolate_host, disable_user, block_ioc, close_case, phase_complete, noop.\n"
-        'Always include: {"action_type": "...", "role": "tier2", ...}'
-    ),
-    "manager": (
-        "You are a SOC Manager. Review team decisions, catch inconsistencies, and explain behavior.\n"
-        "Respond with a JSON action. Available actions: review_decision, override_classification,\n"
-        "flag_inconsistency, explain_team_behavior, phase_complete, noop.\n"
-        'Always include: {"action_type": "...", "role": "manager", ...}'
-    ),
-}
+# Per-role system prompts and the observation formatter live in
+# training/prompts.py (shared by training, held-out eval and the in-training
+# eval policy). inference.py is a separate API-driven agent with its own prompts.
 
 
 # ---------------------------------------------------------------------------
@@ -398,29 +379,6 @@ def replay_to_step(
     return obs
 
 
-def format_obs_prompt(obs: dict, role: str, step: int) -> str:
-    alerts = obs.get("alert_queue", [])
-    tickets = obs.get("tickets") or []
-    phase = obs.get("current_phase", "triage")
-    budget = obs.get("phase_steps_remaining", 40)
-
-    lines = [
-        f"=== SOC OBSERVATION | role={role} phase={phase} step={step} budget={budget} ===",
-        f"Alerts ({len(alerts)}):",
-    ]
-    for a in alerts[:5]:  # cap at 5 to fit context
-        lines.append(
-            f"  [{a['alert_id']}] {a.get('title', '')} | severity={a.get('severity', '')} "
-            f"| IPs={list(a.get('indicators', {}).get('ip', []))}"
-        )
-    if tickets:
-        lines.append(f"Tickets ({len(tickets)}):")
-        for t in tickets[:3]:
-            lines.append(f"  [{t.get('ticket_id', '')}] kind={t.get('kind', '')} alert={t.get('alert_id', '')}")
-    lines.append("Respond with a single JSON action.")
-    return "\n".join(lines)
-
-
 # ---------------------------------------------------------------------------
 # Reward function (called by GRPOTrainer)
 # ---------------------------------------------------------------------------
@@ -573,7 +531,10 @@ def train(
     per_device_train_batch_size: int = 2,
     gradient_accumulation_steps: int = 4,
     num_generations: int = 8,  # GRPO group size — must match plan (group=8)
-    max_prompt_length: int = 512,
+    # 768: the training/prompts.py observation shows per-alert progress and
+    # the env's feedback (worst case ~680 Qwen tokens). TRL truncates longer
+    # prompts from the left, i.e. the system prompt is lost first.
+    max_prompt_length: int = 768,
     max_completion_length: int = 256,
     learning_rate: float = 5e-6,
     output_dir: str = None,
@@ -774,6 +735,8 @@ def train(
         _grpo_params = set(inspect.signature(GRPOConfig.__init__).parameters)
 
         def _to_hf_dataset(rows: list[dict]) -> Dataset:
+            longest = check_prompt_budget(rows, tokenizer, max_prompt_length)
+            print(f"  prompt budget OK: longest {longest}/{max_prompt_length} tokens over {len(rows)} prompts")
             return Dataset.from_list(
                 [
                     {

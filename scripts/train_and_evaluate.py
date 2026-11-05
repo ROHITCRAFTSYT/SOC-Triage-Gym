@@ -158,7 +158,7 @@ def evaluate() -> dict:
     print("\n[eval] loading trained checkpoint ...")
     model, tokenizer = FastLanguageModel.from_pretrained(
         model_name=str(CKPT_DIR),
-        max_seq_length=768,
+        max_seq_length=1024,  # prompt up to 768 tokens + 128 generated
         dtype=None,
         load_in_4bit=True,
     )
