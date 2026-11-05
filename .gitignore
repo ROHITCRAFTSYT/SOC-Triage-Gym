@@ -22,3 +22,9 @@ checkpoints/
 Thumbs.db
 .claude/
 python
+
+# Coverage output (pytest --cov)
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
