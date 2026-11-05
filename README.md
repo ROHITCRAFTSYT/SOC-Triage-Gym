@@ -21,7 +21,6 @@ tags:
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ROHITCRAFTSYT/SOC-Triage-Gym/blob/main/soc_triage_gym_v2_training.ipynb)
 [![HF Space](https://img.shields.io/badge/🤗%20Space-rohitcraftsyt%2Fopenenv2-yellow)](https://huggingface.co/spaces/rohitcraftsyt/openenv2)
 [![Trained Model](https://img.shields.io/badge/🤗%20Model-rohitcraftsyt%2Fsoc--grpo--tier1-blue)](https://huggingface.co/rohitcraftsyt/soc-grpo-tier1)
-[![Tests](https://img.shields.io/badge/tests-162%20passing-brightgreen)](tests/)
 [![CI](https://github.com/ROHITCRAFTSYT/SOC-Triage-Gym/actions/workflows/ci.yml/badge.svg)](.github/workflows/ci.yml)
 [![Ruff](https://img.shields.io/badge/lint-ruff-261230?logo=ruff&logoColor=white)](pyproject.toml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -34,7 +33,7 @@ Primary: **Theme #1 Multi-Agent Interactions**
 Sub-theme bonus prizes claimed: **Fleet AI** · **Halluminate** · **Mercor** · **Patronus AI** · **Scaler AI Labs** · **Snorkel AI**
 Also covers: **Theme #2 Long-Horizon Planning** · **Theme #3.1 Professional Tasks** · **Theme #4 Self-Improvement**
 
-The first OpenEnv environment that trains and evaluates AI agents as a coordinated SOC team — not a single analyst — across **8 tasks** spanning single-alert triage up to a **250-step APT campaign**, with mid-episode schema drift, rotating expert judges, token-length-scaled rewards, and three external NPC actors feeding into the inbox. Training uses **RLVR** (verifiable programmatic graders) inside an **RLVE** loop (adaptive Red-Team Generator).
+The first OpenEnv environment that trains and evaluates AI agents as a coordinated SOC team — not a single analyst — across **10 tasks** spanning single-alert triage up to a **250-step APT campaign**, with mid-episode schema drift, rotating expert judges, token-length-scaled rewards, and three external NPC actors feeding into the inbox. Training uses **RLVR** (verifiable programmatic graders) inside an **RLVE** loop (adaptive Red-Team Generator).
 
 > **Judge fast-path:** `bash scripts/quickstart.sh` — installs deps, starts the env, prints the theme-coverage manifest, and runs the 5-beat walkthrough. ~60 seconds. A shorter "why should I care" read is in [JUDGES_START_HERE.md](JUDGES_START_HERE.md).
 
@@ -59,7 +58,45 @@ A real Security Operations Center has three tiers: Tier-1 triages alerts and esc
 
 ## Architecture
 
+```mermaid
+flowchart LR
+    subgraph Clients
+        A1["LLM / RL policy<br/>(inference.py, train_grpo.py)"]
+        A2["Baseline agents<br/>(baselines.py)"]
+        A3["MCP clients"]
+    end
+
+    subgraph Server["FastAPI server (server/app.py)"]
+        direction TB
+        MW["Middleware<br/>request-ID + JSON access log → metrics → API key / rate limit"]
+        API["/reset · /step · /state · /grader · /mcp"]
+        SM["SessionManager<br/>one env per X-Session-ID, TTL + cap"]
+        MW --> API --> SM
+    end
+
+    subgraph Env["SOCEnvironment (server/environment.py)"]
+        direction TB
+        SC["Scenario generators<br/>scenarios/ · seeded RNG, fixed clock"]
+        TL["Tools<br/>enrich · logs · correlate · contain · oversight"]
+        FSM["Team phase FSM<br/>Tier-1 → Tier-2 → Manager"]
+        GR["Graders<br/>graders/ · deterministic 0–1 scores"]
+        SC --> TL --> GR
+        FSM --- TL
+    end
+
+    A1 & A3 -->|HTTP / JSON-RPC| MW
+    A2 -->|in-process| Env
+    SM --> Env
+    Env --> OUT["Audit trail (JSONL) · Prometheus /metrics · structured logs"]
+```
+
+Every request goes through the middleware stack, picks up its session's isolated environment, and is answered from in-memory scenario state (no disk I/O inside an episode). Same `(task_id, seed, actions)` gives the same observations and rewards. That guarantee is enforced by [`tests/test_trajectory_determinism.py`](tests/test_trajectory_determinism.py) and by the benchmark's repeat check in CI.
+
+<details><summary>Original v2 architecture poster</summary>
+
 ![SOC-Triage-Gym v2 architecture](docs/architecture.svg)
+
+</details>
 
 **Reward blend per step:**
 ```
@@ -203,8 +240,41 @@ See [`soc_triage_gym_v2_training.ipynb`](soc_triage_gym_v2_training.ipynb) for t
 
 ## Quick Start
 
+**1. Install and check it works (no GPU, no API key):**
+
 ```bash
 pip install -e ".[dev]"
+make test              # ~420 tests, ~5 s
+make benchmark         # baseline leaderboard + determinism check, ~2 s
+```
+
+**2. Use the environment in-process (Python API):**
+
+```python
+from models import SOCAction
+from server.environment import SOCEnvironment
+
+env = SOCEnvironment()
+obs = env.reset("phishing", seed=42)                    # same seed -> same episode
+alert = obs.alert_queue[0]
+obs = env.step(SOCAction(action_type="query_logs", log_source="email_gateway",
+                         query_alert_id=alert.alert_id))
+obs = env.step(SOCAction(action_type="classify_alert", alert_id=alert.alert_id,
+                         classification="true_positive", confidence=0.9))
+obs = env.step(SOCAction(action_type="submit_investigation"))
+print(obs.task_score, env.grade_with_breakdown()[1])
+```
+
+**3. Run the server in Docker (non-root, JSON logs, healthcheck):**
+
+```bash
+docker compose up -d
+curl -s localhost:7860/health
+```
+
+**4. Or run it directly:**
+
+```bash
 
 # Fastest path — runs server + hits all 5 §19 judge-demo beats in one command:
 python demo.py
@@ -244,6 +314,36 @@ python scripts/hf_publish.py --space
 ```
 
 The script autogenerates a model card from `training_summary.json` (training config, results, env links). See [scripts/hf_publish.py](scripts/hf_publish.py) for options.
+
+---
+
+## Leaderboard
+
+Reference policies on every task: mean ± std task score over 5 seeds. Produced by [`benchmark.py`](benchmark.py) and committed in [`benchmarks/results.md`](benchmarks/results.md). CI fails if this table no longer matches the code.
+
+| Task | `submit` | `random` | `heuristic` | `oracle` |
+|---|---:|---:|---:|---:|
+| `phishing` | 0.001 ± 0.000 | 0.116 ± 0.083 | 0.673 ± 0.267 | 0.880 ± 0.098 |
+| `ransomware` | 0.001 ± 0.000 | 0.198 ± 0.261 | 0.760 ± 0.196 | 0.880 ± 0.098 |
+| `cloud_compromise` | 0.001 ± 0.000 | 0.238 ± 0.314 | 0.705 ± 0.159 | 0.940 ± 0.049 |
+| `lateral_movement` | 0.001 ± 0.000 | 0.051 ± 0.065 | 0.710 ± 0.000 | 0.750 ± 0.000 |
+| `queue_management` | 0.001 ± 0.000 | 0.027 ± 0.038 | 0.885 ± 0.000 | 0.920 ± 0.004 |
+| `insider_threat` | 0.001 ± 0.000 | 0.032 ± 0.035 | 0.782 ± 0.000 | 0.897 ± 0.006 |
+| `apt_campaign` | 0.001 ± 0.000 | 0.002 ± 0.002 | 0.640 ± 0.005 | 0.800 ± 0.000 |
+| `team_phishing_escalation` | 0.001 ± 0.000 | 0.001 ± 0.000 | 0.999 ± 0.000 | n/a |
+| `team_lateral_team` | 0.001 ± 0.000 | 0.001 ± 0.000 | 0.800 ± 0.000 | n/a |
+| **Mean over tasks** | **0.001** | **0.074** | **0.773** | **0.867** |
+
+Task score in [0.001, 0.999], mean ± population std over seeds 42, 123, 256, 789, 1024. Determinism: PASS (2 repeats per cell).
+
+| Agent | What it is |
+|---|---|
+| `submit` | Submits immediately. The zero-effort floor; must score ~0 or the grader is paying for inaction. |
+| `random` | Uniform over role-valid actions with parameters drawn from the observation (seeded). |
+| `heuristic` | Observation-only rules: [`baseline_agent.py`](baseline_agent.py) solo, `train_grpo.oracle_action` in team mode. |
+| `oracle` | **Privileged**: reads ground truth and plays the grader checklist within 75% of the step budget. It is a reference ceiling, not a competitor, and is solo-only. |
+
+To add your agent, implement `reset(task_id, seed, mode, config)` and `act(obs) -> action dict` (see [`baselines.py`](baselines.py)), register it in `AGENTS`, and run `python benchmark.py --agents yours,heuristic,oracle`.
 
 ---
 
@@ -329,7 +429,7 @@ The notebook is designed so **cells 1-7 run on free-tier Colab in ~8 minutes and
 
 | Guide criterion | Weight | What's committed here | Where to look |
 | --- | --- | --- | --- |
-| Environment Innovation | 40 % | 8 tasks, 3-role team with ticket bus + phase FSM, 250-step APT campaign, rotating expert judges, mid-episode schema drift, adaptive red-team curriculum | [`server/app.py`](server/app.py), [`server/environment.py`](server/environment.py), [`scenarios/red_team_generator.py`](scenarios/red_team_generator.py) |
+| Environment Innovation | 40 % | 10 tasks, 3-role team with ticket bus + phase FSM, 250-step APT campaign, rotating expert judges, mid-episode schema drift, adaptive red-team curriculum | [`server/app.py`](server/app.py), [`server/environment.py`](server/environment.py), [`scenarios/red_team_generator.py`](scenarios/red_team_generator.py) |
 | Storytelling | 30 % | This README, dossier-styled landing page, `/ui/themes`, `/ui/metadata`, one-command `demo.py` | [live Space](https://huggingface.co/spaces/rohitcraftsyt/openenv2), [`demo.py`](demo.py) |
 | Showing Improvement | 20 % | Oracle ceiling (0.90) + random floor (0.063) committed; Δ=+0.836 learnable gap; Colab notebook produces the trained line on the same axes | `reward_comparison_baseline_tier1.png`, notebook cell 4b / cell 11 |
 | Reward & pipeline | 10 % | 6 layered programmatic graders, 162 pytest assertions including 6 named reward-hacking regressions, per-step GRPO (not trajectory-averaged) | [`graders/`](graders/), [`tests/`](tests/), [`train_grpo.py`](train_grpo.py) |
@@ -341,7 +441,7 @@ The notebook is designed so **cells 1-7 run on free-tier Colab in ~8 minutes and
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
 | `/health` | GET | Liveness check |
-| `/tasks` | GET | All 8 tasks |
+| `/tasks` | GET | All 10 tasks |
 | `/reset` | POST | Start episode |
 | `/step` | POST | Submit action |
 | `/state` | GET | Current state |
@@ -398,8 +498,12 @@ Dense step rewards for productive investigation. Final score on submit/phase_com
 ## Test Coverage
 
 ```
-162 passed, 1 skipped
+424 passed, 1 skipped    # pytest -q --cov=.  (66% line coverage, tests excluded)
 ```
+
+New in this release: [`test_rewards.py`](tests/test_rewards.py) (score bounds, inaction earns nothing, heuristic > random, oracle ≥ heuristic, loop-penalty and anti-guessing behaviour), [`test_trajectory_determinism.py`](tests/test_trajectory_determinism.py) (byte-identical rollouts in solo and team mode), [`test_registry_consistency.py`](tests/test_registry_consistency.py) (every advertised task has a grader and is fully scorable), [`test_api_validation.py`](tests/test_api_validation.py), [`test_logging.py`](tests/test_logging.py), and [`test_benchmark.py`](tests/test_benchmark.py) (committed leaderboard is fresh).
+
+Earlier coverage:
 
 Coverage includes: solo backward-compat, team phase state machine, ticket bus, containment tools, manager oversight, team grader, red-team generator, reward-hack regression tests (close_case idempotency, team_f1 delta, zero-escalation guard, over-escalation threshold, manager judge fallback), **plus new v3 theme-coverage tests**: multi-actor determinism & role routing, policy-drift schedule & active-at semantics, token-bonus floor/cap/monotonicity, expert-panel rotation & weight shift, ticketing cross-app rule, apt_campaign narrative reward growth, and **cross-scenario generation determinism** (every registered scenario is byte-identical for a fixed seed and seed-sensitive — the guarantee the whole "same seed → same state" replay rests on).
 
@@ -420,7 +524,8 @@ soc-triage-gym/
   models.py         Pydantic v2 types (incl. ActorMessage, PolicyVersion, RewardBlendConfig, ExpertProfile, TicketSLA)
   train_grpo.py     Per-step GRPO training script (Unsloth merged-16bit save path)
   inference.py      Scripted oracle baseline
-  benchmark.py      Multi-seed determinism + score benchmark across 5 solo tasks
+  benchmark.py      Baseline leaderboard + determinism check across all 9 tasks
+  baselines.py      submit / random / heuristic / oracle agents + in-process runner
   demo.py           One-command judge demo (guide §19 format)
   demo_live.py      Presenter-paced five-act live demo (see DEMO_RUNBOOK.md)
   cli.py            soc-gym CLI (serve · demo · benchmark · tasks · techniques · validate · check-scenarios)
@@ -546,9 +651,22 @@ soc-gym validate --url http://localhost:7860 --api-key "$SOC_GYM_API_KEY"
 | Auto-fix + format | `make fmt` |
 | Start server | `make serve` — Uvicorn on `:7860` |
 | Regenerate charts | `make plots` |
+| Benchmark + refresh leaderboard | `make benchmark` |
+| Validate scenario ground truth | `make check-scenarios` |
 
-CI (`ruff` + `pytest` on Python 3.11/3.12) runs on every push and PR — see
-[.github/workflows/ci.yml](.github/workflows/ci.yml). Contribution guidelines
+CI runs on every push and PR ([.github/workflows/ci.yml](.github/workflows/ci.yml)). Every action is pinned to a commit SHA, and Dependabot keeps actions, pip deps and the Docker base digest current:
+
+| Job | Gate |
+|---|---|
+| Lint & format | `ruff check` + `ruff format --check` (ruff 0.15.22, same as pre-commit) |
+| Test | pytest on Python 3.11 / 3.12 / 3.13, coverage ≥ 65%, scenario validation over 8 seeds |
+| Benchmark & determinism | any non-deterministic run fails, and so does a stale `benchmarks/` |
+| Docker | image builds, `HEALTHCHECK` goes healthy, `/reset` + `/step` smoke test, non-root, JSON logs |
+| Workflow security | `zizmor` audit of the workflows |
+
+**Logging.** The server writes structured logs to stderr. Set `SOC_GYM_LOG_FORMAT=json` (the Docker default) or `text`, and `SOC_GYM_LOG_LEVEL` (`DEBUG` adds one line per step). Every line carries a `request_id` (taken from `X-Request-ID` when valid, echoed back in the response), and episodes emit `episode.reset` / `episode.complete` events with `episode_id`, `task_id`, `seed` and `task_score`.
+
+ Contribution guidelines
 are in [CONTRIBUTING.md](CONTRIBUTING.md); notable changes are tracked in
 [CHANGELOG.md](CHANGELOG.md). Optional local hooks: `pre-commit install`.
 

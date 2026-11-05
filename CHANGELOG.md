@@ -6,7 +6,40 @@ loosely follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed (reward/grading — affects comparability with earlier runs)
+- `ransomware` and `cloud_compromise` had no grader: every episode scored 0
+  ("No grader registered"). Both now use the single-alert grader.
+- 13 ATT&CK techniques expected by scenario ground truth (cloud_compromise,
+  ransomware, insider_threat, apt_campaign) were missing from the catalog, so
+  `map_technique` rejected them and full technique credit was unreachable.
+  The scenario validator now flags uncatalogued expected techniques.
+- Loop-penalty signature ignored `technique_id`, `response_action`,
+  `classification` and `ticket_id`, so distinct correct actions on one alert
+  were penalised as loops (−0.30 on a perfect phishing run). Per-step shaping
+  rewards for correct trajectories are now higher; terminal scores unchanged.
+- Empty submissions earned free credit (up to 0.24 on queue_management, 0.40 on
+  false-positive single-alert seeds) from efficiency, policy-compliance and
+  "no action on an FP" components. These are now gated on triage coverage, and
+  inaction scores the 0.001 floor on every task.
+- Ticket IDs were `uuid4`, making team-mode observations and the manager-judge
+  trajectory hash non-deterministic. They are now per-episode sequential
+  (`TKT-EP0001`).
+
 ### Added
+- `baselines.py` (submit / random / heuristic / oracle agents + in-process
+  runner) and a rewritten `benchmark.py` that prints a leaderboard, checks
+  determinism across repeats and exits 1 on divergence. Results are committed in
+  `benchmarks/` and checked for freshness in CI. The old HTTP `--server` mode is
+  removed (the `/baseline` endpoint remains).
+- Structured logging (`server/logging_config.py`): JSON or text via
+  `SOC_GYM_LOG_FORMAT`, request IDs (`X-Request-ID`), `episode.reset` /
+  `episode.complete` events.
+- Input validation: bounded string lengths on `SOCAction`, strict uint32 seeds,
+  `time_window_hours` 1–168, ranges on curriculum and reward-config knobs.
+- CI: blocking format check, Python 3.13, coverage gate, benchmark/determinism
+  job, Docker build + smoke test, zizmor workflow audit.
+- Docker: base image pinned by digest (Dependabot-managed), Python healthcheck
+  instead of curl, JSON logs by default.
 - New `cloud_compromise` scenario: a single-alert cloud identity-compromise task
   with true-positive (impossible-travel login, IAM access-key creation, a bucket
   made public, a security group opened, CloudTrail `StopLogging`) and
