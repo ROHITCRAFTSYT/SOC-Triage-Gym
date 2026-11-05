@@ -382,12 +382,21 @@ class SOCEnvironment:
         if self._phase == EpisodePhase.TRIAGE:
             if len(self._escalated_alert_ids) == 0:
                 self._phase = EpisodePhase.COMPLETE
-                self._cumulative_reward += -0.10
-                msg = (
-                    "Triage phase complete with zero escalations — no work for Tier-2/Manager. "
-                    "Episode short-circuited with -0.10 penalty."
+                # Only penalise when the scenario actually needed an escalation;
+                # "nothing to escalate" is the right answer otherwise.
+                required = bool(self._config and self._config.ground_truth.required_escalations)
+                penalty = -0.10 if required else 0.0
+                self._cumulative_reward += penalty
+                msg = "Triage phase complete with zero escalations — no work for Tier-2/Manager. " + (
+                    "Episode short-circuited with -0.10 penalty." if required else "Episode short-circuited."
                 )
                 finalize = self._finalize_team_episode()
+                # The penalty must reach the *step* reward, not only the running
+                # total: per-step trainers (GRPO here) only see obs.reward. Before
+                # this, ending triage with zero work returned +0.001 (the floored
+                # final score), making it one of the few non-negative actions an
+                # untrained policy could find, a do-nothing attractor.
+                finalize.reward += penalty
                 finalize.message = msg + " | " + finalize.message
                 return finalize
             self._phase = EpisodePhase.RESPONSE
