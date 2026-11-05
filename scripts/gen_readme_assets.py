@@ -54,6 +54,8 @@ def _setup_matplotlib():
 # task_id, alerts, max_steps, difficulty_rank(1..6), mode
 TASKS = [
     ("phishing", 1, 15, 1, "solo"),
+    ("ransomware", 1, 15, 1, "solo"),
+    ("cloud_compromise", 1, 15, 2, "solo"),
     ("lateral_movement", 5, 30, 2, "solo"),
     ("queue_management", 20, 60, 4, "solo"),
     ("insider_threat", 30, 80, 5, "solo"),

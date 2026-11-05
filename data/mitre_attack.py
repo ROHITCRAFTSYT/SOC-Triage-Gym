@@ -269,6 +269,84 @@ TECHNIQUES: dict[str, dict[str, str]] = {
         "tactic": "impact",
         "description": "Adversaries may delete or remove built-in data and turn off services designed to aid in the recovery.",
     },
+    "T1485": {
+        "name": "Data Destruction",
+        "tactic": "impact",
+        "description": "Adversaries may destroy data and files on specific systems to interrupt availability.",
+    },
+    "T1489": {
+        "name": "Service Stop",
+        "tactic": "impact",
+        "description": "Adversaries may stop or disable services on a system to render them unavailable.",
+    },
+
+    # ------------------------------------------------------------------
+    # Techniques referenced by scenario ground truth (ransomware,
+    # cloud_compromise, insider_threat, apt_campaign). Every technique a
+    # scenario expects MUST be in this catalog: map_technique rejects unknown
+    # IDs, so a missing entry silently caps the technique score below 100%
+    # for a perfect agent. scenarios/validate.py enforces this.
+    # ------------------------------------------------------------------
+    "T1133": {
+        "name": "External Remote Services",
+        "tactic": "initial-access",
+        "description": "Adversaries may leverage external-facing remote services such as VPN or Citrix to gain access.",
+    },
+    "T1078.004": {
+        "name": "Cloud Accounts",
+        "tactic": "defense-evasion",
+        "description": "Adversaries may obtain and abuse credentials of a cloud account.",
+        "parent": "T1078",
+    },
+    "T1098": {
+        "name": "Account Manipulation",
+        "tactic": "persistence",
+        "description": "Adversaries may manipulate accounts to maintain or elevate access to victim systems.",
+    },
+    "T1098.001": {
+        "name": "Additional Cloud Credentials",
+        "tactic": "persistence",
+        "description": "Adversaries may add adversary-controlled credentials, such as access keys, to a cloud account.",
+        "parent": "T1098",
+    },
+    "T1562": {
+        "name": "Impair Defenses",
+        "tactic": "defense-evasion",
+        "description": "Adversaries may maliciously modify components of a victim environment to hinder defenses.",
+    },
+    "T1562.004": {
+        "name": "Disable or Modify System Firewall",
+        "tactic": "defense-evasion",
+        "description": "Adversaries may disable or modify system firewalls to bypass network usage controls.",
+        "parent": "T1562",
+    },
+    "T1562.008": {
+        "name": "Disable or Modify Cloud Logs",
+        "tactic": "defense-evasion",
+        "description": "Adversaries may disable or modify cloud logging, such as CloudTrail, to evade detection.",
+        "parent": "T1562",
+    },
+    "T1083": {
+        "name": "File and Directory Discovery",
+        "tactic": "discovery",
+        "description": "Adversaries may enumerate files and directories to find information within a file system.",
+    },
+    "T1530": {
+        "name": "Data from Cloud Storage",
+        "tactic": "collection",
+        "description": "Adversaries may access data from cloud storage, such as improperly secured buckets.",
+    },
+    "T1052": {
+        "name": "Exfiltration Over Physical Medium",
+        "tactic": "exfiltration",
+        "description": "Adversaries may attempt to exfiltrate data via a physical medium such as a removable drive.",
+    },
+    "T1052.001": {
+        "name": "Exfiltration over USB",
+        "tactic": "exfiltration",
+        "description": "Adversaries may attempt to exfiltrate data over a USB connected physical device.",
+        "parent": "T1052",
+    },
 }
 
 # Tactic ordering for kill chain display

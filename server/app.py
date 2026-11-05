@@ -132,6 +132,22 @@ TASKS = [
         "reward_range": [0.0, 1.0],
     },
     {
+        "id": "ransomware",
+        "name": "Single-Alert Ransomware Triage",
+        "description": "Triage an endpoint ransomware alert. Distinguish a real detonation (mass encryption, shadow-copy deletion, ransom note, C2 beacon) from a benign backup agent; classify, map technique, recommend containment.",
+        "difficulty": "easy",
+        "max_steps": 15,
+        "reward_range": [0.0, 1.0],
+    },
+    {
+        "id": "cloud_compromise",
+        "name": "Single-Alert Cloud Account Compromise Triage",
+        "description": "Triage a cloud identity alert. Distinguish a real compromise (impossible travel, new access key, public bucket, CloudTrail disabled) from a benign admin on approved travel.",
+        "difficulty": "medium",
+        "max_steps": 15,
+        "reward_range": [0.0, 1.0],
+    },
+    {
         "id": "lateral_movement",
         "name": "Multi-Alert Lateral Movement Kill Chain",
         "description": "Investigate 5 correlated alerts forming a kill chain: phishing, credential dump, lateral movement, data staging, exfiltration.",

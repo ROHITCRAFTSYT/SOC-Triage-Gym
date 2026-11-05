@@ -8,6 +8,11 @@ from graders.team_grader import TeamGrader
 
 GRADER_REGISTRY = {
     "phishing": PhishingGrader,
+    # Ransomware and cloud-compromise are single-alert TP/FP scenarios built on
+    # the same ground-truth shape as phishing (classification, technique,
+    # evidence sources, response), so the single-alert grader scores them.
+    "ransomware": PhishingGrader,
+    "cloud_compromise": PhishingGrader,
     "lateral_movement": LateralMovementGrader,
     "queue_management": QueueManagementGrader,
     "insider_threat": InsiderThreatGrader,

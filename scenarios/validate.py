@@ -14,6 +14,7 @@ false-positive on legitimately hard/noisy scenarios.
 
 from __future__ import annotations
 
+from data.mitre_attack import is_valid_technique
 from models import ScenarioConfig
 
 
@@ -68,6 +69,17 @@ def validate_scenario(config: ScenarioConfig) -> list[str]:
             issues.append(
                 f"alert(s) in both {a_name} and {b_name}: {', '.join(sorted(overlap))}"
             )
+
+    # --- every expected technique must be mappable --------------------------
+    # map_technique rejects IDs outside the catalog, so an uncatalogued expected
+    # technique makes full technique credit unreachable even for a perfect agent.
+    unknown_techniques = sorted(
+        {t for techs in gt.expected_techniques.values() for t in techs if not is_valid_technique(t)}
+    )
+    if unknown_techniques:
+        issues.append(
+            f"expected_techniques not in the MITRE catalog (unmappable): {', '.join(unknown_techniques)}"
+        )
 
     # --- every alert should have a ground-truth classification -----------
     unclassified = [aid for aid in alert_ids if aid not in gt.alert_classifications]

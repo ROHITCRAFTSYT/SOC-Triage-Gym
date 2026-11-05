@@ -12,24 +12,17 @@ import copy
 import pytest
 
 from models import AlertClassification
-from scenarios.apt_campaign import APTCampaignScenario
-from scenarios.insider_threat import InsiderThreatScenario
-from scenarios.lateral_movement import LateralMovementScenario
+from scenarios import SCENARIO_REGISTRY
 from scenarios.phishing import PhishingScenario
-from scenarios.queue_management import QueueManagementScenario
 from scenarios.validate import assert_valid, validate_scenario
 
-ALL_SCENARIOS = [
-    PhishingScenario,
-    LateralMovementScenario,
-    QueueManagementScenario,
-    InsiderThreatScenario,
-    APTCampaignScenario,
-]
+# Every registered scenario, not a hand-maintained subset: the subset missed
+# ransomware / cloud_compromise, whose expected techniques were uncatalogued.
+ALL_SCENARIOS = [SCENARIO_REGISTRY[name] for name in sorted(SCENARIO_REGISTRY)]
 
 
-@pytest.mark.parametrize("scenario_cls", ALL_SCENARIOS)
-@pytest.mark.parametrize("seed", [1, 42, 77])
+@pytest.mark.parametrize("scenario_cls", ALL_SCENARIOS, ids=lambda c: c.__name__)
+@pytest.mark.parametrize("seed", [0, 1, 2, 3, 42, 77])
 def test_real_scenarios_are_valid(scenario_cls, seed):
     config = scenario_cls(seed=seed).generate()
     assert validate_scenario(config) == []
@@ -99,3 +92,11 @@ def test_valid_after_fixing_classification_roundtrip():
     assert validate_scenario(config)  # broken
     config.ground_truth.alert_classifications = {aid: saved}
     assert validate_scenario(config) == []
+
+
+def test_detects_uncatalogued_expected_technique():
+    config = _phishing()
+    aid = config.alerts[0].alert_id
+    config.ground_truth.expected_techniques[aid] = ["T9999.999"]
+    issues = validate_scenario(config)
+    assert any("not in the MITRE catalog" in i and "T9999.999" in i for i in issues)
