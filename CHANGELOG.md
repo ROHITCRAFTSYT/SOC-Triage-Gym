@@ -76,6 +76,11 @@ loosely follows [Semantic Versioning](https://semver.org/).
   `episode.complete` events.
 - Input validation: bounded string lengths on `SOCAction`, strict uint32 seeds,
   `time_window_hours` 1–168, ranges on curriculum and reward-config knobs.
+- README: dropped the hackathon pitch (prize/theme claims, "why this project
+  wins", judge-demo and judging-criteria sections); the theme table is now a
+  neutral feature map. Training results are labelled as pre-fix, and the
+  "trained policy underfit" explanation is replaced by what the eval
+  investigation actually found.
 - CI: blocking format check, Python 3.13, coverage gate, benchmark/determinism
   job, Docker build + smoke test, zizmor workflow audit.
 - Docker: base image pinned by digest (Dependabot-managed), Python healthcheck
