@@ -24,6 +24,18 @@ loosely follows [Semantic Versioning](https://semver.org/).
 - Ticket IDs were `uuid4`, making team-mode observations and the manager-judge
   trajectory hash non-deterministic. They are now per-episode sequential
   (`TKT-EP0001`).
+- Ending team-mode triage with zero escalations announced a −0.10 penalty but
+  applied it only to the running total. The step reward returned (what
+  per-step GRPO trains on) was +0.001, making "phase_complete immediately" one
+  of the few non-negative actions an untrained policy could find. The penalty
+  now reaches the step reward, and applies only when the scenario requires an
+  escalation.
+- Held-out text-policy eval (`scripts/train_and_evaluate.py`) aborted an
+  episode on the first rejected action and kept nothing but the score. It now
+  records every completion (parse quality, action type, env response) to
+  `eval_trace.jsonl`, adds a diagnostics block to `training_summary.json`, and
+  continues past rejected actions. At least five distinct failure modes all
+  score exactly 0.001 on team tasks, so the score alone can't say why.
 
 ### Added
 - `baselines.py` (submit / random / heuristic / oracle agents + in-process

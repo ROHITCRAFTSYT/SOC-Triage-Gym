@@ -10,6 +10,8 @@ Produces:
     trained_vs_baseline.png                — eval plot for README / demo
     trained_vs_baseline.csv                — raw per-episode scores
     training_summary.json                  — metrics for demo.py to read
+    eval_trace.jsonl                       — every trained-policy completion with
+                                             parse quality, action and env response
 """
 
 from __future__ import annotations
@@ -137,7 +139,6 @@ def evaluate() -> dict:
         TIER1_TASKS,
         format_obs_prompt,
         oracle_action,
-        parse_action_from_text,
         run_episode,
     )
 
@@ -171,48 +172,49 @@ def evaluate() -> dict:
             "{% if add_generation_prompt %}<|im_start|>assistant\n{% endif %}"
         )
 
-    def run_trained(task_id: str, seed: int) -> float:
-        obs = client.post("/reset", json={"task_id": task_id, "seed": seed, "mode": "team"}).json()
-        step = 0
-        while not obs.get("done") and step < 80:
-            step += 1
-            role = obs.get("current_role") or "tier1"
-            if role == ROLE:
-                prompt = format_obs_prompt(obs, role, step)
-                messages = [
-                    {"role": "system", "content": ROLE_SYSTEM_PROMPTS[ROLE]},
-                    {"role": "user", "content": prompt},
-                ]
-                enc = tokenizer.apply_chat_template(
-                    messages, tokenize=True, add_generation_prompt=True, return_tensors="pt"
-                )
-                input_ids = enc if torch.is_tensor(enc) else enc["input_ids"]
-                input_ids = input_ids.to(model.device)
-                with torch.no_grad():
-                    out = model.generate(
-                        input_ids=input_ids,
-                        max_new_tokens=128,
-                        do_sample=False,
-                        pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id,
-                    )
-                text = tokenizer.decode(out[0][input_ids.shape[1] :], skip_special_tokens=True)
-                action = parse_action_from_text(text, role) or {"action_type": "noop", "role": role}
-            else:
-                action = oracle_action(obs)
-            resp = client.post("/step", content=json.dumps(action), headers={"Content-Type": "application/json"})
-            if resp.status_code != 200:
-                break
-            obs = resp.json()
-        return float(obs.get("task_score") or obs.get("cumulative_reward", 0.0))
+    from training.evaluation import diagnose_text_policy, run_text_policy_episode
+
+    def generate(obs: dict, step: int) -> str:
+        # Prompt, decoding and parsing are unchanged from the original eval so
+        # results stay comparable with the published adapter.
+        prompt = format_obs_prompt(obs, ROLE, step)
+        messages = [
+            {"role": "system", "content": ROLE_SYSTEM_PROMPTS[ROLE]},
+            {"role": "user", "content": prompt},
+        ]
+        enc = tokenizer.apply_chat_template(messages, tokenize=True, add_generation_prompt=True, return_tensors="pt")
+        input_ids = enc if torch.is_tensor(enc) else enc["input_ids"]
+        input_ids = input_ids.to(model.device)
+        with torch.no_grad():
+            out = model.generate(
+                input_ids=input_ids,
+                max_new_tokens=128,
+                do_sample=False,
+                pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id,
+            )
+        return tokenizer.decode(out[0][input_ids.shape[1] :], skip_special_tokens=True)
 
     print("\n[eval] trained policy ...")
     trained_scores = []
+    trained_episodes = []
     for task in TIER1_TASKS:
         for seed in EVAL_SEEDS:
-            s = run_trained(task, seed)
-            trained_scores.append(max(0.0, s))
-            print(f"  trained {task} seed={seed}: {trained_scores[-1]:.4f}")
+            ep = run_text_policy_episode(client, task, seed, ROLE, generate, oracle_action)
+            trained_episodes.append(ep)
+            trained_scores.append(max(0.0, ep["score"]))
+            print(
+                f"  trained {task} seed={seed}: {trained_scores[-1]:.4f}  "
+                f"escalated={ep['escalated']} rejected={ep['rejected']}"
+            )
     trained_avg = sum(trained_scores) / len(trained_scores)
+
+    # Every completion, with parse quality / action type / env response, so a
+    # score can be explained rather than guessed at.
+    with (ROOT / "eval_trace.jsonl").open("w", encoding="utf-8") as f:
+        for ep in trained_episodes:
+            f.write(json.dumps(ep) + "\n")
+    diagnostics = diagnose_text_policy(trained_episodes)
+    print(f"\n[eval] diagnostics: {json.dumps(diagnostics)}")
 
     return {
         "oracle_scores": oracle_scores,
@@ -223,6 +225,7 @@ def evaluate() -> dict:
         "role": ROLE,
         "model_name": MODEL_NAME,
         "eval_seeds": EVAL_SEEDS,
+        "diagnostics": diagnostics,
     }
 
 
@@ -253,6 +256,7 @@ def emit_artifacts(summary: dict) -> None:
                 "trained_avg": summary["trained_avg"],
                 "delta": summary["trained_avg"] - summary["oracle_avg"],
                 "n_episodes": summary["n_episodes"],
+                "diagnostics": summary.get("diagnostics"),
             },
             indent=2,
         )
@@ -310,7 +314,7 @@ def main() -> None:
         summary = evaluate()
         emit_artifacts(summary)
         print("\n[done] next:")
-        print("  git add checkpoints/ trained_vs_baseline.* training_summary.json")
+        print("  git add checkpoints/ trained_vs_baseline.* training_summary.json eval_trace.jsonl")
         print("  git commit -m 'Add trained tier1 checkpoint + eval artifacts'")
         print("  git push")
     finally:

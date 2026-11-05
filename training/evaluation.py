@@ -59,6 +59,95 @@ def run_policy_episode(
     return {"task_id": task_id, "seed": seed, "score": score, "steps": step, "policy_steps": policy_steps}
 
 
+def run_text_policy_episode(
+    client,
+    task_id: str,
+    seed: int,
+    role: str,
+    generate_fn: Callable[[dict, int], str],
+    oracle_fn: Callable[[dict], dict],
+    max_steps: int = 80,
+    max_text_chars: int = 2000,
+) -> dict:
+    """One team episode driven by a *text* policy, with a per-step trace.
+
+    ``generate_fn(obs, step) -> completion`` is the model (prompt formatting
+    lives inside it). The completion is parsed exactly as during training, and
+    every policy step is recorded so a bad score can be explained afterwards.
+    The first held-out eval scored 0.001 on all 15 episodes and kept nothing
+    but the score, and at least five different failure modes produce exactly
+    that number.
+
+    A rejected action (non-200, e.g. an invalid enum value) is recorded and the
+    episode continues. Before, it aborted the episode, scoring it 0.0 for one
+    bad completion.
+    """
+    from training.rewards import classify_parse_quality, parse_action_from_text
+
+    obs = client.post("/reset", json={"task_id": task_id, "seed": seed, "mode": "team"}).json()
+    trace: list[dict] = []
+    step = 0
+    while not obs.get("done") and step < max_steps:
+        step += 1
+        acting_role = obs.get("current_role") or "tier1"
+        if acting_role == role:
+            text = generate_fn(obs, step)
+            action = parse_action_from_text(text, role) or {"action_type": "noop", "role": role}
+            record = {
+                "step": step,
+                "parse": classify_parse_quality(text),
+                "action_type": action.get("action_type"),
+                "text": (text or "")[:max_text_chars],
+            }
+        else:
+            action, record = oracle_fn(obs), None
+        resp = client.post("/step", content=json.dumps(action), headers={"Content-Type": "application/json"})
+        if record is not None:
+            record["status"] = resp.status_code
+            if resp.status_code == 200:
+                body = resp.json()
+                record["reward"] = body.get("reward")
+                record["message"] = (body.get("message") or "")[:200]
+            trace.append(record)
+        if resp.status_code == 200:
+            obs = resp.json()
+
+    score = float(obs.get("task_score") or obs.get("cumulative_reward", 0.0))
+    return {
+        "task_id": task_id,
+        "seed": seed,
+        "score": score,
+        "steps": step,
+        "policy_steps": len(trace),
+        "rejected": sum(1 for r in trace if r["status"] != 200),
+        "escalated": any(r["action_type"] == "escalate_to_tier2" and r["status"] == 200 for r in trace),
+        "trace": trace,
+    }
+
+
+def diagnose_text_policy(episodes: list[dict]) -> dict:
+    """Aggregate per-step traces into the numbers that explain a score.
+
+    ``parse`` shows whether the model emits usable JSON at all,
+    ``action_types`` shows what it chooses, and ``episodes_escalated`` is what
+    team tasks hinge on: no escalation means the 0.001 score floor.
+    """
+    parse: dict[str, int] = {}
+    actions: dict[str, int] = {}
+    for ep in episodes:
+        for rec in ep.get("trace", []):
+            parse[rec["parse"]] = parse.get(rec["parse"], 0) + 1
+            actions[rec["action_type"]] = actions.get(rec["action_type"], 0) + 1
+    return {
+        "policy_steps": sum(parse.values()),
+        "parse": dict(sorted(parse.items())),
+        "action_types": dict(sorted(actions.items(), key=lambda kv: -kv[1])),
+        "rejected_actions": sum(ep.get("rejected", 0) for ep in episodes),
+        "episodes_escalated": sum(1 for ep in episodes if ep.get("escalated")),
+        "n_episodes": len(episodes),
+    }
+
+
 def evaluate_policy(
     client,
     role: str,
