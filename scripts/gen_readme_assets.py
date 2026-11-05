@@ -75,25 +75,35 @@ MODE_COLOR = {"solo": "#58a6ff", "team": "#f778ba", "adaptive": "#3fb950"}
 def gen_task_landscape() -> None:
     plt = _setup_matplotlib()
     fig, ax = plt.subplots(figsize=(11, 6.2))
+    # Several tasks share a point (phishing, ransomware and cloud_compromise
+    # are all 1 alert x 15 steps). Draw each bubble largest-first so every one
+    # stays visible, and stack their names in a single label.
+    groups: dict[tuple[int, int], list[tuple[str, int, str]]] = {}
     for name, alerts, steps, rank, mode in TASKS:
-        ax.scatter(
-            steps,
-            alerts,
-            s=180 + rank * 240,
-            c=MODE_COLOR[mode],
-            alpha=0.55,
-            edgecolors=FG,
-            linewidths=1.2,
-            zorder=3,
-        )
+        groups.setdefault((steps, alerts), []).append((name, rank, mode))
+    for (steps, alerts), members in groups.items():
+        for _name, rank, mode in sorted(members, key=lambda m: -m[1]):
+            ax.scatter(
+                steps,
+                alerts,
+                s=180 + rank * 240,
+                c=MODE_COLOR[mode],
+                alpha=0.55,
+                edgecolors=FG,
+                linewidths=1.2,
+                zorder=3,
+            )
+        top_rank = max(rank for _, rank, _ in members)
         ax.annotate(
-            name,
+            "\n".join(name for name, _, _ in members),
             (steps, alerts),
             textcoords="offset points",
-            xytext=(0, 14 + rank * 2),
+            xytext=(0, 14 + top_rank * 2),
             ha="center",
+            va="bottom",
             fontsize=9,
             color=FG,
+            linespacing=1.15,
         )
     ax.set_xscale("log")
     ax.set_yscale("symlog")
