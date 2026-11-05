@@ -669,7 +669,15 @@ class SOCEnvironment:
                 alert.classification = action.classification
                 break
         if self._all_classified():
-            message += " | All alerts classified. Call submit_investigation to finalize."
+            if self._mode == EpisodeMode.TEAM:
+                # In team mode tier-1's submit_investigation finalises the whole
+                # episode and skips Tier-2 and the Manager. Telling tier-1 to
+                # submit here steered a correctly-triaging policy to 0.001.
+                message += (
+                    " | All alerts classified. Escalate true positives with escalate_to_tier2, then phase_complete."
+                )
+            else:
+                message += " | All alerts classified. Call submit_investigation to finalize."
         return {"reward": reward, "message": message}
 
     def _handle_map_technique(self, action: SOCAction) -> dict:
