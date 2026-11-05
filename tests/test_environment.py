@@ -2,7 +2,6 @@
 Tests for SOCEnvironment: reset, step, state, budget.
 """
 
-
 from models import (
     ActionType,
     AgentRole,
@@ -102,18 +101,22 @@ class TestSOCEnvironment:
         alert_id = obs.alert_queue[0].alert_id
         username = next(iter(environment._config.user_db.keys()))
 
-        lookup_obs = environment.step(SOCAction(
-            action_type=ActionType.CHECK_USER,
-            username=username,
-        ))
+        lookup_obs = environment.step(
+            SOCAction(
+                action_type=ActionType.CHECK_USER,
+                username=username,
+            )
+        )
         assert lookup_obs.user_info is not None
 
-        obs = environment.step(SOCAction(
-            action_type=ActionType.CLASSIFY_ALERT,
-            alert_id=alert_id,
-            classification=AlertClassification.TRUE_POSITIVE,
-            confidence=0.9,
-        ))
+        obs = environment.step(
+            SOCAction(
+                action_type=ActionType.CLASSIFY_ALERT,
+                alert_id=alert_id,
+                classification=AlertClassification.TRUE_POSITIVE,
+                confidence=0.9,
+            )
+        )
 
         assert "without gathering any evidence" not in obs.message
         assert obs.reward == 0.30
@@ -125,17 +128,21 @@ class TestSOCEnvironment:
 
         # Classify the alert first (with evidence)
         ip_indicators = obs.alert_queue[0].indicators.get("ip", [])
-        environment.step(SOCAction(
-            action_type=ActionType.ENRICH_INDICATOR,
-            indicator=ip_indicators[0],
-            indicator_type=IndicatorType.IP,
-        ))
-        environment.step(SOCAction(
-            action_type=ActionType.CLASSIFY_ALERT,
-            alert_id=alert_id,
-            classification=AlertClassification.TRUE_POSITIVE,
-            confidence=0.9,
-        ))
+        environment.step(
+            SOCAction(
+                action_type=ActionType.ENRICH_INDICATOR,
+                indicator=ip_indicators[0],
+                indicator_type=IndicatorType.IP,
+            )
+        )
+        environment.step(
+            SOCAction(
+                action_type=ActionType.CLASSIFY_ALERT,
+                alert_id=alert_id,
+                classification=AlertClassification.TRUE_POSITIVE,
+                confidence=0.9,
+            )
+        )
 
         # Submit
         obs = environment.step(SOCAction(action_type=ActionType.SUBMIT_INVESTIGATION))
@@ -189,30 +196,38 @@ class TestSOCEnvironment:
         alert_id = obs.alert_queue[0].alert_id
         ip_indicator = obs.alert_queue[0].indicators["ip"][0]
 
-        environment.step(SOCAction(
-            action_type=ActionType.ENRICH_INDICATOR,
-            role=AgentRole.TIER1,
-            indicator=ip_indicator,
-            indicator_type=IndicatorType.IP,
-        ))
-        environment.step(SOCAction(
-            action_type=ActionType.CLASSIFY_ALERT,
-            role=AgentRole.TIER1,
-            alert_id=alert_id,
-            classification=AlertClassification.TRUE_POSITIVE,
-            confidence=0.9,
-        ))
-        environment.step(SOCAction(
-            action_type=ActionType.ESCALATE_TO_TIER2,
-            role=AgentRole.TIER1,
-            alert_id=alert_id,
-            justification="Malicious phishing indicators and execution evidence.",
-        ))
+        environment.step(
+            SOCAction(
+                action_type=ActionType.ENRICH_INDICATOR,
+                role=AgentRole.TIER1,
+                indicator=ip_indicator,
+                indicator_type=IndicatorType.IP,
+            )
+        )
+        environment.step(
+            SOCAction(
+                action_type=ActionType.CLASSIFY_ALERT,
+                role=AgentRole.TIER1,
+                alert_id=alert_id,
+                classification=AlertClassification.TRUE_POSITIVE,
+                confidence=0.9,
+            )
+        )
+        environment.step(
+            SOCAction(
+                action_type=ActionType.ESCALATE_TO_TIER2,
+                role=AgentRole.TIER1,
+                alert_id=alert_id,
+                justification="Malicious phishing indicators and execution evidence.",
+            )
+        )
 
-        obs = environment.step(SOCAction(
-            action_type=ActionType.PHASE_COMPLETE,
-            role=AgentRole.TIER1,
-        ))
+        obs = environment.step(
+            SOCAction(
+                action_type=ActionType.PHASE_COMPLETE,
+                role=AgentRole.TIER1,
+            )
+        )
 
         assert obs.current_role == AgentRole.TIER2
         assert len(obs.alert_queue) == 1
@@ -225,32 +240,40 @@ class TestSOCEnvironment:
         alert_id = obs.alert_queue[0].alert_id
         ip_indicator = obs.alert_queue[0].indicators["ip"][0]
 
-        environment.step(SOCAction(
-            action_type=ActionType.ENRICH_INDICATOR,
-            role=AgentRole.TIER1,
-            indicator=ip_indicator,
-            indicator_type=IndicatorType.IP,
-        ))
-        environment.step(SOCAction(
-            action_type=ActionType.CLASSIFY_ALERT,
-            role=AgentRole.TIER1,
-            alert_id=alert_id,
-            classification=AlertClassification.TRUE_POSITIVE,
-            confidence=0.9,
-        ))
-        environment.step(SOCAction(
-            action_type=ActionType.ESCALATE_TO_TIER2,
-            role=AgentRole.TIER1,
-            alert_id=alert_id,
-            justification="Malicious indicators and execution evidence.",
-        ))
+        environment.step(
+            SOCAction(
+                action_type=ActionType.ENRICH_INDICATOR,
+                role=AgentRole.TIER1,
+                indicator=ip_indicator,
+                indicator_type=IndicatorType.IP,
+            )
+        )
+        environment.step(
+            SOCAction(
+                action_type=ActionType.CLASSIFY_ALERT,
+                role=AgentRole.TIER1,
+                alert_id=alert_id,
+                classification=AlertClassification.TRUE_POSITIVE,
+                confidence=0.9,
+            )
+        )
+        environment.step(
+            SOCAction(
+                action_type=ActionType.ESCALATE_TO_TIER2,
+                role=AgentRole.TIER1,
+                alert_id=alert_id,
+                justification="Malicious indicators and execution evidence.",
+            )
+        )
         environment.step(SOCAction(action_type=ActionType.PHASE_COMPLETE, role=AgentRole.TIER1))
-        environment.step(SOCAction(
-            action_type=ActionType.CLOSE_CASE,
-            role=AgentRole.TIER2,
-            alert_id=alert_id,
-            justification="Contained and documented.",
-        ))
+        environment.step(
+            SOCAction(
+                action_type=ActionType.CLOSE_CASE,
+                role=AgentRole.TIER2,
+                alert_id=alert_id,
+                justification="Contained and documented.",
+            )
+        )
         obs = environment.step(SOCAction(action_type=ActionType.PHASE_COMPLETE, role=AgentRole.TIER2))
 
         assert obs.current_role == AgentRole.MANAGER

@@ -17,6 +17,7 @@ from models import (
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _host_in_tp_alert(config: ScenarioConfig, target_host: str) -> bool:
     """Return True if target_host appears in indicators['hostname'] of any TP alert."""
     for alert in config.alerts:
@@ -43,6 +44,7 @@ def _user_in_tp_alert(config: ScenarioConfig, target_user: str) -> bool:
 # Forensic tools
 # ---------------------------------------------------------------------------
 
+
 def forensic_timeline(
     config: ScenarioConfig,
     inv: InvestigationState,
@@ -57,9 +59,7 @@ def forensic_timeline(
                 if entry.hostname == target_host:
                     user = entry.user or "—"
                     action = entry.action or entry.event_type
-                    entries.append(
-                        f"{entry.timestamp} {action} {user} {target_host}"
-                    )
+                    entries.append(f"{entry.timestamp} {action} {user} {target_host}")
 
     timeline = entries[:10]
     is_relevant = _host_in_tp_alert(config, target_host)
@@ -73,9 +73,8 @@ def forensic_timeline(
         evidence=[],
         timeline_entries=timeline,
     )
-    msg = (
-        f"Timeline for '{target_host}': {len(timeline)} log entries retrieved."
-        + (" Host is relevant to a TP alert." if is_relevant else "")
+    msg = f"Timeline for '{target_host}': {len(timeline)} log entries retrieved." + (
+        " Host is relevant to a TP alert." if is_relevant else ""
     )
     return result, reward, msg
 
@@ -100,11 +99,7 @@ def sandbox_detonate(
         return result, 0.02, f"Sandbox: '{target_ioc}' not in database — no malicious behavior detected."
 
     if enrichment.malicious:
-        malware_names = (
-            ", ".join(enrichment.associated_malware)
-            if enrichment.associated_malware
-            else "Unknown"
-        )
+        malware_names = ", ".join(enrichment.associated_malware) if enrichment.associated_malware else "Unknown"
         evidence = [
             f"Malware family: {malware_names}",
             f"Threat score: {enrichment.threat_score}",
@@ -163,6 +158,7 @@ def memory_analysis(
 # ---------------------------------------------------------------------------
 # Containment tools
 # ---------------------------------------------------------------------------
+
 
 def isolate_host(
     config: ScenarioConfig,
@@ -257,9 +253,7 @@ def close_case(
     resolution: str,
 ) -> tuple[ContainmentResult, float, str]:
     """Record case closure with a resolution note."""
-    already_closed = any(
-        entry.startswith("Case closed:") for entry in inv.evidence_timeline
-    )
+    already_closed = any(entry.startswith("Case closed:") for entry in inv.evidence_timeline)
     inv.evidence_timeline.append(f"Case closed: {resolution}")
 
     result = ContainmentResult(

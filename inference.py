@@ -96,6 +96,7 @@ ROLE_SYSTEM_PROMPTS = {
 # Observation Formatter
 # ---------------------------------------------------------------------------
 
+
 def format_observation(obs: dict, step: int) -> str:
     """Format observation dict into a human-readable prompt for the LLM."""
     parts = [f"=== STEP {step} | Budget: {obs.get('investigation_budget', '?')} steps remaining ==="]
@@ -113,9 +114,7 @@ def format_observation(obs: dict, step: int) -> str:
         )
         indicators = alert.get("indicators", {})
         if indicators:
-            ioc_summary = ", ".join(
-                f"{k}: {v[:2]}" for k, v in indicators.items() if v
-            )
+            ioc_summary = ", ".join(f"{k}: {v[:2]}" for k, v in indicators.items() if v)
             parts.append(f"    IOCs: {ioc_summary}")
 
     # Last action results
@@ -145,8 +144,7 @@ def format_observation(obs: dict, step: int) -> str:
         parts.append(f"\n[CORRELATIONS] {len(obs['correlated_events'])} found:")
         for corr in obs["correlated_events"]:
             parts.append(
-                f"  {corr.get('alert_ids')} via {corr.get('correlation_type')}: "
-                f"'{corr.get('shared_indicator')}'"
+                f"  {corr.get('alert_ids')} via {corr.get('correlation_type')}: '{corr.get('shared_indicator')}'"
             )
 
     if obs.get("asset_info"):
@@ -166,9 +164,7 @@ def format_observation(obs: dict, step: int) -> str:
     # Investigation summary
     invs = obs.get("investigations", {})
     classified_alerts = [
-        (aid, inv.get("classification", "unclassified"))
-        for aid, inv in invs.items()
-        if inv.get("classification")
+        (aid, inv.get("classification", "unclassified")) for aid, inv in invs.items() if inv.get("classification")
     ]
     if classified_alerts:
         parts.append("\n[CLASSIFICATIONS SO FAR]")
@@ -275,10 +271,14 @@ def log_step(step: int, action: str, reward: float, done: bool, error: str | Non
     action_inline = action.replace("\n", " ").replace("\r", "")
     error_val = error if error else "null"
     done_val = str(done).lower()
-    print(f"[STEP] step={step} action={action_inline} reward={reward:.2f} done={done_val} error={error_val}", flush=True)
+    print(
+        f"[STEP] step={step} action={action_inline} reward={reward:.2f} done={done_val} error={error_val}", flush=True
+    )
 
 
-def log_team_step(step: int, role: str, phase: str, action: str, reward: float, done: bool, error: str | None = None) -> None:
+def log_team_step(
+    step: int, role: str, phase: str, action: str, reward: float, done: bool, error: str | None = None
+) -> None:
     action_inline = action.replace("\n", " ").replace("\r", "")
     error_val = error if error else "null"
     done_val = str(done).lower()
@@ -299,6 +299,7 @@ def log_end(success: bool, steps: int, score: float, rewards: list) -> None:
 # Task Runner
 # ---------------------------------------------------------------------------
 
+
 def run_task(
     task_id: str,
     server_client: httpx.Client,
@@ -315,9 +316,9 @@ def run_task(
     model_label = MODEL_NAME or "heuristic"
     if task_id.startswith("team_") or task_id == "red_team_generated":
         return run_team_task(task_id, server_client, llm_client, seed=seed, verbose=verbose)
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"TASK: {task_id.upper()} (seed={seed})")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     log_start(task_id, model_label)
 
     step_rewards: list = []
@@ -332,7 +333,9 @@ def run_task(
         log_end(success=False, steps=0, score=0.001, rewards=[])
         return 0.001
 
-    print(f"Episode started. Alerts: {len(obs.get('alert_queue', []))}. Budget: {obs.get('investigation_budget')} steps.")
+    print(
+        f"Episode started. Alerts: {len(obs.get('alert_queue', []))}. Budget: {obs.get('investigation_budget')} steps."
+    )
 
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
@@ -421,10 +424,12 @@ def run_task(
 
         # Update message history
         messages.append({"role": "assistant", "content": json.dumps(action_dict)})
-        messages.append({
-            "role": "user",
-            "content": format_observation(obs, step=step),
-        })
+        messages.append(
+            {
+                "role": "user",
+                "content": format_observation(obs, step=step),
+            }
+        )
 
         # Keep message history manageable (last 20 exchanges)
         if len(messages) > 42:
@@ -570,9 +575,9 @@ def run_team_task(
 ) -> float:
     """Run one complete team-mode task episode."""
     model_label = MODEL_NAME or "heuristic"
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"TEAM TASK: {task_id.upper()} (seed={seed})")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     log_start(task_id, model_label)
 
     step_rewards: list = []
@@ -646,6 +651,7 @@ def run_team_task(
 # Track correlation attempts across calls (reset on each task run)
 _attempted_correlations: set = set()
 _baseline_agent = HeuristicBaselineAgent()
+
 
 def _infer_technique(alert: dict) -> str:
     """Infer MITRE ATT&CK technique from alert title and source system."""
@@ -750,16 +756,40 @@ def _heuristic_action(obs: dict, step: int) -> dict:
 
     # BTP keyword patterns — activities that are suspicious-looking but authorized
     BTP_TITLE_KEYWORDS = {
-        "pentest", "red team", "red-team", "authorized", "maintenance",
-        "scheduled backup", "backup job", "nightly backup", "vulnerability scan",
-        "vuln scan", "gpo update", "group policy", "key rotation", "ssh key",
-        "patch", "planned", "approved", "simulated", "exercise",
+        "pentest",
+        "red team",
+        "red-team",
+        "authorized",
+        "maintenance",
+        "scheduled backup",
+        "backup job",
+        "nightly backup",
+        "vulnerability scan",
+        "vuln scan",
+        "gpo update",
+        "group policy",
+        "key rotation",
+        "ssh key",
+        "patch",
+        "planned",
+        "approved",
+        "simulated",
+        "exercise",
     }
     # FP-indicating patterns — scanner noise, geo-blocks, etc.
     FP_TITLE_KEYWORDS = {
-        "geo-block", "geoblock", "cdn anomaly", "false alarm", "scanner noise",
-        "dns false", "av heuristic", "service account lockout", "login page scan",
-        "automated scan", "rate limit", "honeypot",
+        "geo-block",
+        "geoblock",
+        "cdn anomaly",
+        "false alarm",
+        "scanner noise",
+        "dns false",
+        "av heuristic",
+        "service account lockout",
+        "login page scan",
+        "automated scan",
+        "rate limit",
+        "honeypot",
     }
 
     alerts = obs.get("alert_queue", [])
@@ -767,10 +797,7 @@ def _heuristic_action(obs: dict, step: int) -> dict:
     budget = obs.get("investigation_budget", 0)
 
     # Find unclassified and fully-processed alerts
-    unclassified_alerts = [
-        a for a in alerts
-        if investigations.get(a["alert_id"], {}).get("classification") is None
-    ]
+    unclassified_alerts = [a for a in alerts if investigations.get(a["alert_id"], {}).get("classification") is None]
 
     # Check if any classified TPs still need technique/response actions
     needs_followup = []
@@ -807,9 +834,7 @@ def _heuristic_action(obs: dict, step: int) -> dict:
 
     # Prioritize high-severity unclassified alerts first
     severity_order = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
-    unclassified_alerts.sort(
-        key=lambda a: severity_order.get(a.get("severity", "info"), 4)
-    )
+    unclassified_alerts.sort(key=lambda a: severity_order.get(a.get("severity", "info"), 4))
 
     target = unclassified_alerts[0]
     alert_id = target["alert_id"]
@@ -909,13 +934,9 @@ def _heuristic_action(obs: dict, step: int) -> dict:
 
     # Phase 4: Classify based on enrichment + contextual signals
     enrichment_results = inv.get("enriched_indicators", {})
-    malicious_count = sum(
-        1 for r in enrichment_results.values()
-        if isinstance(r, dict) and r.get("malicious")
-    )
+    malicious_count = sum(1 for r in enrichment_results.values() if isinstance(r, dict) and r.get("malicious"))
     high_threat_count = sum(
-        1 for r in enrichment_results.values()
-        if isinstance(r, dict) and r.get("threat_score", 0) >= 70
+        1 for r in enrichment_results.values() if isinstance(r, dict) and r.get("threat_score", 0) >= 70
     )
 
     # Check log evidence for suspicious activity
@@ -1015,6 +1036,7 @@ def _heuristic_action(obs: dict, step: int) -> dict:
 # Main Entry Point
 # ---------------------------------------------------------------------------
 
+
 def main():
     """Run the baseline agent and print summary scores.
 
@@ -1024,10 +1046,8 @@ def main():
     import argparse
 
     ap = argparse.ArgumentParser(description="SOC-Triage-Gym scripted baseline inference")
-    ap.add_argument("--task", default=None,
-                    help="run a single task_id instead of the full suite")
-    ap.add_argument("--seed", type=int, default=None,
-                    help=f"episode seed (default: SEED env var = {SEED})")
+    ap.add_argument("--task", default=None, help="run a single task_id instead of the full suite")
+    ap.add_argument("--seed", type=int, default=None, help=f"episode seed (default: SEED env var = {SEED})")
     args = ap.parse_args()
     seed = SEED if args.seed is None else args.seed
 
@@ -1105,16 +1125,16 @@ def main():
     total_elapsed = time.time() - total_start
 
     # Print summary
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("FINAL RESULTS")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     for task_id, score in results.items():
         bar = "#" * max(0, int(score * 20))
         print(f"  {task_id:<25} {score:.4f}  {bar}")
     avg_score = sum(results.values()) / len(results)
     print(f"  {'AVERAGE':<25} {avg_score:.4f}")
     print(f"\nTotal runtime: {total_elapsed:.1f}s")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     # Structured summary for evaluation harness
     model_label = MODEL_NAME or "heuristic"

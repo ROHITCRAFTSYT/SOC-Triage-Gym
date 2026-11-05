@@ -20,7 +20,6 @@ Tier-2 contains: disable_user (002), isolate_host (003), block_ioc (005).
 Manager should flag ALT-TLT-004 (data staging often missed).
 """
 
-
 from models import (
     AlertClassification,
     AlertMeta,
@@ -49,25 +48,25 @@ class TeamLateralTeamScenario(BaseScenario):
     def generate(self) -> ScenarioConfig:
         # --- Shared IOCs tying the kill chain together ---
         compromised_user = self._username()
-        attacker_ip = self._public_ip()          # external phishing source IP
-        workstation_ip = self._private_ip()       # compromised workstation IP
+        attacker_ip = self._public_ip()  # external phishing source IP
+        workstation_ip = self._private_ip()  # compromised workstation IP
         workstation_host = self._hostname("WORKSTATION")
-        dc_ip = self._private_ip()               # domain controller IP
+        dc_ip = self._private_ip()  # domain controller IP
         dc_host = "DC-01"
-        staging_server_ip = self._private_ip()   # internal staging server
+        staging_server_ip = self._private_ip()  # internal staging server
         staging_server_host = self._hostname("FILESERVER")
-        exfil_ip = self._public_ip()             # external exfil destination IP
+        exfil_ip = self._public_ip()  # external exfil destination IP
         exfil_domain = self._malicious_domain()
 
         phishing_domain = self._malicious_domain()
-        phishing_hash = self._sha256()           # phishing dropper hash
-        cred_dump_hash = self._sha256()          # credential dump tool hash (known bad)
-        self._malicious_domain()                 # seed-sequence anchor; not surfaced
+        phishing_hash = self._sha256()  # phishing dropper hash
+        cred_dump_hash = self._sha256()  # credential dump tool hash (known bad)
+        self._malicious_domain()  # seed-sequence anchor; not surfaced
 
         # Noise alert IOCs (benign / FP)
-        noise_ip_1 = self._private_ip()          # internal DNS noise
-        noise_ip_2 = self._public_ip()           # login from new location
-        monitoring_ip = self._private_ip()       # internal monitoring tool
+        noise_ip_1 = self._private_ip()  # internal DNS noise
+        noise_ip_2 = self._public_ip()  # login from new location
+        monitoring_ip = self._private_ip()  # internal monitoring tool
 
         # --- ALERT 001: Phishing email (initial access) ---
         alert_001 = AlertMeta(
@@ -210,8 +209,7 @@ class TeamLateralTeamScenario(BaseScenario):
                 "ip": [noise_ip_1],
             },
             raw_log_snippet=(
-                f"SRC={noise_ip_1} DNS_QUERIES_PER_MIN=180 "
-                f"DOMAINS=windowsupdate.com,microsoft.com PATTERN=update_check"
+                f"SRC={noise_ip_1} DNS_QUERIES_PER_MIN=180 DOMAINS=windowsupdate.com,microsoft.com PATTERN=update_check"
             ),
         )
 
@@ -263,8 +261,11 @@ class TeamLateralTeamScenario(BaseScenario):
         enrichment_db = {
             # Kill chain malicious indicators
             attacker_ip: self._make_enrichment_result(
-                attacker_ip, IndicatorType.IP, malicious=True,
-                confidence=0.94, threat_score=87,
+                attacker_ip,
+                IndicatorType.IP,
+                malicious=True,
+                confidence=0.94,
+                threat_score=87,
                 threat_type="phishing",
                 geo="Eastern Europe",
                 tags=["phishing-actor", "bulletproof-hosting"],
@@ -272,74 +273,106 @@ class TeamLateralTeamScenario(BaseScenario):
                 whois="Registered 10 days ago. Bulletproof hosting.",
             ),
             phishing_domain: self._make_enrichment_result(
-                phishing_domain, IndicatorType.DOMAIN, malicious=True,
-                confidence=0.91, threat_score=83,
+                phishing_domain,
+                IndicatorType.DOMAIN,
+                malicious=True,
+                confidence=0.91,
+                threat_score=83,
                 threat_type="phishing",
                 geo="Eastern Europe",
                 tags=["newly-registered", "phishing-kit"],
                 whois="Registered 6 days ago. Anonymous registrar.",
             ),
             phishing_hash: self._make_enrichment_result(
-                phishing_hash, IndicatorType.FILE_HASH, malicious=True,
-                confidence=0.97, threat_score=90,
+                phishing_hash,
+                IndicatorType.FILE_HASH,
+                malicious=True,
+                confidence=0.97,
+                threat_score=90,
                 threat_type="malware",
                 tags=["trojan", "dropper"],
                 malware=["AgentTesla"],
             ),
             cred_dump_hash: self._make_enrichment_result(
-                cred_dump_hash, IndicatorType.FILE_HASH, malicious=True,
-                confidence=0.99, threat_score=96,
+                cred_dump_hash,
+                IndicatorType.FILE_HASH,
+                malicious=True,
+                confidence=0.99,
+                threat_score=96,
                 threat_type="credential-dumping",
                 tags=["mimikatz", "credential-dumper", "lsass"],
                 malware=["Mimikatz"],
             ),
             exfil_ip: self._make_enrichment_result(
-                exfil_ip, IndicatorType.IP, malicious=True,
-                confidence=0.96, threat_score=93,
+                exfil_ip,
+                IndicatorType.IP,
+                malicious=True,
+                confidence=0.96,
+                threat_score=93,
                 threat_type="exfiltration",
                 geo="Russia",
                 tags=["exfil-infra", "known-bad"],
                 malware=[],
             ),
             exfil_domain: self._make_enrichment_result(
-                exfil_domain, IndicatorType.DOMAIN, malicious=True,
-                confidence=0.94, threat_score=91,
+                exfil_domain,
+                IndicatorType.DOMAIN,
+                malicious=True,
+                confidence=0.94,
+                threat_score=91,
                 threat_type="exfiltration",
                 geo="Russia",
                 tags=["exfil-domain", "known-bad"],
             ),
             # Noise / benign indicators
             noise_ip_1: self._make_enrichment_result(
-                noise_ip_1, IndicatorType.IP, malicious=False,
-                confidence=0.97, threat_score=0,
+                noise_ip_1,
+                IndicatorType.IP,
+                malicious=False,
+                confidence=0.97,
+                threat_score=0,
                 tags=["internal", "software-update"],
             ),
             noise_ip_2: self._make_enrichment_result(
-                noise_ip_2, IndicatorType.IP, malicious=False,
-                confidence=0.92, threat_score=5,
+                noise_ip_2,
+                IndicatorType.IP,
+                malicious=False,
+                confidence=0.92,
+                threat_score=5,
                 geo="United Kingdom",
                 tags=["employee-travel", "legitimate"],
             ),
             monitoring_ip: self._make_enrichment_result(
-                monitoring_ip, IndicatorType.IP, malicious=False,
-                confidence=0.99, threat_score=0,
+                monitoring_ip,
+                IndicatorType.IP,
+                malicious=False,
+                confidence=0.99,
+                threat_score=0,
                 tags=["internal", "vulnerability-scanner", "nessus"],
             ),
         }
 
         # --- Log DB (all 8 alerts) ---
         all_alert_ids = [
-            "ALT-TLT-001", "ALT-TLT-002", "ALT-TLT-003",
-            "ALT-TLT-004", "ALT-TLT-005", "ALT-TLT-006",
-            "ALT-TLT-007", "ALT-TLT-008",
+            "ALT-TLT-001",
+            "ALT-TLT-002",
+            "ALT-TLT-003",
+            "ALT-TLT-004",
+            "ALT-TLT-005",
+            "ALT-TLT-006",
+            "ALT-TLT-007",
+            "ALT-TLT-008",
         ]
         log_db = self._empty_log_db(all_alert_ids)
 
         # ALT-TLT-001: Email gateway + endpoint (dropper execution)
         log_db[LogSource.EMAIL_GATEWAY.value]["ALT-TLT-001"] = [
             self._make_log_entry(
-                LogSource.EMAIL_GATEWAY, "email_received",
-                hours_ago=6.0, src_ip=attacker_ip, user=compromised_user,
+                LogSource.EMAIL_GATEWAY,
+                "email_received",
+                hours_ago=6.0,
+                src_ip=attacker_ip,
+                user=compromised_user,
                 action="delivered",
                 details={
                     "from": f"billing@{phishing_domain}",
@@ -351,57 +384,76 @@ class TeamLateralTeamScenario(BaseScenario):
                     "dkim": "fail",
                     "dmarc": "fail",
                     "spam_score": 8.9,
-                }
+                },
             ),
         ]
         log_db[LogSource.ENDPOINT.value]["ALT-TLT-001"] = [
             self._make_log_entry(
-                LogSource.ENDPOINT, "process_created",
-                hours_ago=5.8, src_ip=workstation_ip, hostname=workstation_host,
-                user=compromised_user, action="execute", severity="high",
+                LogSource.ENDPOINT,
+                "process_created",
+                hours_ago=5.8,
+                src_ip=workstation_ip,
+                hostname=workstation_host,
+                user=compromised_user,
+                action="execute",
+                severity="high",
                 details={
                     "process_name": "Q3Invoice.exe",
                     "parent_process": "OUTLOOK.EXE",
                     "hash_sha256": phishing_hash,
                     "hostname": workstation_host,
-                }
+                },
             ),
         ]
 
         # ALT-TLT-002: Endpoint (cred dump tool) + Auth (lsass access)
         log_db[LogSource.ENDPOINT.value]["ALT-TLT-002"] = [
             self._make_log_entry(
-                LogSource.ENDPOINT, "process_created",
-                hours_ago=5.5, src_ip=workstation_ip, hostname=workstation_host,
-                user=compromised_user, action="execute", severity="critical",
+                LogSource.ENDPOINT,
+                "process_created",
+                hours_ago=5.5,
+                src_ip=workstation_ip,
+                hostname=workstation_host,
+                user=compromised_user,
+                action="execute",
+                severity="critical",
                 details={
                     "process_name": "svchost_x64.exe",
                     "parent_process": "powershell.exe",
                     "hash_sha256": cred_dump_hash,
                     "lsass_access": True,
                     "hostname": workstation_host,
-                }
+                },
             ),
         ]
         log_db[LogSource.AUTH.value]["ALT-TLT-002"] = [
             self._make_log_entry(
-                LogSource.AUTH, "credential_access",
-                hours_ago=5.4, src_ip=workstation_ip, hostname=workstation_host,
-                user=compromised_user, action="lsass_dump", severity="critical",
+                LogSource.AUTH,
+                "credential_access",
+                hours_ago=5.4,
+                src_ip=workstation_ip,
+                hostname=workstation_host,
+                user=compromised_user,
+                action="lsass_dump",
+                severity="critical",
                 details={
                     "target_process": "lsass.exe",
                     "technique": "T1003.001",
                     "hostname": workstation_host,
-                }
+                },
             ),
         ]
 
         # ALT-TLT-003: Firewall + Auth (SMB lateral movement)
         log_db[LogSource.FIREWALL.value]["ALT-TLT-003"] = [
             self._make_log_entry(
-                LogSource.FIREWALL, "lateral_movement",
-                hours_ago=5.0, src_ip=workstation_ip, dst_ip=dc_ip,
-                action="allowed", severity="critical",
+                LogSource.FIREWALL,
+                "lateral_movement",
+                hours_ago=5.0,
+                src_ip=workstation_ip,
+                dst_ip=dc_ip,
+                action="allowed",
+                severity="critical",
                 details={
                     "dst_port": 445,
                     "protocol": "SMB",
@@ -409,30 +461,40 @@ class TeamLateralTeamScenario(BaseScenario):
                     "user": compromised_user,
                     "src_host": workstation_host,
                     "dst_host": dc_host,
-                }
+                },
             ),
         ]
         log_db[LogSource.AUTH.value]["ALT-TLT-003"] = [
             self._make_log_entry(
-                LogSource.AUTH, "admin_share_access",
-                hours_ago=4.9, src_ip=workstation_ip, dst_ip=dc_ip,
-                user=compromised_user, action="connect", severity="high",
+                LogSource.AUTH,
+                "admin_share_access",
+                hours_ago=4.9,
+                src_ip=workstation_ip,
+                dst_ip=dc_ip,
+                user=compromised_user,
+                action="connect",
+                severity="high",
                 details={
                     "share": "ADMIN$",
                     "src_host": workstation_host,
                     "dst_host": dc_host,
                     "auth_type": "NTLM",
                     "pass_the_hash": True,
-                }
+                },
             ),
         ]
 
         # ALT-TLT-004: Endpoint (data staging)
         log_db[LogSource.ENDPOINT.value]["ALT-TLT-004"] = [
             self._make_log_entry(
-                LogSource.ENDPOINT, "bulk_file_copy",
-                hours_ago=4.0, src_ip=dc_ip, hostname=dc_host,
-                user=compromised_user, action="write", severity="medium",
+                LogSource.ENDPOINT,
+                "bulk_file_copy",
+                hours_ago=4.0,
+                src_ip=dc_ip,
+                hostname=dc_host,
+                user=compromised_user,
+                action="write",
+                severity="medium",
                 details={
                     "src_share": f"\\\\{dc_host}\\finance",
                     "dst_path": "C:\\Windows\\Temp\\arch\\",
@@ -440,83 +502,101 @@ class TeamLateralTeamScenario(BaseScenario):
                     "bytes_total": 2147483648,
                     "duration_seconds": 587,
                     "hostname": staging_server_host,
-                }
+                },
             ),
         ]
 
         # ALT-TLT-005: Firewall + Proxy (data exfiltration)
         log_db[LogSource.FIREWALL.value]["ALT-TLT-005"] = [
             self._make_log_entry(
-                LogSource.FIREWALL, "outbound_large_transfer",
-                hours_ago=3.0, src_ip=staging_server_ip, dst_ip=exfil_ip,
-                action="allowed", severity="critical",
+                LogSource.FIREWALL,
+                "outbound_large_transfer",
+                hours_ago=3.0,
+                src_ip=staging_server_ip,
+                dst_ip=exfil_ip,
+                action="allowed",
+                severity="critical",
                 details={
                     "dst_port": 443,
                     "protocol": "HTTPS",
                     "bytes_sent": 2254857830,
                     "duration_seconds": 3600,
                     "dst_domain": exfil_domain,
-                }
+                },
             ),
         ]
         log_db[LogSource.PROXY.value]["ALT-TLT-005"] = [
             self._make_log_entry(
-                LogSource.PROXY, "https_connect",
-                hours_ago=2.9, src_ip=staging_server_ip, dst_ip=exfil_ip,
-                action="allowed", severity="critical",
+                LogSource.PROXY,
+                "https_connect",
+                hours_ago=2.9,
+                src_ip=staging_server_ip,
+                dst_ip=exfil_ip,
+                action="allowed",
+                severity="critical",
                 details={
                     "url": f"https://{exfil_domain}/upload",
                     "method": "POST",
                     "bytes_sent": 2254857830,
                     "response_code": 200,
-                }
+                },
             ),
         ]
 
         # ALT-TLT-006: DNS noise (FP — software update)
         log_db[LogSource.DNS.value]["ALT-TLT-006"] = [
             self._make_log_entry(
-                LogSource.DNS, "high_volume_dns_queries",
-                hours_ago=2.5, src_ip=noise_ip_1,
-                action="allowed", severity="low",
+                LogSource.DNS,
+                "high_volume_dns_queries",
+                hours_ago=2.5,
+                src_ip=noise_ip_1,
+                action="allowed",
+                severity="low",
                 details={
                     "queries_per_minute": 180,
                     "top_domains": ["windowsupdate.com", "microsoft.com", "download.microsoft.com"],
                     "pattern": "software_update_check",
                     "anomaly": False,
-                }
+                },
             ),
         ]
 
         # ALT-TLT-007: Auth noise (FP — employee travel)
         log_db[LogSource.AUTH.value]["ALT-TLT-007"] = [
             self._make_log_entry(
-                LogSource.AUTH, "login_unusual_location",
-                hours_ago=2.0, src_ip=noise_ip_2,
-                user=benign_user, action="login_success", severity="medium",
+                LogSource.AUTH,
+                "login_unusual_location",
+                hours_ago=2.0,
+                src_ip=noise_ip_2,
+                user=benign_user,
+                action="login_success",
+                severity="medium",
                 details={
                     "geo": "United Kingdom",
                     "mfa_passed": True,
                     "hr_travel_approved": True,
                     "risk_score": 0.15,
                     "user": benign_user,
-                }
+                },
             ),
         ]
 
         # ALT-TLT-008: IDS noise (FP — monitoring tool scan)
         log_db[LogSource.IDS.value]["ALT-TLT-008"] = [
             self._make_log_entry(
-                LogSource.IDS, "port_scan_detected",
-                hours_ago=1.0, src_ip=monitoring_ip,
-                action="allowed", severity="low",
+                LogSource.IDS,
+                "port_scan_detected",
+                hours_ago=1.0,
+                src_ip=monitoring_ip,
+                action="allowed",
+                severity="low",
                 details={
                     "scan_type": "tcp_syn",
                     "ports_scanned": 65535,
                     "schedule": "weekly_vuln_scan",
                     "asset": "nessus-scanner-01",
                     "authorized": True,
-                }
+                },
             ),
         ]
 
@@ -550,9 +630,7 @@ class TeamLateralTeamScenario(BaseScenario):
                 patch_status="current",
                 last_scan=self._timestamp(hours_ago=24),
                 open_vulnerabilities=1,
-                recent_activity_summary=(
-                    "Domain controller. Lateral movement from Finance workstation detected."
-                ),
+                recent_activity_summary=("Domain controller. Lateral movement from Finance workstation detected."),
             ),
             staging_server_host: AssetInfo(
                 asset_id=f"AST-{staging_server_host}",
@@ -566,20 +644,22 @@ class TeamLateralTeamScenario(BaseScenario):
                 patch_status="behind",
                 last_scan=self._timestamp(hours_ago=120),
                 open_vulnerabilities=5,
-                recent_activity_summary=(
-                    "File server. Bulk data staging activity detected from temp folder."
-                ),
+                recent_activity_summary=("File server. Bulk data staging activity detected from temp folder."),
             ),
         }
 
         # --- User DB ---
         user_db = {
             compromised_user: self._make_user(
-                compromised_user, "Financial Analyst", "Finance",
+                compromised_user,
+                "Financial Analyst",
+                "Finance",
                 risk_score=0.3,
             ),
             benign_user: self._make_user(
-                benign_user, "Sales Manager", "Sales",
+                benign_user,
+                "Sales Manager",
+                "Sales",
                 risk_score=0.1,
             ),
         }
@@ -597,16 +677,24 @@ class TeamLateralTeamScenario(BaseScenario):
                 "ALT-TLT-008": AlertClassification.FALSE_POSITIVE,
             },
             true_positive_ids=[
-                "ALT-TLT-001", "ALT-TLT-002", "ALT-TLT-003",
-                "ALT-TLT-004", "ALT-TLT-005",
+                "ALT-TLT-001",
+                "ALT-TLT-002",
+                "ALT-TLT-003",
+                "ALT-TLT-004",
+                "ALT-TLT-005",
             ],
             false_positive_ids=[
-                "ALT-TLT-006", "ALT-TLT-007", "ALT-TLT-008",
+                "ALT-TLT-006",
+                "ALT-TLT-007",
+                "ALT-TLT-008",
             ],
             benign_tp_ids=[],
             kill_chain_order=[
-                "ALT-TLT-001", "ALT-TLT-002", "ALT-TLT-003",
-                "ALT-TLT-004", "ALT-TLT-005",
+                "ALT-TLT-001",
+                "ALT-TLT-002",
+                "ALT-TLT-003",
+                "ALT-TLT-004",
+                "ALT-TLT-005",
             ],
             expected_techniques={
                 "ALT-TLT-001": ["T1566.001"],
@@ -647,8 +735,11 @@ class TeamLateralTeamScenario(BaseScenario):
             },
             attack_chain_ids=[
                 [
-                    "ALT-TLT-001", "ALT-TLT-002", "ALT-TLT-003",
-                    "ALT-TLT-004", "ALT-TLT-005",
+                    "ALT-TLT-001",
+                    "ALT-TLT-002",
+                    "ALT-TLT-003",
+                    "ALT-TLT-004",
+                    "ALT-TLT-005",
                 ]
             ],
             # Team-mode escalation ground truth
@@ -671,8 +762,14 @@ class TeamLateralTeamScenario(BaseScenario):
             ),
             max_steps=self.MAX_STEPS,
             alerts=[
-                alert_001, alert_002, alert_003, alert_004,
-                alert_005, alert_006, alert_007, alert_008,
+                alert_001,
+                alert_002,
+                alert_003,
+                alert_004,
+                alert_005,
+                alert_006,
+                alert_007,
+                alert_008,
             ],
             enrichment_db=enrichment_db,
             log_db=log_db,

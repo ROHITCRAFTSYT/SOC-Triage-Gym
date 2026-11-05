@@ -120,8 +120,7 @@ class QueueManagementScenario(BaseScenario):
             task_id="queue_management",
             seed=self.seed,
             description=(
-                "20-alert queue: 5 TPs (2 attack chains), 3 benign TPs, 12 FPs. "
-                "Find the attacks hidden in the noise."
+                "20-alert queue: 5 TPs (2 attack chains), 3 benign TPs, 12 FPs. Find the attacks hidden in the noise."
             ),
             max_steps=self.MAX_STEPS,
             alerts=all_alerts,
@@ -190,17 +189,32 @@ class QueueManagementScenario(BaseScenario):
 
         enrichment_db = {
             attacker_ip: self._make_enrichment_result(
-                attacker_ip, IndicatorType.IP, malicious=True, confidence=0.93, threat_score=90,
-                threat_type="credential-stuffing", geo="Tor Exit Node",
+                attacker_ip,
+                IndicatorType.IP,
+                malicious=True,
+                confidence=0.93,
+                threat_score=90,
+                threat_type="credential-stuffing",
+                geo="Tor Exit Node",
                 tags=["tor-exit", "credential-stuffing"],
             ),
             c2_domain: self._make_enrichment_result(
-                c2_domain, IndicatorType.DOMAIN, malicious=True, confidence=0.88, threat_score=84,
-                threat_type="data-exfiltration", tags=["c2", "data-theft"],
+                c2_domain,
+                IndicatorType.DOMAIN,
+                malicious=True,
+                confidence=0.88,
+                threat_score=84,
+                threat_type="data-exfiltration",
+                tags=["c2", "data-theft"],
             ),
             tool_hash: self._make_enrichment_result(
-                tool_hash, IndicatorType.FILE_HASH, malicious=True, confidence=0.91, threat_score=88,
-                threat_type="rclone", tags=["data-theft-tool", "rclone"],
+                tool_hash,
+                IndicatorType.FILE_HASH,
+                malicious=True,
+                confidence=0.91,
+                threat_score=88,
+                threat_type="rclone",
+                tags=["data-theft-tool", "rclone"],
                 malware=["RClone-variant"],
             ),
         }
@@ -210,19 +224,34 @@ class QueueManagementScenario(BaseScenario):
             log_db[source.value] = {aid1: [], aid2: [], aid3: []}
 
         log_db[LogSource.AUTH.value][aid1] = [
-            self._make_log_entry(LogSource.AUTH, "login_failure", hours_ago=3.0,
-                src_ip=attacker_ip, user=victim_user,
-                details={"failed_count": 847, "user_agent": "python-requests/2.28.0"}),
+            self._make_log_entry(
+                LogSource.AUTH,
+                "login_failure",
+                hours_ago=3.0,
+                src_ip=attacker_ip,
+                user=victim_user,
+                details={"failed_count": 847, "user_agent": "python-requests/2.28.0"},
+            ),
         ]
         log_db[LogSource.AUTH.value][aid2] = [
-            self._make_log_entry(LogSource.AUTH, "login_success", hours_ago=2.5,
-                src_ip=attacker_ip, user=victim_user,
-                details={"first_seen_ip": True, "mfa_bypassed": False}),
+            self._make_log_entry(
+                LogSource.AUTH,
+                "login_success",
+                hours_ago=2.5,
+                src_ip=attacker_ip,
+                user=victim_user,
+                details={"first_seen_ip": True, "mfa_bypassed": False},
+            ),
         ]
         log_db[LogSource.CLOUD_TRAIL.value][aid3] = [
-            self._make_log_entry(LogSource.CLOUD_TRAIL, "mass_download", hours_ago=2.0,
-                user=victim_user, src_ip=attacker_ip,
-                details={"app": "SharePoint", "file_count": 4200, "duration_seconds": 480}),
+            self._make_log_entry(
+                LogSource.CLOUD_TRAIL,
+                "mass_download",
+                hours_ago=2.0,
+                user=victim_user,
+                src_ip=attacker_ip,
+                details={"app": "SharePoint", "file_count": 4200, "duration_seconds": 480},
+            ),
         ]
 
         user_db = {victim_user: self._make_user(victim_user, "Software Engineer", "Engineering", risk_score=0.3)}
@@ -295,17 +324,33 @@ class QueueManagementScenario(BaseScenario):
 
         enrichment_db = {
             ext_ip: self._make_enrichment_result(
-                ext_ip, IndicatorType.IP, malicious=True, confidence=0.87, threat_score=83,
-                threat_type="phishing", geo="Romania", tags=["phishing-host"],
+                ext_ip,
+                IndicatorType.IP,
+                malicious=True,
+                confidence=0.87,
+                threat_score=83,
+                threat_type="phishing",
+                geo="Romania",
+                tags=["phishing-host"],
             ),
             malicious_domain: self._make_enrichment_result(
-                malicious_domain, IndicatorType.DOMAIN, malicious=True, confidence=0.93, threat_score=88,
-                threat_type="phishing", tags=["credential-harvesting", "newly-registered"],
+                malicious_domain,
+                IndicatorType.DOMAIN,
+                malicious=True,
+                confidence=0.93,
+                threat_score=88,
+                threat_type="phishing",
+                tags=["credential-harvesting", "newly-registered"],
                 whois="Registered 1 day ago.",
             ),
             payload_hash: self._make_enrichment_result(
-                payload_hash, IndicatorType.FILE_HASH, malicious=True, confidence=0.89, threat_score=86,
-                threat_type="malware", tags=["powershell-backdoor"],
+                payload_hash,
+                IndicatorType.FILE_HASH,
+                malicious=True,
+                confidence=0.89,
+                threat_score=86,
+                threat_type="malware",
+                tags=["powershell-backdoor"],
             ),
         }
 
@@ -313,14 +358,25 @@ class QueueManagementScenario(BaseScenario):
         for source in LogSource:
             log_db[source.value] = {aid1: [], aid2: []}
         log_db[LogSource.PROXY.value][aid1] = [
-            self._make_log_entry(LogSource.PROXY, "url_visited", hours_ago=5.0,
-                user=victim_user, src_ip=victim_ip, dst_ip=ext_ip,
-                details={"url": f"https://{malicious_domain}/login", "category": "phishing"}),
+            self._make_log_entry(
+                LogSource.PROXY,
+                "url_visited",
+                hours_ago=5.0,
+                user=victim_user,
+                src_ip=victim_ip,
+                dst_ip=ext_ip,
+                details={"url": f"https://{malicious_domain}/login", "category": "phishing"},
+            ),
         ]
         log_db[LogSource.ENDPOINT.value][aid2] = [
-            self._make_log_entry(LogSource.ENDPOINT, "scheduled_task_created", hours_ago=4.5,
-                hostname=victim_host, user=victim_user,
-                details={"task_name": "WindowsUpdateHelper", "hash": payload_hash}),
+            self._make_log_entry(
+                LogSource.ENDPOINT,
+                "scheduled_task_created",
+                hours_ago=4.5,
+                hostname=victim_host,
+                user=victim_user,
+                details={"task_name": "WindowsUpdateHelper", "hash": payload_hash},
+            ),
         ]
 
         user_db = {victim_user: self._make_user(victim_user, "HR Coordinator", "HR", risk_score=0.2)}
@@ -402,7 +458,11 @@ class QueueManagementScenario(BaseScenario):
         # Clean enrichment for these
         enrichment_db = {
             pentest_ip: self._make_enrichment_result(
-                pentest_ip, IndicatorType.IP, malicious=False, confidence=0.95, threat_score=0,
+                pentest_ip,
+                IndicatorType.IP,
+                malicious=False,
+                confidence=0.95,
+                threat_score=0,
                 tags=["internal", "authorized-scanner"],
             ),
         }
@@ -412,26 +472,50 @@ class QueueManagementScenario(BaseScenario):
             log_db[source.value] = {aid: [] for aid in aids}
 
         log_db[LogSource.IDS.value][aids[0]] = [
-            self._make_log_entry(LogSource.IDS, "port_scan", hours_ago=1.0,
-                src_ip=pentest_ip, details={"authorized": True, "ticket": "PENTEST-2024-Q4"}),
+            self._make_log_entry(
+                LogSource.IDS,
+                "port_scan",
+                hours_ago=1.0,
+                src_ip=pentest_ip,
+                details={"authorized": True, "ticket": "PENTEST-2024-Q4"},
+            ),
         ]
         log_db[LogSource.ENDPOINT.value][aids[1]] = [
-            self._make_log_entry(LogSource.ENDPOINT, "psexec_execution", hours_ago=0.5,
-                src_ip=admin_ip, hostname=admin_host, user=admin_user,
-                details={"ticket": "CHG-4821", "authorized": True}),
+            self._make_log_entry(
+                LogSource.ENDPOINT,
+                "psexec_execution",
+                hours_ago=0.5,
+                src_ip=admin_ip,
+                hostname=admin_host,
+                user=admin_user,
+                details={"ticket": "CHG-4821", "authorized": True},
+            ),
         ]
         log_db[LogSource.AUTH.value][aids[2]] = [
-            self._make_log_entry(LogSource.AUTH, "bulk_password_reset", hours_ago=0.2,
-                user=it_user, details={"count": 47, "scheduled": True}),
+            self._make_log_entry(
+                LogSource.AUTH,
+                "bulk_password_reset",
+                hours_ago=0.2,
+                user=it_user,
+                details={"count": 47, "scheduled": True},
+            ),
         ]
 
         user_db = {
-            pentest_user: self._make_user(pentest_user, "Penetration Tester", "IT Security",
-                risk_score=0.05, is_privileged=True, access_level="admin"),
-            admin_user: self._make_user(admin_user, "Systems Administrator", "IT",
-                risk_score=0.08, is_privileged=True, access_level="admin"),
-            it_user: self._make_user(it_user, "IT Administrator", "IT",
-                risk_score=0.05, is_privileged=True, access_level="admin"),
+            pentest_user: self._make_user(
+                pentest_user,
+                "Penetration Tester",
+                "IT Security",
+                risk_score=0.05,
+                is_privileged=True,
+                access_level="admin",
+            ),
+            admin_user: self._make_user(
+                admin_user, "Systems Administrator", "IT", risk_score=0.08, is_privileged=True, access_level="admin"
+            ),
+            it_user: self._make_user(
+                it_user, "IT Administrator", "IT", risk_score=0.05, is_privileged=True, access_level="admin"
+            ),
         }
 
         return [alert_pentest, alert_psexec, alert_pwd_reset], {
@@ -457,53 +541,118 @@ class QueueManagementScenario(BaseScenario):
         log_db = {}
 
         fp_templates = [
-            ("FW_GEO_BLOCK", "Geoblocked Connection from High-Risk Country", AlertSeverity.LOW,
-             "Firewall auto-blocked inbound connection from sanctioned country. No internal system reached.", LogSource.FIREWALL),
-            ("FW_SCANNER", "Known Vulnerability Scanner — Shodan/Censys", AlertSeverity.INFO,
-             "Internet-facing host probed by known security research scanner (Shodan). Auto-blocked.", LogSource.FIREWALL),
-            ("FW_GEO_BLOCK", "Geoblocked Outbound to CDN — False Positive", AlertSeverity.LOW,
-             "Internal host connecting to content delivery network incorrectly flagged as foreign IP.", LogSource.FIREWALL),
-            ("AV_FP_001", "Antivirus Alert — Known False Positive on Dev Tool", AlertSeverity.LOW,
-             "AV flagged legitimate development tool (npm package). File is in approved software list.", LogSource.ENDPOINT),
-            ("AV_FP_002", "Antivirus Alert — Python Script Flagged as Heuristic", AlertSeverity.LOW,
-             "AV heuristic triggered on legitimate Python automation script. SHA256 not in threat feeds.", LogSource.ENDPOINT),
-            ("AV_FP_003", "Antivirus Alert — Compressed Archive Flagged", AlertSeverity.LOW,
-             "AV flagged password-protected zip as suspicious. Contents verified clean by IT.", LogSource.ENDPOINT),
-            ("AV_FP_004", "Antivirus Alert — PDF with JavaScript Flagged", AlertSeverity.LOW,
-             "AV flagged PDF with embedded JavaScript. Document is legitimate marketing collateral.", LogSource.ENDPOINT),
-            ("AUTH_SVC_001", "Service Account Authentication Alert — Expected Behavior", AlertSeverity.LOW,
-             "Service account performing scheduled authentication. Part of automated monitoring job.", LogSource.AUTH),
-            ("AUTH_SVC_002", "Service Account Multiple Auth Failures — Config Issue", AlertSeverity.LOW,
-             "Service account locked out due to password policy change. IT ticket open, not an attack.", LogSource.AUTH),
-            ("AUTH_SVC_003", "Off-Hours Login — Contractor in Different Timezone", AlertSeverity.LOW,
-             "Contractor account logging in during off-hours — contractor is in APAC timezone (UTC+8).", LogSource.AUTH),
-            ("DNS_CDN_001", "DNS Query to Newly-Registered Domain — Legitimate SaaS", AlertSeverity.INFO,
-             "Internal host queried domain for new SaaS tool approved by IT. Domain is legitimate.", LogSource.DNS),
-            ("FW_NOISE_001", "WAF Rule Triggered — Automated Vulnerability Scanner", AlertSeverity.INFO,
-             "WAF blocked automated vulnerability scan from external scanner. No successful requests.", LogSource.FIREWALL),
+            (
+                "FW_GEO_BLOCK",
+                "Geoblocked Connection from High-Risk Country",
+                AlertSeverity.LOW,
+                "Firewall auto-blocked inbound connection from sanctioned country. No internal system reached.",
+                LogSource.FIREWALL,
+            ),
+            (
+                "FW_SCANNER",
+                "Known Vulnerability Scanner — Shodan/Censys",
+                AlertSeverity.INFO,
+                "Internet-facing host probed by known security research scanner (Shodan). Auto-blocked.",
+                LogSource.FIREWALL,
+            ),
+            (
+                "FW_GEO_BLOCK",
+                "Geoblocked Outbound to CDN — False Positive",
+                AlertSeverity.LOW,
+                "Internal host connecting to content delivery network incorrectly flagged as foreign IP.",
+                LogSource.FIREWALL,
+            ),
+            (
+                "AV_FP_001",
+                "Antivirus Alert — Known False Positive on Dev Tool",
+                AlertSeverity.LOW,
+                "AV flagged legitimate development tool (npm package). File is in approved software list.",
+                LogSource.ENDPOINT,
+            ),
+            (
+                "AV_FP_002",
+                "Antivirus Alert — Python Script Flagged as Heuristic",
+                AlertSeverity.LOW,
+                "AV heuristic triggered on legitimate Python automation script. SHA256 not in threat feeds.",
+                LogSource.ENDPOINT,
+            ),
+            (
+                "AV_FP_003",
+                "Antivirus Alert — Compressed Archive Flagged",
+                AlertSeverity.LOW,
+                "AV flagged password-protected zip as suspicious. Contents verified clean by IT.",
+                LogSource.ENDPOINT,
+            ),
+            (
+                "AV_FP_004",
+                "Antivirus Alert — PDF with JavaScript Flagged",
+                AlertSeverity.LOW,
+                "AV flagged PDF with embedded JavaScript. Document is legitimate marketing collateral.",
+                LogSource.ENDPOINT,
+            ),
+            (
+                "AUTH_SVC_001",
+                "Service Account Authentication Alert — Expected Behavior",
+                AlertSeverity.LOW,
+                "Service account performing scheduled authentication. Part of automated monitoring job.",
+                LogSource.AUTH,
+            ),
+            (
+                "AUTH_SVC_002",
+                "Service Account Multiple Auth Failures — Config Issue",
+                AlertSeverity.LOW,
+                "Service account locked out due to password policy change. IT ticket open, not an attack.",
+                LogSource.AUTH,
+            ),
+            (
+                "AUTH_SVC_003",
+                "Off-Hours Login — Contractor in Different Timezone",
+                AlertSeverity.LOW,
+                "Contractor account logging in during off-hours — contractor is in APAC timezone (UTC+8).",
+                LogSource.AUTH,
+            ),
+            (
+                "DNS_CDN_001",
+                "DNS Query to Newly-Registered Domain — Legitimate SaaS",
+                AlertSeverity.INFO,
+                "Internal host queried domain for new SaaS tool approved by IT. Domain is legitimate.",
+                LogSource.DNS,
+            ),
+            (
+                "FW_NOISE_001",
+                "WAF Rule Triggered — Automated Vulnerability Scanner",
+                AlertSeverity.INFO,
+                "WAF blocked automated vulnerability scan from external scanner. No successful requests.",
+                LogSource.FIREWALL,
+            ),
         ]
 
         for rule, title, severity, description, primary_source in fp_templates:
             aid = self._alert_id("FP")
-            fps.append(AlertMeta(
-                alert_id=aid,
-                title=title,
-                description=description,
-                severity=severity,
-                source_system="SIEM",
-                timestamp=self._timestamp(hours_ago=self.rng.uniform(0.1, 6.0)),
-                rule_triggered=rule,
-                indicators={"ip": [self._public_ip()]},
-                raw_log_snippet=f"Rule: {rule} | {description[:80]}",
-            ))
+            fps.append(
+                AlertMeta(
+                    alert_id=aid,
+                    title=title,
+                    description=description,
+                    severity=severity,
+                    source_system="SIEM",
+                    timestamp=self._timestamp(hours_ago=self.rng.uniform(0.1, 6.0)),
+                    rule_triggered=rule,
+                    indicators={"ip": [self._public_ip()]},
+                    raw_log_snippet=f"Rule: {rule} | {description[:80]}",
+                )
+            )
             for source in LogSource:
                 log_db.setdefault(source.value, {})[aid] = []
             # Add minimal supporting log
             log_db[primary_source.value][aid] = [
-                self._make_log_entry(primary_source, "event",
+                self._make_log_entry(
+                    primary_source,
+                    "event",
                     hours_ago=self.rng.uniform(0.1, 6.0),
                     action="block" if "BLOCK" in rule or "FW" in rule else "allow",
-                    details={"rule": rule, "false_positive": True}),
+                    details={"rule": rule, "false_positive": True},
+                ),
             ]
 
         return fps, {

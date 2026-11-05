@@ -112,10 +112,7 @@ class BaseGrader(ABC):
             # Give partial credit: exact match + parent technique credit
             exact_matches = mapped & expected
             # Parent technique credit (e.g., T1566 for T1566.001)
-            parent_credits = sum(
-                1 for t in expected
-                if t not in mapped and t.split(".")[0] in mapped
-            ) * 0.5
+            parent_credits = sum(1 for t in expected if t not in mapped and t.split(".")[0] in mapped) * 0.5
 
             alert_score = (len(exact_matches) + parent_credits) / len(expected)
             total_score += min(alert_score, 1.0)
@@ -181,6 +178,7 @@ class BaseGrader(ABC):
                 # actually triaged — otherwise an empty submission collects
                 # this component for free (reward-hacking regression).
                 from models import ResponseActionType
+
                 triaged = inv is not None and inv.classification is not None
                 if ResponseActionType.NO_ACTION in recommended or (triaged and not recommended):
                     total_score += 1.0

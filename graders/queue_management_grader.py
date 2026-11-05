@@ -11,7 +11,6 @@ Weights:
   response_score      0.15  — quality of response for actual TPs
 """
 
-
 from graders.base import BaseGrader
 from models import AlertClassification, InvestigationState, ScenarioConfig
 
@@ -48,11 +47,7 @@ class QueueManagementGrader(BaseGrader):
 
         # ---- Weighted sum ----
         final = (
-            0.30 * f1
-            + 0.20 * chain_score
-            + 0.20 * missed_tp_score
-            + 0.15 * efficiency_score
-            + 0.15 * response_score
+            0.30 * f1 + 0.20 * chain_score + 0.20 * missed_tp_score + 0.15 * efficiency_score + 0.15 * response_score
         )
 
         return self._clamp(final)
@@ -67,8 +62,7 @@ class QueueManagementGrader(BaseGrader):
         response_score = self._response_quality(config, investigations)
 
         final = self._clamp(
-            0.30 * f1 + 0.20 * chain_score + 0.20 * missed_tp_score
-            + 0.15 * efficiency_score + 0.15 * response_score
+            0.30 * f1 + 0.20 * chain_score + 0.20 * missed_tp_score + 0.15 * efficiency_score + 0.15 * response_score
         )
 
         # Count unclassified alerts
@@ -77,19 +71,23 @@ class QueueManagementGrader(BaseGrader):
         if unclassified > 0:
             feedback_parts.append(f"{unclassified} alerts left unclassified.")
         if f1 < 0.8:
-            feedback_parts.append(f"F1 score {int(f1*100)}% — check FP dismissal and TP escalation balance.")
+            feedback_parts.append(f"F1 score {int(f1 * 100)}% — check FP dismissal and TP escalation balance.")
         if chain_score < 1.0:
-            feedback_parts.append(f"Only {int(chain_score*100)}% of attack chains identified.")
+            feedback_parts.append(f"Only {int(chain_score * 100)}% of attack chains identified.")
         if missed_tp_score < 1.0:
             feedback_parts.append("Missed true positives — high cost to SOC.")
 
-        return final, {
-            "f1_score": round(f1, 3),
-            "attack_chains_found": round(chain_score, 3),
-            "true_positive_coverage": round(missed_tp_score, 3),
-            "efficiency": round(efficiency_score, 3),
-            "response_quality": round(response_score, 3),
-        }, " ".join(feedback_parts) or "Excellent queue management performance."
+        return (
+            final,
+            {
+                "f1_score": round(f1, 3),
+                "attack_chains_found": round(chain_score, 3),
+                "true_positive_coverage": round(missed_tp_score, 3),
+                "efficiency": round(efficiency_score, 3),
+                "response_quality": round(response_score, 3),
+            },
+            " ".join(feedback_parts) or "Excellent queue management performance.",
+        )
 
     def _compute_f1(
         self,
@@ -127,11 +125,7 @@ class QueueManagementGrader(BaseGrader):
 
         precision = tp_count / (tp_count + fp_count) if (tp_count + fp_count) > 0 else 0.0
         recall = tp_count / (tp_count + fn_count) if (tp_count + fn_count) > 0 else 0.0
-        f1 = (
-            2 * precision * recall / (precision + recall)
-            if (precision + recall) > 0
-            else 0.0
-        )
+        f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
         return f1
 
     def _attack_chain_score(
@@ -155,8 +149,7 @@ class QueueManagementGrader(BaseGrader):
                 continue
             # Chain is found if all its alerts are classified as positive
             all_found = all(
-                investigations.get(aid, InvestigationState(alert_id=aid)).classification
-                in positive_classes
+                investigations.get(aid, InvestigationState(alert_id=aid)).classification in positive_classes
                 for aid in chain
             )
             if all_found:

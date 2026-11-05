@@ -66,9 +66,7 @@ def validate_scenario(config: ScenarioConfig) -> list[str]:
     ):
         overlap = a_set & b_set
         if overlap:
-            issues.append(
-                f"alert(s) in both {a_name} and {b_name}: {', '.join(sorted(overlap))}"
-            )
+            issues.append(f"alert(s) in both {a_name} and {b_name}: {', '.join(sorted(overlap))}")
 
     # --- every expected technique must be mappable --------------------------
     # map_technique rejects IDs outside the catalog, so an uncatalogued expected
@@ -77,16 +75,12 @@ def validate_scenario(config: ScenarioConfig) -> list[str]:
         {t for techs in gt.expected_techniques.values() for t in techs if not is_valid_technique(t)}
     )
     if unknown_techniques:
-        issues.append(
-            f"expected_techniques not in the MITRE catalog (unmappable): {', '.join(unknown_techniques)}"
-        )
+        issues.append(f"expected_techniques not in the MITRE catalog (unmappable): {', '.join(unknown_techniques)}")
 
     # --- every alert should have a ground-truth classification -----------
     unclassified = [aid for aid in alert_ids if aid not in gt.alert_classifications]
     if unclassified:
-        issues.append(
-            f"alert(s) missing a ground-truth classification: {', '.join(sorted(unclassified))}"
-        )
+        issues.append(f"alert(s) missing a ground-truth classification: {', '.join(sorted(unclassified))}")
 
     return issues
 
@@ -95,7 +89,4 @@ def assert_valid(config: ScenarioConfig) -> None:
     """Raise ``ValueError`` if the scenario has any integrity issues."""
     issues = validate_scenario(config)
     if issues:
-        raise ValueError(
-            f"Scenario {config.scenario_id!r} failed integrity validation:\n  - "
-            + "\n  - ".join(issues)
-        )
+        raise ValueError(f"Scenario {config.scenario_id!r} failed integrity validation:\n  - " + "\n  - ".join(issues))

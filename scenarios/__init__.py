@@ -1,4 +1,5 @@
 """SOC-Triage-Gym scenario generators."""
+
 from scenarios.apt_campaign import APTCampaignScenario
 from scenarios.cloud_compromise import CloudCompromiseScenario
 from scenarios.insider_threat import InsiderThreatScenario

@@ -1,4 +1,5 @@
 """MITRE ATT&CK data module."""
+
 from data.mitre_attack import (
     TECHNIQUES,
     get_parent_technique,

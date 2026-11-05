@@ -13,7 +13,6 @@ Reward logic (must stay in sync with enrich_indicator below):
    0.00  no db entry but the indicator is relevant (missing intel, not the agent's fault)
 """
 
-
 from models import EnrichmentResult, IndicatorType, InvestigationState, ScenarioConfig
 
 

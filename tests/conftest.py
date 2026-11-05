@@ -26,6 +26,7 @@ from server.environment import SOCEnvironment
 # Scenario config fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def phishing_config() -> ScenarioConfig:
     """Generate a phishing scenario config with seed=42 (true positive)."""
@@ -54,6 +55,7 @@ def team_phishing_config() -> ScenarioConfig:
 # Environment fixture
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def environment() -> SOCEnvironment:
     """Return a fresh SOCEnvironment instance."""
@@ -64,6 +66,7 @@ def environment() -> SOCEnvironment:
 # FastAPI TestClient fixture
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def test_client() -> TestClient:
     """Return a TestClient wired to the FastAPI app with fresh state.
@@ -73,6 +76,7 @@ def test_client() -> TestClient:
     isolation.
     """
     import server.app as app_module
+
     with TestClient(app) as client:
         app_module._sessions.clear()
         app_module.METRICS.reset()

@@ -9,7 +9,6 @@ Team-mode phishing scenario designed for Tier-1 + Tier-2 + Manager coordination.
 - Manager reviews; no inconsistencies expected in this easy scenario
 """
 
-
 from models import (
     AlertClassification,
     AlertMeta,
@@ -40,9 +39,9 @@ class TeamPhishingEscalationScenario(BaseScenario):
         alert_id = self.ALERT_ID
 
         # --- IOCs ---
-        sender_ip = self._public_ip()           # malicious sender IP (Eastern Europe)
+        sender_ip = self._public_ip()  # malicious sender IP (Eastern Europe)
         malicious_domain = self._malicious_domain()
-        file_hash = self._sha256()              # malicious file hash
+        file_hash = self._sha256()  # malicious file hash
         sender_email = f"invoice@{malicious_domain}"
         recipient_user = self._username()
         victim_host = "WORKSTATION-ALPHA"
@@ -80,8 +79,11 @@ class TeamPhishingEscalationScenario(BaseScenario):
         # --- Enrichment DB ---
         enrichment_db = {
             sender_ip: self._make_enrichment_result(
-                sender_ip, IndicatorType.IP, malicious=True,
-                confidence=0.95, threat_score=88,
+                sender_ip,
+                IndicatorType.IP,
+                malicious=True,
+                confidence=0.95,
+                threat_score=88,
                 threat_type="phishing",
                 geo="Eastern Europe",
                 tags=["phishing-actor", "bulletproof-hosting", "eastern-europe"],
@@ -89,37 +91,52 @@ class TeamPhishingEscalationScenario(BaseScenario):
                 whois="Registered 7 days ago. AS: BULLETPROOF-EE-002. Geolocation: Romania.",
             ),
             malicious_domain: self._make_enrichment_result(
-                malicious_domain, IndicatorType.DOMAIN, malicious=True,
-                confidence=0.90, threat_score=82,
+                malicious_domain,
+                IndicatorType.DOMAIN,
+                malicious=True,
+                confidence=0.90,
+                threat_score=82,
                 threat_type="phishing",
                 geo="Eastern Europe",
                 tags=["newly-registered", "phishing-kit", "lookalike"],
                 whois="Registered 4 days ago via anonymous registrar. No abuse contact.",
             ),
             file_hash: self._make_enrichment_result(
-                file_hash, IndicatorType.FILE_HASH, malicious=True,
-                confidence=0.99, threat_score=85,
+                file_hash,
+                IndicatorType.FILE_HASH,
+                malicious=True,
+                confidence=0.99,
+                threat_score=85,
                 threat_type="malware",
                 tags=["trojan", "dropper", "agent-tesla"],
                 malware=["AgentTesla"],
             ),
             sender_email: self._make_enrichment_result(
-                sender_email, IndicatorType.EMAIL, malicious=True,
-                confidence=0.87, threat_score=78,
+                sender_email,
+                IndicatorType.EMAIL,
+                malicious=True,
+                confidence=0.87,
+                threat_score=78,
                 threat_type="phishing",
                 tags=["phishing-sender", "spoofed-invoice"],
             ),
             c2_domain: self._make_enrichment_result(
-                c2_domain, IndicatorType.DOMAIN, malicious=True,
-                confidence=0.93, threat_score=90,
+                c2_domain,
+                IndicatorType.DOMAIN,
+                malicious=True,
+                confidence=0.93,
+                threat_score=90,
                 threat_type="command-and-control",
                 geo="Eastern Europe",
                 tags=["c2", "agent-tesla-c2"],
                 malware=["AgentTesla"],
             ),
             c2_ip: self._make_enrichment_result(
-                c2_ip, IndicatorType.IP, malicious=True,
-                confidence=0.92, threat_score=88,
+                c2_ip,
+                IndicatorType.IP,
+                malicious=True,
+                confidence=0.92,
+                threat_score=88,
                 threat_type="command-and-control",
                 geo="Eastern Europe",
                 tags=["c2", "agent-tesla-c2"],
@@ -133,8 +150,11 @@ class TeamPhishingEscalationScenario(BaseScenario):
         # Email Gateway — phishing email delivered
         log_db[LogSource.EMAIL_GATEWAY.value][alert_id] = [
             self._make_log_entry(
-                LogSource.EMAIL_GATEWAY, "email_received",
-                hours_ago=1.5, src_ip=sender_ip, user=recipient_user,
+                LogSource.EMAIL_GATEWAY,
+                "email_received",
+                hours_ago=1.5,
+                src_ip=sender_ip,
+                user=recipient_user,
                 action="delivered",
                 details={
                     "from": sender_email,
@@ -149,16 +169,20 @@ class TeamPhishingEscalationScenario(BaseScenario):
                     "spam_score": 9.1,
                     "sender_ip": sender_ip,
                     "sender_domain": malicious_domain,
-                }
+                },
             ),
         ]
 
         # Endpoint — suspicious file execution
         log_db[LogSource.ENDPOINT.value][alert_id] = [
             self._make_log_entry(
-                LogSource.ENDPOINT, "process_created",
-                hours_ago=1.2, src_ip=victim_ip, hostname=victim_host,
-                user=recipient_user, action="execute",
+                LogSource.ENDPOINT,
+                "process_created",
+                hours_ago=1.2,
+                src_ip=victim_ip,
+                hostname=victim_host,
+                user=recipient_user,
+                action="execute",
                 severity="high",
                 details={
                     "process_name": "InvoiceQ4.exe",
@@ -167,54 +191,69 @@ class TeamPhishingEscalationScenario(BaseScenario):
                     "hash_sha256": file_hash,
                     "command_line": "InvoiceQ4.exe /silent /install",
                     "hostname": victim_host,
-                }
+                },
             ),
             self._make_log_entry(
-                LogSource.ENDPOINT, "process_created",
-                hours_ago=1.1, hostname=victim_host, user=recipient_user,
-                action="execute", severity="critical",
+                LogSource.ENDPOINT,
+                "process_created",
+                hours_ago=1.1,
+                hostname=victim_host,
+                user=recipient_user,
+                action="execute",
+                severity="critical",
                 details={
                     "process_name": "powershell.exe",
                     "parent_process": "InvoiceQ4.exe",
                     "command_line": "powershell -enc SGVsbG8gV29ybGQ=",
                     "encoded_payload": True,
                     "hostname": victim_host,
-                }
+                },
             ),
             self._make_log_entry(
-                LogSource.ENDPOINT, "file_created",
-                hours_ago=1.05, hostname=victim_host, user=recipient_user,
-                action="write", severity="medium",
+                LogSource.ENDPOINT,
+                "file_created",
+                hours_ago=1.05,
+                hostname=victim_host,
+                user=recipient_user,
+                action="write",
+                severity="medium",
                 details={
                     "file_path": "C:\\ProgramData\\svchost32.exe",
                     "hash_sha256": file_hash,
                     "hostname": victim_host,
                     "hidden": True,
                     "persistence": "startup_folder",
-                }
+                },
             ),
         ]
 
         # DNS — C2 beacon
         log_db[LogSource.DNS.value][alert_id] = [
             self._make_log_entry(
-                LogSource.DNS, "dns_query",
-                hours_ago=1.0, hostname=victim_host, src_ip=victim_ip,
+                LogSource.DNS,
+                "dns_query",
+                hours_ago=1.0,
+                hostname=victim_host,
+                src_ip=victim_ip,
                 details={
                     "query": c2_domain,
                     "response": c2_ip,
                     "record_type": "A",
                     "hostname": victim_host,
-                }
+                },
             ),
         ]
 
         # Firewall — outbound C2 connection
         log_db[LogSource.FIREWALL.value][alert_id] = [
             self._make_log_entry(
-                LogSource.FIREWALL, "outbound_connection",
-                hours_ago=0.9, src_ip=victim_ip, dst_ip=c2_ip,
-                action="allowed", severity="high",
+                LogSource.FIREWALL,
+                "outbound_connection",
+                hours_ago=0.9,
+                src_ip=victim_ip,
+                dst_ip=c2_ip,
+                action="allowed",
+                severity="high",
                 details={
                     "dst_port": 587,
                     "protocol": "TCP",
@@ -222,22 +261,25 @@ class TeamPhishingEscalationScenario(BaseScenario):
                     "bytes_recv": 16384,
                     "duration_seconds": 1800,
                     "direction": "outbound",
-                }
+                },
             ),
         ]
 
         # IDS — malware signature match
         log_db[LogSource.IDS.value][alert_id] = [
             self._make_log_entry(
-                LogSource.IDS, "signature_match",
-                hours_ago=1.1, src_ip=victim_ip, dst_ip=c2_ip,
+                LogSource.IDS,
+                "signature_match",
+                hours_ago=1.1,
+                src_ip=victim_ip,
+                dst_ip=c2_ip,
                 severity="critical",
                 details={
                     "signature": "MALWARE-CNC AgentTesla checkin",
                     "category": "Malware-CnC",
                     "priority": 1,
                     "hostname": victim_host,
-                }
+                },
             ),
         ]
 
@@ -262,7 +304,9 @@ class TeamPhishingEscalationScenario(BaseScenario):
         # --- User DB ---
         user_db = {
             recipient_user: self._make_user(
-                recipient_user, "Financial Analyst", "Finance",
+                recipient_user,
+                "Financial Analyst",
+                "Finance",
                 risk_score=0.2,
             )
         }
@@ -273,9 +317,7 @@ class TeamPhishingEscalationScenario(BaseScenario):
             true_positive_ids=[alert_id],
             false_positive_ids=[],
             benign_tp_ids=[],
-            expected_techniques={
-                alert_id: ["T1566.001", "T1204.002"]
-            },
+            expected_techniques={alert_id: ["T1566.001", "T1204.002"]},
             expected_response_actions={
                 alert_id: [
                     ResponseActionType.QUARANTINE_FILE,
@@ -291,14 +333,10 @@ class TeamPhishingEscalationScenario(BaseScenario):
                     LogSource.IDS,
                 ]
             },
-            relevant_indicators={
-                alert_id: [sender_ip, malicious_domain, file_hash, sender_email]
-            },
+            relevant_indicators={alert_id: [sender_ip, malicious_domain, file_hash, sender_email]},
             # Team-mode escalation ground truth
             required_escalations=[alert_id],
-            required_containments={
-                alert_id: ["isolate_host", "block_ioc", "sandbox_detonate"]
-            },
+            required_containments={alert_id: ["isolate_host", "block_ioc", "sandbox_detonate"]},
             expected_manager_flags=[],  # Easy scenario — no inconsistencies to flag
         )
 

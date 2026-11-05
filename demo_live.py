@@ -110,9 +110,9 @@ def ensure_server(url: str):
     except Exception:
         print(f"  {AMB}→{R} starting server on {url} …")
         proc = subprocess.Popen(
-            [sys.executable, "-m", "uvicorn", "server.app:app",
-             "--host", "127.0.0.1", "--port", "7860"],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            [sys.executable, "-m", "uvicorn", "server.app:app", "--host", "127.0.0.1", "--port", "7860"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
         )
         for _ in range(30):
             time.sleep(1)
@@ -139,32 +139,43 @@ def act1_environment(cl: httpx.Client, task: str, seed: int) -> str:
     ind = alert.get("indicators", {})
     ip = (ind.get("ip") or ["—"])[0]
     print()
-    print(f"  {CYN}ALERT {aid}{R}  {DIM}sev={R}{c(alert['severity'].upper(), AMB)}"
-          f"  {DIM}rule={R}{alert.get('rule_triggered', '—')}")
+    print(
+        f"  {CYN}ALERT {aid}{R}  {DIM}sev={R}{c(alert['severity'].upper(), AMB)}"
+        f"  {DIM}rule={R}{alert.get('rule_triggered', '—')}"
+    )
     print(f"  {INK}{alert['title']}{R}")
-    print(f"  {DIM}queue={len(obs['alert_queue'])} alerts · role={obs.get('current_role')}"
-          f" · phase={obs.get('current_phase')} · seed locked → replayable{R}")
+    print(
+        f"  {DIM}queue={len(obs['alert_queue'])} alerts · role={obs.get('current_role')}"
+        f" · phase={obs.get('current_phase')} · seed locked → replayable{R}"
+    )
     return aid, ip
 
 
 def act2_ticketbus(cl: httpx.Client, aid: str, ip: str) -> None:
     act(2, "Agents coordinate through a ticket bus", "Team Mode  ← the money shot")
-    narrate("Tier-1 gathers evidence, classifies, then escalates. "
-            "Escalation is a real object on a bus — not a line in a shared prompt.")
+    narrate(
+        "Tier-1 gathers evidence, classifies, then escalates. "
+        "Escalation is a real object on a bus — not a line in a shared prompt."
+    )
     steps = [
-        ("enrich the indicator",
-         {"action_type": "enrich_indicator", "indicator": ip, "indicator_type": "ip"}),
-        ("classify the alert",
-         {"action_type": "classify_alert", "alert_id": aid, "classification": "true_positive"}),
-        ("escalate to Tier-2",
-         {"action_type": "escalate_to_tier2", "alert_id": aid,
-          "reason": "malicious indicator + lateral movement confirmed"}),
+        ("enrich the indicator", {"action_type": "enrich_indicator", "indicator": ip, "indicator_type": "ip"}),
+        ("classify the alert", {"action_type": "classify_alert", "alert_id": aid, "classification": "true_positive"}),
+        (
+            "escalate to Tier-2",
+            {
+                "action_type": "escalate_to_tier2",
+                "alert_id": aid,
+                "reason": "malicious indicator + lateral movement confirmed",
+            },
+        ),
     ]
     print()
     for label, payload in steps:
         resp = cl.post("/step", json=payload).json()
-        print(f"  {GRN}${R} tier1 → {c(payload['action_type'], CYN):<38} "
-              f"reward {reward_str(resp.get('reward'))}   {DIM}{label}{R}")
+        print(
+            f"  {GRN}${R} tier1 → {c(payload['action_type'], CYN):<38} "
+            f"reward {reward_str(resp.get('reward'))}   {DIM}{label}{R}"
+        )
         time.sleep(0.35 if AUTO else 0.15)
     pause("now pull Tier-2's inbox")
     print()
@@ -176,21 +187,23 @@ def act2_ticketbus(cl: httpx.Client, aid: str, ip: str) -> None:
         print(f"  {GRN}✓ TICKET ON THE BUS{R}")
         print(f"    {DIM}ticket_id {R}{c(t['ticket_id'], AMB)}")
         print(f"    {DIM}alert_id  {R}{t['alert_id']}")
-        print(f"    {DIM}from → to {R}{c(t['from_role'], CYN)} → {c(t['to_role'], CYN)}"
-              f"   {DIM}kind={R}{t['kind']}")
-        print(f"    {DIM}payload   {R}classification={t['payload'].get('classification')}"
-              f" · severity={t['payload'].get('severity')} · step={t.get('step_created')}")
+        print(f"    {DIM}from → to {R}{c(t['from_role'], CYN)} → {c(t['to_role'], CYN)}   {DIM}kind={R}{t['kind']}")
+        print(
+            f"    {DIM}payload   {R}classification={t['payload'].get('classification')}"
+            f" · severity={t['payload'].get('severity')} · step={t.get('step_created')}"
+        )
         print()
-        narrate("That ticket is inter-agent communication as data — "
-                "queryable memory, not prompt-passing. This is the whole thesis.")
+        narrate(
+            "That ticket is inter-agent communication as data — "
+            "queryable memory, not prompt-passing. This is the whole thesis."
+        )
     else:
         print(f"  {AMB}inbox empty (rewind: re-run reset){R}")
 
 
 def act3_grader(cl: httpx.Client, task: str) -> None:
     act(3, "The score is glass-box, not a black box", "Reward")
-    narrate("The grader decomposes the score into named, testable components. "
-            "Verifiable rewards — RLVR — no vibes.")
+    narrate("The grader decomposes the score into named, testable components. Verifiable rewards — RLVR — no vibes.")
     cmd(f'curl -X POST /grader  -d \'{{"task_id":"{task}"}}\'')
     g = cl.post("/grader", json={"task_id": task}).json()
     comp = g.get("breakdown") or g.get("components") or {}
@@ -204,49 +217,51 @@ def act3_grader(cl: httpx.Client, task: str) -> None:
                 pass
             print(f"    {DIM}{k:<26}{R} {str(v):>6}  {bar}")
     else:
-        print(f"    overall = {g.get('score', 0.0) * 100:.1f}%   "
-              f"{DIM}{g.get('message', g.get('notes', '—'))}{R}")
+        print(f"    overall = {g.get('score', 0.0) * 100:.1f}%   {DIM}{g.get('message', g.get('notes', '—'))}{R}")
 
 
 def act4_training(cl: httpx.Client, run_dry: bool) -> None:
     act(4, "It learns — and here's the measurable headroom", "Training")
-    narrate("You can't train a model in a 10-minute talk. So we show the bracket: "
-            "the gap a trained policy has to close.")
+    narrate(
+        "You can't train a model in a 10-minute talk. So we show the bracket: the gap a trained policy has to close."
+    )
     print()
-    print(f"    {RED}RANDOM floor  {R}{DIM}(untrained){R}     "
-          f"{c('0.063', RED)}   {c('▏' + '░' * 2, RED)}")
-    print(f"    {GRN}ORACLE ceiling{R} {DIM}(scripted){R}     "
-          f"{c('0.900', GRN)}   {c('█' * 27, GRN)}")
-    print(f"    {AMB}LEARNABLE GAP Δ{R}                {c('+0.836', AMB)}"
-          f"   {DIM}← the 20%-weighted 'improvement' band{R}")
+    print(f"    {RED}RANDOM floor  {R}{DIM}(untrained){R}     {c('0.063', RED)}   {c('▏' + '░' * 2, RED)}")
+    print(f"    {GRN}ORACLE ceiling{R} {DIM}(scripted){R}     {c('0.900', GRN)}   {c('█' * 27, GRN)}")
+    print(
+        f"    {AMB}LEARNABLE GAP Δ{R}                {c('+0.836', AMB)}   {DIM}← the 20%-weighted 'improvement' band{R}"
+    )
     print()
-    narrate("Honest note: our published checkpoint underfit on a free T4 — "
-            "the pipeline is proven, the compute wasn't. That's a rental-GPU problem.")
+    narrate(
+        "Honest note: our published checkpoint underfit on a free T4 — "
+        "the pipeline is proven, the compute wasn't. That's a rental-GPU problem."
+    )
     if run_dry:
         pause("run the real no-GPU dry-run live")
         print()
         cmd("python train_grpo.py --role tier1 --dry-run")
         print(f"  {DIM}(deterministic oracle rollouts — no GPU, ~10s){R}\n")
         env = dict(os.environ, PYTHONUTF8="1")
-        subprocess.run([sys.executable, "train_grpo.py", "--role", "tier1", "--dry-run"],
-                       env=env)
+        subprocess.run([sys.executable, "train_grpo.py", "--role", "tier1", "--dry-run"], env=env)
     else:
-        print(f"    {DIM}Live option: run  {INK}python train_grpo.py --role tier1 --dry-run{R}"
-              f"{DIM}  (no GPU, ~10s){R}")
+        print(f"    {DIM}Live option: run  {INK}python train_grpo.py --role tier1 --dry-run{R}{DIM}  (no GPU, ~10s){R}")
 
 
 def act5_safeguards(cl: httpx.Client) -> None:
     act(5, "We tried to break our own reward — six ways", "Reward Integrity")
-    narrate("A reward function is only as good as the exploits it can't be farmed by. "
-            "Each fix is locked in as a regression test — machine-checkable, live.")
+    narrate(
+        "A reward function is only as good as the exploits it can't be farmed by. "
+        "Each fix is locked in as a regression test — machine-checkable, live."
+    )
     cmd("curl /themes/coverage")
     tc = cl.get("/themes/coverage").json()
     print()
     for name in tc.get("reward_hacking_defenses", []):
         print(f"    {GRN}✓{R} {name}")
     covered = sum(1 for v in (tc.get("coverage") or {}).values() if v)
-    print(f"\n    {DIM}themes covered: {R}{c(str(covered), AMB)}"
-          f"   {DIM}· 111 tests passing · same seed → same score{R}")
+    print(
+        f"\n    {DIM}themes covered: {R}{c(str(covered), AMB)}   {DIM}· 111 tests passing · same seed → same score{R}"
+    )
 
 
 # -------------------------------------------------------------------- main
@@ -262,8 +277,7 @@ def main() -> None:
 
     print()
     print(f"{RED}{BOLD}  ┌─ SOC-TRIAGE-GYM · LIVE STAGE DEMO ─────────────────────────┐{R}")
-    print(f"{RED}{BOLD}  │{R}  train the team, not the analyst"
-          f"                          {RED}{BOLD}│{R}")
+    print(f"{RED}{BOLD}  │{R}  train the team, not the analyst                          {RED}{BOLD}│{R}")
     print(f"{RED}{BOLD}  └────────────────────────────────────────────────────────────┘{R}")
     proc = ensure_server(args.server)
     try:
@@ -279,8 +293,7 @@ def main() -> None:
             act5_safeguards(cl)
             print()
             print(RULE)
-            print(f"  {GRN}{BOLD}Demo complete.{R}  "
-                  f"{DIM}Everything is open — MIT.{R}")
+            print(f"  {GRN}{BOLD}Demo complete.{R}  {DIM}Everything is open — MIT.{R}")
             print(f"  {DIM}GitHub  {R}github.com/ROHITCRAFTSYT/SOC-Triage-Gym")
             print(f"  {DIM}Space   {R}huggingface.co/spaces/rohitcraftsyt/openenv2")
             print(f"  {DIM}Model   {R}huggingface.co/rohitcraftsyt/soc-grpo-tier1")

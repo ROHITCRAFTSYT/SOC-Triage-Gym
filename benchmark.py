@@ -119,7 +119,9 @@ def render_markdown(summary: dict) -> str:
         lines.append(f"| `{task}` | " + " | ".join(cells) + " |")
     overall = summary["overall"]
     lines.append(
-        "| **Mean over tasks** | " + " | ".join(f"**{overall[a]:.3f}**" if a in overall else "n/a" for a in agents) + " |"
+        "| **Mean over tasks** | "
+        + " | ".join(f"**{overall[a]:.3f}**" if a in overall else "n/a" for a in agents)
+        + " |"
     )
     seeds = ", ".join(str(s) for s in summary["seeds"])
     lines.append("")

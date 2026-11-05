@@ -25,6 +25,7 @@ import os
 
 try:
     import openai as _openai_lib  # noqa: F401 — presence check only
+
     _OPENAI_AVAILABLE = True
 except ImportError:
     _OPENAI_AVAILABLE = False
@@ -96,9 +97,7 @@ Default to 0.5 when uncertain. A score of 1.0 should be rare."""
         Returns:
             Score in (0.001, 0.999).
         """
-        cache_key = hashlib.sha256(
-            f"{seed}:{episode_id}:{trajectory_hash}".encode()
-        ).hexdigest()[:16]
+        cache_key = hashlib.sha256(f"{seed}:{episode_id}:{trajectory_hash}".encode()).hexdigest()[:16]
 
         if cache_key in self._cache:
             return self._cache[cache_key]
@@ -152,9 +151,7 @@ Default to 0.5 when uncertain. A score of 1.0 should be rare."""
         except Exception as exc:
             raise RuntimeError(f"OpenAI client init failed: {exc}") from exc
 
-        investigation_summary = self._build_investigation_summary(
-            investigations, config
-        )
+        investigation_summary = self._build_investigation_summary(investigations, config)
 
         prompt = self.JUDGE_PROMPT.format(
             investigation_summary=investigation_summary,
@@ -225,9 +222,7 @@ Default to 0.5 when uncertain. A score of 1.0 should be rare."""
     # Helpers
     # ------------------------------------------------------------------
 
-    def _build_investigation_summary(
-        self, investigations: dict, config: "ScenarioConfig"
-    ) -> str:
+    def _build_investigation_summary(self, investigations: dict, config: "ScenarioConfig") -> str:
         """
         Build a compact summary of the first 5 alerts for the judge prompt.
         Each line: <alert_id>: <classification>

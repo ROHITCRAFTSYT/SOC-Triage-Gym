@@ -10,6 +10,7 @@ Score blend:
 The narrative component rewards long, substantive campaign summaries,
 implementing the Mercor sub-theme directly inside the grader.
 """
+
 from __future__ import annotations
 
 from graders.base import BaseGrader
@@ -44,8 +45,7 @@ class APTCampaignGrader(BaseGrader):
         gt = config.ground_truth
         tp_set = set(gt.true_positive_ids)
         pred_tp = {
-            aid for aid, inv in investigations.items()
-            if inv.classification == AlertClassification.TRUE_POSITIVE
+            aid for aid, inv in investigations.items() if inv.classification == AlertClassification.TRUE_POSITIVE
         }
         if not tp_set:
             f1 = 1.0 if not pred_tp else 0.0
@@ -69,9 +69,7 @@ class APTCampaignGrader(BaseGrader):
             content_quality=f1,
             config=blend,
         )
-        narrative_component = (
-            narrative_bonus / blend.token_scale_max_bonus if blend.token_scale_max_bonus else 0.0
-        )
+        narrative_component = narrative_bonus / blend.token_scale_max_bonus if blend.token_scale_max_bonus else 0.0
         # Policy compliance is trivially 1.0 when the agent took no actions, so
         # scale it by triage coverage: an empty submission must not earn it.
         compliance = self._policy_compliance * self._coverage(config, investigations)

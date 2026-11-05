@@ -95,8 +95,10 @@ def test_perfect_play_beats_doing_nothing():
 def test_grade_with_breakdown_shape():
     config = InsiderThreatScenario(seed=7).generate()
     score, breakdown, feedback = InsiderThreatGrader().grade_with_breakdown(
-        config, _perfect_investigations(config), 10, 80)
+        config, _perfect_investigations(config), 10, 80
+    )
     assert 0.0 <= score <= 1.0
-    assert {"f1_score", "attack_chains_found", "true_positive_coverage",
-            "efficiency", "response_quality"} <= set(breakdown)
+    assert {"f1_score", "attack_chains_found", "true_positive_coverage", "efficiency", "response_quality"} <= set(
+        breakdown
+    )
     assert isinstance(feedback, str)

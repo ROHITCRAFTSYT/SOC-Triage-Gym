@@ -67,21 +67,39 @@ _TEAM_MAX_STEPS = sum(_PHASE_BUDGETS.values())
 
 # Actions allowed per role
 _TIER1_ACTIONS = {
-    ActionType.ENRICH_INDICATOR, ActionType.QUERY_LOGS, ActionType.CORRELATE_ALERTS,
-    ActionType.CHECK_ASSET, ActionType.CHECK_USER, ActionType.CLASSIFY_ALERT,
-    ActionType.MAP_TECHNIQUE, ActionType.RECOMMEND_ACTION, ActionType.ESCALATE,
-    ActionType.ESCALATE_TO_TIER2, ActionType.SUBMIT_INVESTIGATION,
-    ActionType.PHASE_COMPLETE, ActionType.NOOP,
+    ActionType.ENRICH_INDICATOR,
+    ActionType.QUERY_LOGS,
+    ActionType.CORRELATE_ALERTS,
+    ActionType.CHECK_ASSET,
+    ActionType.CHECK_USER,
+    ActionType.CLASSIFY_ALERT,
+    ActionType.MAP_TECHNIQUE,
+    ActionType.RECOMMEND_ACTION,
+    ActionType.ESCALATE,
+    ActionType.ESCALATE_TO_TIER2,
+    ActionType.SUBMIT_INVESTIGATION,
+    ActionType.PHASE_COMPLETE,
+    ActionType.NOOP,
 }
 _TIER2_ACTIONS = {
-    ActionType.FORENSIC_TIMELINE, ActionType.SANDBOX_DETONATE,
-    ActionType.MEMORY_ANALYSIS, ActionType.ISOLATE_HOST, ActionType.DISABLE_USER,
-    ActionType.BLOCK_IOC, ActionType.CLOSE_CASE, ActionType.PHASE_COMPLETE, ActionType.NOOP,
+    ActionType.FORENSIC_TIMELINE,
+    ActionType.SANDBOX_DETONATE,
+    ActionType.MEMORY_ANALYSIS,
+    ActionType.ISOLATE_HOST,
+    ActionType.DISABLE_USER,
+    ActionType.BLOCK_IOC,
+    ActionType.CLOSE_CASE,
+    ActionType.PHASE_COMPLETE,
+    ActionType.NOOP,
 }
 _MANAGER_ACTIONS = {
-    ActionType.REVIEW_DECISION, ActionType.OVERRIDE_CLASSIFICATION,
-    ActionType.FLAG_INCONSISTENCY, ActionType.EXPLAIN_TEAM_BEHAVIOR,
-    ActionType.SUBMIT_INVESTIGATION, ActionType.PHASE_COMPLETE, ActionType.NOOP,
+    ActionType.REVIEW_DECISION,
+    ActionType.OVERRIDE_CLASSIFICATION,
+    ActionType.FLAG_INCONSISTENCY,
+    ActionType.EXPLAIN_TEAM_BEHAVIOR,
+    ActionType.SUBMIT_INVESTIGATION,
+    ActionType.PHASE_COMPLETE,
+    ActionType.NOOP,
 }
 
 
@@ -154,8 +172,7 @@ class SOCEnvironment:
 
         self._mode = new_mode
         self._investigations = {
-            alert.alert_id: InvestigationState(alert_id=alert.alert_id)
-            for alert in self._config.alerts
+            alert.alert_id: InvestigationState(alert_id=alert.alert_id) for alert in self._config.alerts
         }
 
         self._cumulative_reward = 0.0
@@ -250,10 +267,7 @@ class SOCEnvironment:
         if loop_penalty < 0:
             result["message"] += f" [Loop penalty: {loop_penalty:.2f}]"
         if self._mode == EpisodeMode.TEAM and acting_role is not None:
-            result["message"] += (
-                f" [Blended reward: role={role_specific_reward:.3f}, "
-                f"team={team_shared_reward:.3f}]"
-            )
+            result["message"] += f" [Blended reward: role={role_specific_reward:.3f}, team={team_shared_reward:.3f}]"
 
         # Track per-role reward (team mode)
         team_rb = self._accumulate_team_reward(step_reward, acting_role, team_shared_reward)
@@ -324,14 +338,14 @@ class SOCEnvironment:
 
     def state(self) -> EnvironmentState:
         """Return current episode state metadata."""
-        classified = sum(
-            1 for inv in self._investigations.values() if inv.classification is not None
-        )
+        classified = sum(1 for inv in self._investigations.values() if inv.classification is not None)
         return EnvironmentState(
             episode_id=self._episode_id,
             task_id=self._task_id,
             step_count=self._step,
-            max_steps=_TEAM_MAX_STEPS if self._mode == EpisodeMode.TEAM else (self._config.max_steps if self._config else 0),
+            max_steps=_TEAM_MAX_STEPS
+            if self._mode == EpisodeMode.TEAM
+            else (self._config.max_steps if self._config else 0),
             done=self._done,
             cumulative_reward=self._cumulative_reward,
             alert_count=len(self._config.alerts) if self._config else 0,
@@ -559,16 +573,22 @@ class SOCEnvironment:
         if not alert_id or alert_id not in self._investigations:
             return {"reward": -0.03, "message": f"Invalid alert_id '{alert_id}' for log query."}
         inv = self._investigations[alert_id]
-        entries, reward, message = query_logs(self._config, inv, action.log_source, alert_id, action.time_window_hours or 24)
+        entries, reward, message = query_logs(
+            self._config, inv, action.log_source, alert_id, action.time_window_hours or 24
+        )
         inv.queried_sources[action.log_source.value] = entries
         inv.reward_breakdown[f"query_{action.log_source.value}_{alert_id[:8]}"] = reward
-        inv.evidence_timeline.append(f"Step {self._step}: Queried {action.log_source.value} for {alert_id} — {len(entries)} entries")
+        inv.evidence_timeline.append(
+            f"Step {self._step}: Queried {action.log_source.value} for {alert_id} — {len(entries)} entries"
+        )
         return {"reward": reward, "log_results": entries, "message": message}
 
     def _handle_correlate(self, action: SOCAction) -> dict:
         if not action.alert_id_a or not action.alert_id_b:
             return {"reward": -0.03, "message": "correlate_alerts requires 'alert_id_a' and 'alert_id_b'."}
-        event, reward, message = correlate_alerts(self._config, self._investigations, action.alert_id_a, action.alert_id_b)
+        event, reward, message = correlate_alerts(
+            self._config, self._investigations, action.alert_id_a, action.alert_id_b
+        )
         if event:
             for aid in [action.alert_id_a, action.alert_id_b]:
                 inv = self._investigations.get(aid)
@@ -576,7 +596,9 @@ class SOCEnvironment:
                     existing = {tuple(sorted(e.alert_ids)) for e in inv.correlations_found}
                     if tuple(sorted(event.alert_ids)) not in existing:
                         inv.correlations_found.append(event)
-                        inv.evidence_timeline.append(f"Step {self._step}: Correlated with {action.alert_id_b if aid == action.alert_id_a else action.alert_id_a}")
+                        inv.evidence_timeline.append(
+                            f"Step {self._step}: Correlated with {action.alert_id_b if aid == action.alert_id_a else action.alert_id_a}"
+                        )
         return {"reward": reward, "correlated_events": [event] if event else [], "message": message}
 
     def _handle_check_asset(self, action: SOCAction) -> dict:
@@ -610,8 +632,11 @@ class SOCEnvironment:
             return {"reward": -0.03, "message": f"Alert '{action.alert_id}' not found."}
         inv = self._investigations[action.alert_id]
         evidence_count = (
-            len(inv.enriched_indicators) + len(inv.queried_sources)
-            + len(inv.correlations_found) + len(inv.assets_looked_up) + len(inv.users_looked_up)
+            len(inv.enriched_indicators)
+            + len(inv.queried_sources)
+            + len(inv.correlations_found)
+            + len(inv.assets_looked_up)
+            + len(inv.users_looked_up)
         )
         if evidence_count < 1:
             reward = -0.10
@@ -627,7 +652,9 @@ class SOCEnvironment:
         inv.classification = action.classification
         inv.classification_confidence = action.confidence or 0.8
         inv.reward_breakdown[f"classify_{action.alert_id[:8]}"] = reward
-        inv.evidence_timeline.append(f"Step {self._step}: Classified '{action.alert_id}' as {action.classification.value}")
+        inv.evidence_timeline.append(
+            f"Step {self._step}: Classified '{action.alert_id}' as {action.classification.value}"
+        )
         for alert in self._config.alerts:
             if alert.alert_id == action.alert_id:
                 alert.classification = action.classification
@@ -638,7 +665,9 @@ class SOCEnvironment:
 
     def _handle_map_technique(self, action: SOCAction) -> dict:
         if not action.alert_id:
-            action = action.model_copy(update={"alert_id": self._config.alerts[0].alert_id if self._config.alerts else None})
+            action = action.model_copy(
+                update={"alert_id": self._config.alerts[0].alert_id if self._config.alerts else None}
+            )
         if not action.alert_id or action.alert_id not in self._investigations:
             return {"reward": -0.02, "message": "map_technique requires a valid 'alert_id'."}
         if not action.technique_id:
@@ -648,17 +677,24 @@ class SOCEnvironment:
             return {"reward": -0.02, "message": f"Unknown MITRE ATT&CK technique: '{action.technique_id}'."}
         if action.technique_id not in inv.mapped_techniques:
             inv.mapped_techniques.append(action.technique_id)
-            inv.evidence_timeline.append(f"Step {self._step}: Mapped technique {action.technique_id} to {action.alert_id}")
+            inv.evidence_timeline.append(
+                f"Step {self._step}: Mapped technique {action.technique_id} to {action.alert_id}"
+            )
         expected = self._config.ground_truth.expected_techniques.get(action.alert_id, [])
         if action.technique_id in expected:
-            return {"reward": 0.05, "message": f"Mapped technique {action.technique_id} to {action.alert_id}. [Relevant]"}
+            return {
+                "reward": 0.05,
+                "message": f"Mapped technique {action.technique_id} to {action.alert_id}. [Relevant]",
+            }
         elif action.technique_id.split(".")[0] in [t.split(".")[0] for t in expected]:
             return {"reward": 0.02, "message": f"Mapped {action.technique_id}. [Related — consider sub-technique]"}
         return {"reward": -0.01, "message": f"Mapped technique {action.technique_id} to {action.alert_id}."}
 
     def _handle_recommend_action(self, action: SOCAction) -> dict:
         if not action.alert_id:
-            action = action.model_copy(update={"alert_id": self._config.alerts[0].alert_id if self._config.alerts else None})
+            action = action.model_copy(
+                update={"alert_id": self._config.alerts[0].alert_id if self._config.alerts else None}
+            )
         if not action.alert_id or action.alert_id not in self._investigations:
             return {"reward": -0.02, "message": "recommend_action requires a valid 'alert_id'."}
         if not action.response_action:
@@ -668,13 +704,18 @@ class SOCEnvironment:
         expected_actions = set(self._config.ground_truth.expected_response_actions.get(action.alert_id, []))
         if action.response_action not in inv.recommended_actions:
             inv.recommended_actions.append(action.response_action)
-            inv.evidence_timeline.append(f"Step {self._step}: Recommended {action.response_action.value} for {action.alert_id}")
+            inv.evidence_timeline.append(
+                f"Step {self._step}: Recommended {action.response_action.value} for {action.alert_id}"
+            )
         if action.response_action == ResponseActionType.NO_ACTION:
             if gt_class == AlertClassification.FALSE_POSITIVE:
                 return {"reward": 0.05, "message": f"Recommended no_action for {action.alert_id}. [Correct for FP]"}
             return {"reward": -0.10, "message": "Recommended no_action for a true positive. [Insufficient]"}
         elif action.response_action in expected_actions:
-            return {"reward": 0.08, "message": f"Recommended {action.response_action.value} for {action.alert_id}. [Appropriate]"}
+            return {
+                "reward": 0.08,
+                "message": f"Recommended {action.response_action.value} for {action.alert_id}. [Appropriate]",
+            }
         return {"reward": 0.02, "message": f"Recommended {action.response_action.value} for {action.alert_id}."}
 
     def _handle_escalate(self, action: SOCAction) -> dict:
@@ -874,7 +915,10 @@ class SOCEnvironment:
             from_role=AgentRole.TIER2,
             to_role=AgentRole.MANAGER,
             kind=TicketKind.CLOSURE,
-            payload={"resolution": resolution, "classification": inv.classification.value if inv.classification else "unclassified"},
+            payload={
+                "resolution": resolution,
+                "classification": inv.classification.value if inv.classification else "unclassified",
+            },
             step_created=self._step,
         )
         self._tickets.append(ticket)
@@ -894,7 +938,10 @@ class SOCEnvironment:
                 return {"reward": -0.02, "message": "review_decision requires 'ticket_id' or 'alert_id'."}
             ticket = next((t for t in self._tickets if t.alert_id == alert_id), None)
         if ticket is None:
-            return {"reward": -0.02, "message": f"No ticket found for ticket_id={ticket_id} or alert_id={action.alert_id}."}
+            return {
+                "reward": -0.02,
+                "message": f"No ticket found for ticket_id={ticket_id} or alert_id={action.alert_id}.",
+            }
         result, reward, message = review_decision(self._config, self._investigations, ticket)
         ticket.resolved = True
         return {"reward": reward, "manager_review_result": result, "message": message}
@@ -986,11 +1033,11 @@ class SOCEnvironment:
 
         # Role-filter alert queue (Tier-2 sees only escalated alerts in team mode)
         if self._mode == EpisodeMode.TEAM and role == AgentRole.TIER2:
-            visible_alerts = [a for a in self._config.alerts if a.alert_id in self._escalated_alert_ids] if self._config else []
+            visible_alerts = (
+                [a for a in self._config.alerts if a.alert_id in self._escalated_alert_ids] if self._config else []
+            )
             visible_investigations = {
-                alert_id: inv
-                for alert_id, inv in self._investigations.items()
-                if alert_id in self._escalated_alert_ids
+                alert_id: inv for alert_id, inv in self._investigations.items() if alert_id in self._escalated_alert_ids
             }
         else:
             visible_alerts = self._config.alerts if self._config else []
@@ -1002,12 +1049,14 @@ class SOCEnvironment:
                 role_tickets = list(self._tickets)
             elif role == AgentRole.TIER2:
                 role_tickets = [
-                    t for t in self._tickets
+                    t
+                    for t in self._tickets
                     if t.kind == TicketKind.ESCALATION and (t.to_role == AgentRole.TIER2 or t.to_role is None)
                 ]
             else:
                 role_tickets = [
-                    t for t in self._tickets
+                    t
+                    for t in self._tickets
                     if (
                         t.to_role == AgentRole.TIER1
                         or t.to_role is None
@@ -1104,7 +1153,8 @@ class SOCEnvironment:
             return 0.0
         gt = self._config.ground_truth
         missed_tps = sum(
-            1 for aid in gt.true_positive_ids
+            1
+            for aid in gt.true_positive_ids
             if self._investigations.get(aid, InvestigationState(alert_id=aid)).classification
             not in {AlertClassification.TRUE_POSITIVE, AlertClassification.BENIGN_TRUE_POSITIVE}
         )
@@ -1161,13 +1211,9 @@ class SOCEnvironment:
         tickets_total = len(self._tickets)
         tickets_resolved = sum(1 for ticket in self._tickets if ticket.resolved)
         escalation_reviews = sum(
-            1 for ticket in self._tickets
-            if ticket.kind == TicketKind.ESCALATION and ticket.resolved
+            1 for ticket in self._tickets if ticket.kind == TicketKind.ESCALATION and ticket.resolved
         )
-        closure_reviews = sum(
-            1 for ticket in self._tickets
-            if ticket.kind == TicketKind.CLOSURE and ticket.resolved
-        )
+        closure_reviews = sum(1 for ticket in self._tickets if ticket.kind == TicketKind.CLOSURE and ticket.resolved)
         overrides_total = sum(1 for ticket in self._tickets if ticket.kind == TicketKind.OVERRIDE)
         valid_flags = sum(
             1
@@ -1180,11 +1226,7 @@ class SOCEnvironment:
             if ticket.kind == TicketKind.FLAG and not ticket.payload.get("inconsistency_found")
         )
         denominator = escalation_reviews + closure_reviews + valid_flags + invalid_flags
-        consistency_rate = (
-            (escalation_reviews + closure_reviews + valid_flags) / denominator
-            if denominator
-            else 0.0
-        )
+        consistency_rate = (escalation_reviews + closure_reviews + valid_flags) / denominator if denominator else 0.0
         return ConsistencyStats(
             tickets_total=tickets_total,
             tickets_resolved=tickets_resolved,

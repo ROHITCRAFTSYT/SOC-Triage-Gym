@@ -15,6 +15,7 @@ their inbox ("Dr. Accuracy is reviewing today") — they must adapt.
 This implements Snorkel's brief of "changing requirements / preferences":
 the reward function itself rotates without the agent's input schema changing.
 """
+
 from __future__ import annotations
 
 from models import ExpertProfile
@@ -83,20 +84,24 @@ class ExpertPanel:
             speed          — 1 - steps_used/max_steps  (higher = faster)
             thoroughness   — tool_coverage_fraction
         """
-        s = {k: max(0.0, min(1.0, float(signals.get(k, 0.0)))) for k in (
-            "accuracy", "reasoning", "actionability", "speed", "thoroughness"
-        )}
+        s = {
+            k: max(0.0, min(1.0, float(signals.get(k, 0.0))))
+            for k in ("accuracy", "reasoning", "actionability", "speed", "thoroughness")
+        }
         total = (
-            s["accuracy"]       * expert.weight_accuracy
-            + s["reasoning"]    * expert.weight_reasoning
+            s["accuracy"] * expert.weight_accuracy
+            + s["reasoning"] * expert.weight_reasoning
             + s["actionability"] * expert.weight_actionability
-            + s["speed"]        * expert.weight_speed
+            + s["speed"] * expert.weight_speed
             + s["thoroughness"] * expert.weight_thoroughness
         )
         # Normalize by weight sum so result stays in [0,1] regardless of profile.
         weight_sum = (
-            expert.weight_accuracy + expert.weight_reasoning + expert.weight_actionability
-            + expert.weight_speed + expert.weight_thoroughness
+            expert.weight_accuracy
+            + expert.weight_reasoning
+            + expert.weight_actionability
+            + expert.weight_speed
+            + expert.weight_thoroughness
         ) or 1.0
         return {
             "expert_id": expert.expert_id,

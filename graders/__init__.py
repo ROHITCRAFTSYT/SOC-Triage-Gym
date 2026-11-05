@@ -1,4 +1,5 @@
 """SOC-Triage-Gym graders — deterministic 0.0 to 1.0 scoring."""
+
 from graders.apt_campaign_grader import APTCampaignGrader
 from graders.insider_threat_grader import InsiderThreatGrader
 from graders.lateral_movement_grader import LateralMovementGrader

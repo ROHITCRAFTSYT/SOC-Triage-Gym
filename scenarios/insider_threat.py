@@ -45,10 +45,7 @@ class InsiderThreatScenario(BaseScenario):
         btp_alerts, btp_data = self._build_benign_tps()
         fp_alerts, fp_data = self._build_false_positives()
 
-        all_alert_groups = (
-            chain_a_alerts + chain_b_alerts + chain_c_alerts
-            + btp_alerts + fp_alerts
-        )
+        all_alert_groups = chain_a_alerts + chain_b_alerts + chain_c_alerts + btp_alerts + fp_alerts
 
         # Shuffle so alerts appear in random order
         self.rng.shuffle(all_alert_groups)
@@ -231,19 +228,32 @@ class InsiderThreatScenario(BaseScenario):
 
         enrichment_db = {
             cloud_domain: self._make_enrichment_result(
-                cloud_domain, IndicatorType.DOMAIN, malicious=True, confidence=0.72,
-                threat_score=65, threat_type="data-exfiltration",
+                cloud_domain,
+                IndicatorType.DOMAIN,
+                malicious=True,
+                confidence=0.72,
+                threat_score=65,
+                threat_type="data-exfiltration",
                 tags=["personal-cloud", "file-sharing", "policy-violation"],
                 whois="Registered 6 months ago. Known personal storage service.",
             ),
             cloud_ip: self._make_enrichment_result(
-                cloud_ip, IndicatorType.IP, malicious=False, confidence=0.40,
-                threat_score=30, threat_type="cloud-hosting",
-                geo="United States", tags=["cloud-provider", "file-sharing"],
+                cloud_ip,
+                IndicatorType.IP,
+                malicious=False,
+                confidence=0.40,
+                threat_score=30,
+                threat_type="cloud-hosting",
+                geo="United States",
+                tags=["cloud-provider", "file-sharing"],
             ),
             export_hash: self._make_enrichment_result(
-                export_hash, IndicatorType.FILE_HASH, malicious=False, confidence=0.20,
-                threat_score=10, tags=["csv-data", "bulk-export"],
+                export_hash,
+                IndicatorType.FILE_HASH,
+                malicious=False,
+                confidence=0.20,
+                threat_score=10,
+                tags=["csv-data", "bulk-export"],
             ),
         }
 
@@ -252,55 +262,94 @@ class InsiderThreatScenario(BaseScenario):
             log_db[source.value] = {aid1: [], aid2: [], aid3: []}
 
         log_db[LogSource.AUTH.value][aid1] = [
-            self._make_log_entry(LogSource.AUTH, "database_login", hours_ago=6.0,
-                src_ip=insider_ip, dst_ip=db_ip, user=insider_user,
+            self._make_log_entry(
+                LogSource.AUTH,
+                "database_login",
+                hours_ago=6.0,
+                src_ip=insider_ip,
+                dst_ip=db_ip,
+                user=insider_user,
                 hostname=db_server,
                 details={
-                    "db_name": "HR_PAYROLL", "auth_type": "windows_integrated",
-                    "role": "read_only", "unauthorized": True,
-                }),
+                    "db_name": "HR_PAYROLL",
+                    "auth_type": "windows_integrated",
+                    "role": "read_only",
+                    "unauthorized": True,
+                },
+            ),
         ]
         log_db[LogSource.CLOUD_TRAIL.value][aid1] = [
-            self._make_log_entry(LogSource.CLOUD_TRAIL, "sql_query_burst", hours_ago=6.0,
-                user=insider_user, src_ip=insider_ip,
+            self._make_log_entry(
+                LogSource.CLOUD_TRAIL,
+                "sql_query_burst",
+                hours_ago=6.0,
+                user=insider_user,
+                src_ip=insider_ip,
                 details={
-                    "query_count": 47, "tables": ["employees", "salaries", "ssn"],
+                    "query_count": 47,
+                    "tables": ["employees", "salaries", "ssn"],
                     "duration_seconds": 1200,
-                }),
+                },
+            ),
         ]
         log_db[LogSource.ENDPOINT.value][aid2] = [
-            self._make_log_entry(LogSource.ENDPOINT, "file_created", hours_ago=5.5,
-                hostname=insider_host, user=insider_user,
+            self._make_log_entry(
+                LogSource.ENDPOINT,
+                "file_created",
+                hours_ago=5.5,
+                hostname=insider_host,
+                user=insider_user,
                 details={
                     "file_path": f"C:\\Users\\{insider_user}\\Documents\\hr_export_full.csv",
-                    "file_size_bytes": 356515840, "records": 12000,
+                    "file_size_bytes": 356515840,
+                    "records": 12000,
                     "hash": export_hash,
-                }),
+                },
+            ),
         ]
         log_db[LogSource.PROXY.value][aid3] = [
-            self._make_log_entry(LogSource.PROXY, "https_upload", hours_ago=5.0,
-                src_ip=insider_ip, dst_ip=cloud_ip, user=insider_user,
+            self._make_log_entry(
+                LogSource.PROXY,
+                "https_upload",
+                hours_ago=5.0,
+                src_ip=insider_ip,
+                dst_ip=cloud_ip,
+                user=insider_user,
                 details={
                     "url": f"https://{cloud_domain}/upload",
-                    "method": "POST", "bytes_out": 356515840,
+                    "method": "POST",
+                    "bytes_out": 356515840,
                     "user_agent": "Chrome/120.0",
                     "category": "personal-cloud-storage",
-                }),
+                },
+            ),
         ]
 
         user_db = {
             insider_user: self._make_user(
-                insider_user, "Financial Analyst", "Finance",
-                risk_score=0.65, access_level="standard",
+                insider_user,
+                "Financial Analyst",
+                "Finance",
+                risk_score=0.65,
+                access_level="standard",
             ),
         }
         asset_db = {
             insider_host: self._make_asset(
-                insider_host, "workstation", insider_user, "Finance", insider_ip,
+                insider_host,
+                "workstation",
+                insider_user,
+                "Finance",
+                insider_ip,
             ),
             db_server: self._make_asset(
-                db_server, "database_server", "svc.database", "IT", db_ip,
-                criticality="critical", os="Windows Server 2019",
+                db_server,
+                "database_server",
+                "svc.database",
+                "IT",
+                db_ip,
+                criticality="critical",
+                os="Windows Server 2019",
             ),
         }
 
@@ -364,8 +413,7 @@ class InsiderThreatScenario(BaseScenario):
             rule_triggered="VPN_GEO_ANOMALY_001",
             indicators={"ip": [vendor_vpn_ip], "user": [vendor_user]},
             raw_log_snippet=(
-                f"USER={vendor_user} SRC={vendor_vpn_ip} VPN=connected "
-                f"GEO=Romania USUAL_GEO=US TIME=02:30"
+                f"USER={vendor_user} SRC={vendor_vpn_ip} VPN=connected GEO=Romania USUAL_GEO=US TIME=02:30"
             ),
         )
 
@@ -387,8 +435,7 @@ class InsiderThreatScenario(BaseScenario):
                 "hostname": [target_server],
             },
             raw_log_snippet=(
-                f"ACTOR={vendor_user} TARGET={svc_account} ACTION=add_to_group "
-                f"GROUP=Domain Admins HOST={target_server}"
+                f"ACTOR={vendor_user} TARGET={svc_account} ACTION=add_to_group GROUP=Domain Admins HOST={target_server}"
             ),
         )
 
@@ -418,13 +465,22 @@ class InsiderThreatScenario(BaseScenario):
 
         enrichment_db = {
             vendor_vpn_ip: self._make_enrichment_result(
-                vendor_vpn_ip, IndicatorType.IP, malicious=True, confidence=0.85,
-                threat_score=80, threat_type="suspicious-vpn",
-                geo="Romania", tags=["geo-anomaly", "vendor-compromise", "eastern-europe"],
+                vendor_vpn_ip,
+                IndicatorType.IP,
+                malicious=True,
+                confidence=0.85,
+                threat_score=80,
+                threat_type="suspicious-vpn",
+                geo="Romania",
+                tags=["geo-anomaly", "vendor-compromise", "eastern-europe"],
             ),
             tool_hash: self._make_enrichment_result(
-                tool_hash, IndicatorType.FILE_HASH, malicious=True, confidence=0.88,
-                threat_score=85, threat_type="attack-tool",
+                tool_hash,
+                IndicatorType.FILE_HASH,
+                malicious=True,
+                confidence=0.88,
+                threat_score=85,
+                threat_type="attack-tool",
                 tags=["config-manipulation", "firewall-bypass"],
                 malware=["Custom-ConfigTool"],
             ),
@@ -435,61 +491,101 @@ class InsiderThreatScenario(BaseScenario):
             log_db[source.value] = {aid1: [], aid2: [], aid3: []}
 
         log_db[LogSource.AUTH.value][aid1] = [
-            self._make_log_entry(LogSource.AUTH, "vpn_login", hours_ago=8.0,
-                src_ip=vendor_vpn_ip, user=vendor_user,
+            self._make_log_entry(
+                LogSource.AUTH,
+                "vpn_login",
+                hours_ago=8.0,
+                src_ip=vendor_vpn_ip,
+                user=vendor_user,
                 details={
-                    "vpn_type": "SSL", "geo": "Romania",
-                    "usual_geo": "United States", "time_anomaly": True,
+                    "vpn_type": "SSL",
+                    "geo": "Romania",
+                    "usual_geo": "United States",
+                    "time_anomaly": True,
                     "first_seen_country": True,
-                }),
+                },
+            ),
         ]
         log_db[LogSource.AUTH.value][aid2] = [
-            self._make_log_entry(LogSource.AUTH, "privilege_escalation", hours_ago=7.5,
-                user=vendor_user, hostname=target_server, src_ip=target_ip,
+            self._make_log_entry(
+                LogSource.AUTH,
+                "privilege_escalation",
+                hours_ago=7.5,
+                user=vendor_user,
+                hostname=target_server,
+                src_ip=target_ip,
                 details={
                     "target_account": svc_account,
                     "group_added": "Domain Admins",
                     "previous_groups": ["Monitoring-ReadOnly"],
-                }),
+                },
+            ),
         ]
         log_db[LogSource.FIREWALL.value][aid3] = [
-            self._make_log_entry(LogSource.FIREWALL, "rule_modification", hours_ago=7.0,
-                user=svc_account, hostname=config_server,
+            self._make_log_entry(
+                LogSource.FIREWALL,
+                "rule_modification",
+                hours_ago=7.0,
+                user=svc_account,
+                hostname=config_server,
                 details={
                     "rules_modified": 8,
                     "ports_opened": [4444, 5555, 8443],
                     "change_ticket": None,
                     "maintenance_window": False,
-                }),
+                },
+            ),
         ]
         log_db[LogSource.ENDPOINT.value][aid3] = [
-            self._make_log_entry(LogSource.ENDPOINT, "tool_execution", hours_ago=7.0,
-                hostname=config_server, user=svc_account,
+            self._make_log_entry(
+                LogSource.ENDPOINT,
+                "tool_execution",
+                hours_ago=7.0,
+                hostname=config_server,
+                user=svc_account,
                 details={
                     "process": "fw_config_tool.exe",
                     "hash": tool_hash,
                     "unsigned": True,
-                }),
+                },
+            ),
         ]
 
         user_db = {
             vendor_user: self._make_user(
-                vendor_user, "MSP Technician", "External Vendor",
-                risk_score=0.50, access_level="limited",
+                vendor_user,
+                "MSP Technician",
+                "External Vendor",
+                risk_score=0.50,
+                access_level="limited",
             ),
             svc_account: self._make_user(
-                svc_account, "Service Account", "IT",
-                risk_score=0.15, is_privileged=False, access_level="monitoring",
+                svc_account,
+                "Service Account",
+                "IT",
+                risk_score=0.15,
+                is_privileged=False,
+                access_level="monitoring",
             ),
         }
         asset_db = {
             target_server: self._make_asset(
-                target_server, "domain_controller", "svc.ad", "IT", target_ip,
-                criticality="critical", os="Windows Server 2022",
+                target_server,
+                "domain_controller",
+                "svc.ad",
+                "IT",
+                target_ip,
+                criticality="critical",
+                os="Windows Server 2022",
             ),
             config_server: self._make_asset(
-                config_server, "firewall_management", "svc.network", "IT", config_ip,
-                criticality="critical", os="Linux",
+                config_server,
+                "firewall_management",
+                "svc.network",
+                "IT",
+                config_ip,
+                criticality="critical",
+                os="Linux",
             ),
         }
 
@@ -551,8 +647,7 @@ class InsiderThreatScenario(BaseScenario):
             rule_triggered="PHYS_AFTERHOURS_PIP_001",
             indicators={"user": [disgruntled_user], "ip": [disgruntled_ip]},
             raw_log_snippet=(
-                f"USER={disgruntled_user} BADGE=GRANTED DOOR=MAIN_ENTRANCE "
-                f"TIME=23:45 DAY=Saturday HR_FLAG=PIP"
+                f"USER={disgruntled_user} BADGE=GRANTED DOOR=MAIN_ENTRANCE TIME=23:45 DAY=Saturday HR_FLAG=PIP"
             ),
         )
 
@@ -606,8 +701,12 @@ class InsiderThreatScenario(BaseScenario):
 
         enrichment_db = {
             usb_hash: self._make_enrichment_result(
-                usb_hash, IndicatorType.FILE_HASH, malicious=False, confidence=0.30,
-                threat_score=20, tags=["archive", "source-code", "usb-copy"],
+                usb_hash,
+                IndicatorType.FILE_HASH,
+                malicious=False,
+                confidence=0.30,
+                threat_score=20,
+                tags=["archive", "source-code", "usb-copy"],
             ),
         }
 
@@ -616,60 +715,95 @@ class InsiderThreatScenario(BaseScenario):
             log_db[source.value] = {aid1: [], aid2: [], aid3: []}
 
         log_db[LogSource.AUTH.value][aid1] = [
-            self._make_log_entry(LogSource.AUTH, "badge_access", hours_ago=10.0,
+            self._make_log_entry(
+                LogSource.AUTH,
+                "badge_access",
+                hours_ago=10.0,
                 user=disgruntled_user,
                 details={
-                    "door": "MAIN_ENTRANCE", "time": "23:45",
-                    "day_of_week": "Saturday", "hr_flag": "PIP",
+                    "door": "MAIN_ENTRANCE",
+                    "time": "23:45",
+                    "day_of_week": "Saturday",
+                    "hr_flag": "PIP",
                     "termination_scheduled": True,
-                }),
+                },
+            ),
         ]
         log_db[LogSource.AUTH.value][aid2] = [
-            self._make_log_entry(LogSource.AUTH, "smb_access", hours_ago=9.5,
-                src_ip=disgruntled_ip, dst_ip=file_server_ip,
-                user=disgruntled_user, hostname=file_server,
+            self._make_log_entry(
+                LogSource.AUTH,
+                "smb_access",
+                hours_ago=9.5,
+                src_ip=disgruntled_ip,
+                dst_ip=file_server_ip,
+                user=disgruntled_user,
+                hostname=file_server,
                 action="delete",
                 details={
                     "share": f"\\\\{file_server}\\Engineering",
-                    "files_deleted": 2847, "duration_seconds": 900,
+                    "files_deleted": 2847,
+                    "duration_seconds": 900,
                     "pattern": "recursive",
-                }),
+                },
+            ),
         ]
         log_db[LogSource.ENDPOINT.value][aid2] = [
-            self._make_log_entry(LogSource.ENDPOINT, "script_execution", hours_ago=9.5,
-                hostname=disgruntled_host, user=disgruntled_user,
+            self._make_log_entry(
+                LogSource.ENDPOINT,
+                "script_execution",
+                hours_ago=9.5,
+                hostname=disgruntled_host,
+                user=disgruntled_user,
                 details={
                     "script": "cleanup.ps1",
                     "cmdline": "powershell -ExecutionPolicy Bypass -File cleanup.ps1",
                     "action": "mass_delete",
-                }),
+                },
+            ),
         ]
         log_db[LogSource.ENDPOINT.value][aid3] = [
-            self._make_log_entry(LogSource.ENDPOINT, "usb_device_connected", hours_ago=9.0,
-                hostname=disgruntled_host, user=disgruntled_user,
+            self._make_log_entry(
+                LogSource.ENDPOINT,
+                "usb_device_connected",
+                hours_ago=9.0,
+                hostname=disgruntled_host,
+                user=disgruntled_user,
                 details={
                     "device_type": "USB Mass Storage",
-                    "vendor": "SanDisk", "serial": "4C530001240811",
+                    "vendor": "SanDisk",
+                    "serial": "4C530001240811",
                     "approved_device": False,
                     "data_copied_gb": 18,
                     "file_types": [".py", ".java", ".go", ".sql", ".env"],
-                }),
+                },
+            ),
         ]
 
         user_db = {
             disgruntled_user: self._make_user(
-                disgruntled_user, "Senior Software Engineer", "Engineering",
-                risk_score=0.80, access_level="standard",
+                disgruntled_user,
+                "Senior Software Engineer",
+                "Engineering",
+                risk_score=0.80,
+                access_level="standard",
             ),
         }
         asset_db = {
             disgruntled_host: self._make_asset(
-                disgruntled_host, "workstation", disgruntled_user,
-                "Engineering", disgruntled_ip,
+                disgruntled_host,
+                "workstation",
+                disgruntled_user,
+                "Engineering",
+                disgruntled_ip,
             ),
             file_server: self._make_asset(
-                file_server, "file_server", "svc.storage", "IT", file_server_ip,
-                criticality="high", os="Windows Server 2019",
+                file_server,
+                "file_server",
+                "svc.storage",
+                "IT",
+                file_server_ip,
+                criticality="high",
+                os="Windows Server 2019",
             ),
         }
 
@@ -795,8 +929,12 @@ class InsiderThreatScenario(BaseScenario):
 
         enrichment_db = {
             pentest_ip: self._make_enrichment_result(
-                pentest_ip, IndicatorType.IP, malicious=False, confidence=0.95,
-                threat_score=0, tags=["internal", "authorized-red-team"],
+                pentest_ip,
+                IndicatorType.IP,
+                malicious=False,
+                confidence=0.95,
+                threat_score=0,
+                tags=["internal", "authorized-red-team"],
             ),
         }
 
@@ -805,43 +943,72 @@ class InsiderThreatScenario(BaseScenario):
             log_db[source.value] = {aid: [] for aid in aids}
 
         log_db[LogSource.IDS.value][aids[0]] = [
-            self._make_log_entry(LogSource.IDS, "credential_spray", hours_ago=2.0,
+            self._make_log_entry(
+                LogSource.IDS,
+                "credential_spray",
+                hours_ago=2.0,
                 src_ip=pentest_ip,
-                details={"authorized": True, "ticket": "PENTEST-2024-Q4", "attempts": 500}),
+                details={"authorized": True, "ticket": "PENTEST-2024-Q4", "attempts": 500},
+            ),
         ]
         log_db[LogSource.FIREWALL.value][aids[1]] = [
-            self._make_log_entry(LogSource.FIREWALL, "large_transfer", hours_ago=1.5,
-                src_ip=backup_ip, user=backup_user, hostname=backup_host,
+            self._make_log_entry(
+                LogSource.FIREWALL,
+                "large_transfer",
+                hours_ago=1.5,
+                src_ip=backup_ip,
+                user=backup_user,
+                hostname=backup_host,
                 action="allow",
-                details={"size_gb": 450, "schedule": "nightly", "approved": True}),
+                details={"size_gb": 450, "schedule": "nightly", "approved": True},
+            ),
         ]
         log_db[LogSource.AUTH.value][aids[2]] = [
-            self._make_log_entry(LogSource.AUTH, "gpo_update", hours_ago=1.0,
-                user=admin_user, hostname=admin_host, src_ip=admin_ip,
-                details={"targets": 200, "ticket": "CHG-7291", "approved": True}),
+            self._make_log_entry(
+                LogSource.AUTH,
+                "gpo_update",
+                hours_ago=1.0,
+                user=admin_user,
+                hostname=admin_host,
+                src_ip=admin_ip,
+                details={"targets": 200, "ticket": "CHG-7291", "approved": True},
+            ),
         ]
         log_db[LogSource.IDS.value][aids[3]] = [
-            self._make_log_entry(LogSource.IDS, "vulnerability_scan", hours_ago=0.5,
+            self._make_log_entry(
+                LogSource.IDS,
+                "vulnerability_scan",
+                hours_ago=0.5,
                 user=it_user,
-                details={"subnet": "10.0.0.0/8", "policy": "IT-SEC-POL-004", "authorized": True}),
+                details={"subnet": "10.0.0.0/8", "policy": "IT-SEC-POL-004", "authorized": True},
+            ),
         ]
         log_db[LogSource.AUTH.value][aids[4]] = [
-            self._make_log_entry(LogSource.AUTH, "ssh_key_rotation", hours_ago=0.3,
+            self._make_log_entry(
+                LogSource.AUTH,
+                "ssh_key_rotation",
+                hours_ago=0.3,
                 user=devops_user,
-                details={"servers": 50, "schedule": "quarterly", "compliance": True}),
+                details={"servers": 50, "schedule": "quarterly", "compliance": True},
+            ),
         ]
 
         user_db = {
-            pentest_user: self._make_user(pentest_user, "Red Team Lead", "IT Security",
-                risk_score=0.05, is_privileged=True, access_level="admin"),
-            backup_user: self._make_user(backup_user, "Backup Service Account", "IT",
-                risk_score=0.02, is_privileged=True, access_level="service"),
-            admin_user: self._make_user(admin_user, "Systems Administrator", "IT",
-                risk_score=0.08, is_privileged=True, access_level="admin"),
-            it_user: self._make_user(it_user, "IT Operations", "IT",
-                risk_score=0.05, is_privileged=True, access_level="admin"),
-            devops_user: self._make_user(devops_user, "DevOps Engineer", "Engineering",
-                risk_score=0.10, is_privileged=True, access_level="admin"),
+            pentest_user: self._make_user(
+                pentest_user, "Red Team Lead", "IT Security", risk_score=0.05, is_privileged=True, access_level="admin"
+            ),
+            backup_user: self._make_user(
+                backup_user, "Backup Service Account", "IT", risk_score=0.02, is_privileged=True, access_level="service"
+            ),
+            admin_user: self._make_user(
+                admin_user, "Systems Administrator", "IT", risk_score=0.08, is_privileged=True, access_level="admin"
+            ),
+            it_user: self._make_user(
+                it_user, "IT Operations", "IT", risk_score=0.05, is_privileged=True, access_level="admin"
+            ),
+            devops_user: self._make_user(
+                devops_user, "DevOps Engineer", "Engineering", risk_score=0.10, is_privileged=True, access_level="admin"
+            ),
         }
 
         return [alert_pentest, alert_backup, alert_admin, alert_maint, alert_deploy], {
@@ -869,92 +1036,145 @@ class InsiderThreatScenario(BaseScenario):
         log_db = {}
 
         fp_templates = [
-            ("FW_GEO_BLOCK", "Geoblocked Connection from Sanctioned Country",
-             AlertSeverity.LOW,
-             "Firewall auto-blocked inbound connection from sanctioned country. No internal system reached.",
-             LogSource.FIREWALL),
-            ("FW_SCANNER", "External Vulnerability Scanner -- Shodan",
-             AlertSeverity.INFO,
-             "Internet-facing host probed by known security research scanner (Shodan). Auto-blocked.",
-             LogSource.FIREWALL),
-            ("DNS_NRD_001", "DNS Query to Newly-Registered Domain -- SaaS Vendor",
-             AlertSeverity.INFO,
-             "Internal host resolved newly-registered domain belonging to approved SaaS vendor.",
-             LogSource.DNS),
-            ("DNS_DGA_FP", "DNS Query Pattern Matches DGA -- False Positive",
-             AlertSeverity.LOW,
-             "DNS query pattern triggered DGA detector. Domain is legitimate CDN subdomain.",
-             LogSource.DNS),
-            ("DNS_TUN_FP", "DNS Tunneling Heuristic Triggered -- Antimalware Update",
-             AlertSeverity.LOW,
-             "High volume of DNS TXT queries from antimalware agent fetching signature updates.",
-             LogSource.DNS),
-            ("AV_FP_001", "Antivirus Alert -- Developer Tool Flagged",
-             AlertSeverity.LOW,
-             "AV flagged legitimate development tool (Postman binary). File in approved software list.",
-             LogSource.ENDPOINT),
-            ("AV_FP_002", "Antivirus Alert -- Python Script Heuristic",
-             AlertSeverity.LOW,
-             "AV heuristic triggered on legitimate Python automation script. SHA256 clean in threat feeds.",
-             LogSource.ENDPOINT),
-            ("AV_FP_003", "Antivirus Alert -- Installer Package",
-             AlertSeverity.LOW,
-             "AV flagged signed installer for approved application. Digital signature verified.",
-             LogSource.ENDPOINT),
-            ("CDN_ANOMALY", "CDN Traffic Spike -- Marketing Campaign",
-             AlertSeverity.INFO,
-             "Outbound CDN traffic spiked 400%. Caused by marketing email campaign with tracked links.",
-             LogSource.PROXY),
-            ("AUTH_SVC_001", "Service Account Authentication Burst -- Batch Job",
-             AlertSeverity.LOW,
-             "Service account performing scheduled batch authentication. Part of nightly ETL pipeline.",
-             LogSource.AUTH),
-            ("AUTH_SVC_002", "Service Account Lockout -- Password Rotation",
-             AlertSeverity.LOW,
-             "Service account locked out due to password rotation lag. IT ticket #INC-8812 open.",
-             LogSource.AUTH),
-            ("AUTH_GEO_001", "Off-Hours Login -- Remote Employee Different Timezone",
-             AlertSeverity.LOW,
-             "Employee account logging in at 03:00 AM local time. Employee is remote in UTC+9 timezone.",
-             LogSource.AUTH),
-            ("FW_CDN_FP", "Geoblocked Outbound to CDN Node -- Cloudflare",
-             AlertSeverity.LOW,
-             "Internal host connecting to Cloudflare CDN node incorrectly flagged as foreign IP.",
-             LogSource.FIREWALL),
-            ("IDS_FP_001", "IDS Signature Match -- HTTP Header False Positive",
-             AlertSeverity.INFO,
-             "IDS signature triggered on benign HTTP header containing SQL-like string in User-Agent.",
-             LogSource.IDS),
-            ("WAF_FP_001", "WAF Rule Triggered -- Automated Security Scanner",
-             AlertSeverity.INFO,
-             "WAF blocked automated pen test from authorized Qualys scanner. No successful exploitation.",
-             LogSource.FIREWALL),
-            ("PROXY_FP_001", "Proxy Alert -- Uncategorized Domain",
-             AlertSeverity.INFO,
-             "Proxy flagged access to uncategorized domain. Domain is new corporate partnership site.",
-             LogSource.PROXY),
+            (
+                "FW_GEO_BLOCK",
+                "Geoblocked Connection from Sanctioned Country",
+                AlertSeverity.LOW,
+                "Firewall auto-blocked inbound connection from sanctioned country. No internal system reached.",
+                LogSource.FIREWALL,
+            ),
+            (
+                "FW_SCANNER",
+                "External Vulnerability Scanner -- Shodan",
+                AlertSeverity.INFO,
+                "Internet-facing host probed by known security research scanner (Shodan). Auto-blocked.",
+                LogSource.FIREWALL,
+            ),
+            (
+                "DNS_NRD_001",
+                "DNS Query to Newly-Registered Domain -- SaaS Vendor",
+                AlertSeverity.INFO,
+                "Internal host resolved newly-registered domain belonging to approved SaaS vendor.",
+                LogSource.DNS,
+            ),
+            (
+                "DNS_DGA_FP",
+                "DNS Query Pattern Matches DGA -- False Positive",
+                AlertSeverity.LOW,
+                "DNS query pattern triggered DGA detector. Domain is legitimate CDN subdomain.",
+                LogSource.DNS,
+            ),
+            (
+                "DNS_TUN_FP",
+                "DNS Tunneling Heuristic Triggered -- Antimalware Update",
+                AlertSeverity.LOW,
+                "High volume of DNS TXT queries from antimalware agent fetching signature updates.",
+                LogSource.DNS,
+            ),
+            (
+                "AV_FP_001",
+                "Antivirus Alert -- Developer Tool Flagged",
+                AlertSeverity.LOW,
+                "AV flagged legitimate development tool (Postman binary). File in approved software list.",
+                LogSource.ENDPOINT,
+            ),
+            (
+                "AV_FP_002",
+                "Antivirus Alert -- Python Script Heuristic",
+                AlertSeverity.LOW,
+                "AV heuristic triggered on legitimate Python automation script. SHA256 clean in threat feeds.",
+                LogSource.ENDPOINT,
+            ),
+            (
+                "AV_FP_003",
+                "Antivirus Alert -- Installer Package",
+                AlertSeverity.LOW,
+                "AV flagged signed installer for approved application. Digital signature verified.",
+                LogSource.ENDPOINT,
+            ),
+            (
+                "CDN_ANOMALY",
+                "CDN Traffic Spike -- Marketing Campaign",
+                AlertSeverity.INFO,
+                "Outbound CDN traffic spiked 400%. Caused by marketing email campaign with tracked links.",
+                LogSource.PROXY,
+            ),
+            (
+                "AUTH_SVC_001",
+                "Service Account Authentication Burst -- Batch Job",
+                AlertSeverity.LOW,
+                "Service account performing scheduled batch authentication. Part of nightly ETL pipeline.",
+                LogSource.AUTH,
+            ),
+            (
+                "AUTH_SVC_002",
+                "Service Account Lockout -- Password Rotation",
+                AlertSeverity.LOW,
+                "Service account locked out due to password rotation lag. IT ticket #INC-8812 open.",
+                LogSource.AUTH,
+            ),
+            (
+                "AUTH_GEO_001",
+                "Off-Hours Login -- Remote Employee Different Timezone",
+                AlertSeverity.LOW,
+                "Employee account logging in at 03:00 AM local time. Employee is remote in UTC+9 timezone.",
+                LogSource.AUTH,
+            ),
+            (
+                "FW_CDN_FP",
+                "Geoblocked Outbound to CDN Node -- Cloudflare",
+                AlertSeverity.LOW,
+                "Internal host connecting to Cloudflare CDN node incorrectly flagged as foreign IP.",
+                LogSource.FIREWALL,
+            ),
+            (
+                "IDS_FP_001",
+                "IDS Signature Match -- HTTP Header False Positive",
+                AlertSeverity.INFO,
+                "IDS signature triggered on benign HTTP header containing SQL-like string in User-Agent.",
+                LogSource.IDS,
+            ),
+            (
+                "WAF_FP_001",
+                "WAF Rule Triggered -- Automated Security Scanner",
+                AlertSeverity.INFO,
+                "WAF blocked automated pen test from authorized Qualys scanner. No successful exploitation.",
+                LogSource.FIREWALL,
+            ),
+            (
+                "PROXY_FP_001",
+                "Proxy Alert -- Uncategorized Domain",
+                AlertSeverity.INFO,
+                "Proxy flagged access to uncategorized domain. Domain is new corporate partnership site.",
+                LogSource.PROXY,
+            ),
         ]
 
         for rule, title, severity, description, primary_source in fp_templates:
             aid = self._alert_id("FP")
-            fps.append(AlertMeta(
-                alert_id=aid,
-                title=title,
-                description=description,
-                severity=severity,
-                source_system="SIEM",
-                timestamp=self._timestamp(hours_ago=self.rng.uniform(0.1, 10.0)),
-                rule_triggered=rule,
-                indicators={"ip": [self._public_ip()]},
-                raw_log_snippet=f"Rule: {rule} | {description[:80]}",
-            ))
+            fps.append(
+                AlertMeta(
+                    alert_id=aid,
+                    title=title,
+                    description=description,
+                    severity=severity,
+                    source_system="SIEM",
+                    timestamp=self._timestamp(hours_ago=self.rng.uniform(0.1, 10.0)),
+                    rule_triggered=rule,
+                    indicators={"ip": [self._public_ip()]},
+                    raw_log_snippet=f"Rule: {rule} | {description[:80]}",
+                )
+            )
             for source in LogSource:
                 log_db.setdefault(source.value, {})[aid] = []
             log_db[primary_source.value][aid] = [
-                self._make_log_entry(primary_source, "event",
+                self._make_log_entry(
+                    primary_source,
+                    "event",
                     hours_ago=self.rng.uniform(0.1, 10.0),
                     action="block" if "BLOCK" in rule or "FW" in rule else "allow",
-                    details={"rule": rule, "false_positive": True}),
+                    details={"rule": rule, "false_positive": True},
+                ),
             ]
 
         return fps, {

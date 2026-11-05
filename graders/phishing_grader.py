@@ -10,7 +10,6 @@ Weights:
   response        0.2  — appropriate containment recommended
 """
 
-
 from graders.base import BaseGrader
 from models import AlertClassification, InvestigationState, ScenarioConfig
 
@@ -96,6 +95,7 @@ class PhishingGrader(BaseGrader):
             response_score = 0.0
         elif expected_class == AlertClassification.FALSE_POSITIVE:
             from models import ResponseActionType
+
             recommended = set(inv.recommended_actions)
             aggressive = {
                 ResponseActionType.ISOLATE_ENDPOINT,
@@ -115,25 +115,28 @@ class PhishingGrader(BaseGrader):
             expected = set(expected_actions)
             response_score = len(recommended & expected) / len(expected) if expected else 1.0
 
-        raw_final = (
-            0.4 * classification_score + 0.2 * technique_score
-            + 0.2 * evidence_score + 0.2 * response_score
-        )
+        raw_final = 0.4 * classification_score + 0.2 * technique_score + 0.2 * evidence_score + 0.2 * response_score
         final = 0.0 if raw_final <= 0.0 else self._clamp(raw_final)
 
         feedback_parts = []
         if classification_score < 1.0:
-            feedback_parts.append(f"Alert classified as '{inv.classification if inv else 'unclassified'}', expected '{expected_class}'.")
+            feedback_parts.append(
+                f"Alert classified as '{inv.classification if inv else 'unclassified'}', expected '{expected_class}'."
+            )
         if technique_score < 1.0:
-            feedback_parts.append(f"MITRE technique mapping incomplete ({int(technique_score*100)}%).")
+            feedback_parts.append(f"MITRE technique mapping incomplete ({int(technique_score * 100)}%).")
         if evidence_score < 1.0:
-            feedback_parts.append(f"Only {int(evidence_score*100)}% of relevant log sources queried.")
+            feedback_parts.append(f"Only {int(evidence_score * 100)}% of relevant log sources queried.")
         if response_score < 1.0:
-            feedback_parts.append(f"Response actions {int(response_score*100)}% complete.")
+            feedback_parts.append(f"Response actions {int(response_score * 100)}% complete.")
 
-        return final, {
-            "classification": round(classification_score, 3),
-            "technique_mapping": round(technique_score, 3),
-            "evidence_gathered": round(evidence_score, 3),
-            "response_quality": round(response_score, 3),
-        }, " ".join(feedback_parts) or "All components scored correctly."
+        return (
+            final,
+            {
+                "classification": round(classification_score, 3),
+                "technique_mapping": round(technique_score, 3),
+                "evidence_gathered": round(evidence_score, 3),
+                "response_quality": round(response_score, 3),
+            },
+            " ".join(feedback_parts) or "All components scored correctly.",
+        )

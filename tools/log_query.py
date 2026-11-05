@@ -11,7 +11,6 @@ Reward logic:
    0.00  if source is relevant but returns empty results
 """
 
-
 from models import InvestigationState, LogEntry, LogSource, ScenarioConfig
 
 

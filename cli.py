@@ -245,9 +245,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_val.add_argument("--api-key", default=None)
     p_val.set_defaults(func=_cmd_validate)
 
-    p_check = sub.add_parser(
-        "check-scenarios", help="Validate generated scenarios' ground-truth integrity."
-    )
+    p_check = sub.add_parser("check-scenarios", help="Validate generated scenarios' ground-truth integrity.")
     p_check.add_argument("--seeds", default=None, help="Comma-separated seed list.")
     p_check.set_defaults(func=_cmd_check_scenarios)
 
@@ -260,15 +258,17 @@ def build_parser() -> argparse.ArgumentParser:
     p_train.add_argument("--role", choices=["tier1", "tier2", "manager"], default="tier1")
     p_train.add_argument("--model", default=None, help="HF model name (default: Qwen2.5-1.5B-Instruct)")
     p_train.add_argument("--epochs", type=int, default=None)
-    p_train.add_argument("--curriculum", action="store_true",
-                         help="Staged easy→hard curriculum with promotion gates")
-    p_train.add_argument("--parallel-rewards", type=int, default=0, metavar="N",
-                         help="Concurrent reward scoring across N server sessions")
-    p_train.add_argument("--eval-episodes", type=int, default=0,
-                         help="Held-out eval episodes per task after training")
+    p_train.add_argument("--curriculum", action="store_true", help="Staged easy→hard curriculum with promotion gates")
+    p_train.add_argument(
+        "--parallel-rewards",
+        type=int,
+        default=0,
+        metavar="N",
+        help="Concurrent reward scoring across N server sessions",
+    )
+    p_train.add_argument("--eval-episodes", type=int, default=0, help="Held-out eval episodes per task after training")
     p_train.add_argument("--unsloth", action="store_true")
-    p_train.add_argument("--dry-run", action="store_true",
-                         help="No model — just plot the oracle reward curve")
+    p_train.add_argument("--dry-run", action="store_true", help="No model — just plot the oracle reward curve")
     p_train.set_defaults(func=_cmd_train)
 
     p_runs = sub.add_parser("runs", help="List structured training runs and their results.")

@@ -13,6 +13,7 @@ Usage:
 The script is intentionally dependency-light: only `huggingface_hub`. No torch,
 no transformers — so it runs locally without a GPU.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -158,8 +159,8 @@ def render_model_card(adapter_dir: Path, repo_id: str) -> str:
         "train_rows": "see training_summary.json",
         "eval_seeds": "30 per task",
         "baseline_avg": "see soc_grpo_results.png",
-        "trained_avg":  "see soc_grpo_results.png",
-        "improvement":  "see soc_grpo_results.png",
+        "trained_avg": "see soc_grpo_results.png",
+        "improvement": "see soc_grpo_results.png",
         "repo_id": repo_id,
         "repo_url": "https://github.com/ROHITCRAFTSYT/-Metas-OpenEnv-2",
         "space_url": "https://huggingface.co/spaces/rohitcraftsyt/openenv2",
@@ -194,9 +195,9 @@ def publish_adapter(adapter_dir: Path, repo_id: str, private: bool, token: str) 
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--adapter", default="./soc_grpo_tier1", help="path to LoRA adapter dir")
-    p.add_argument("--repo",    default=None, help="HF model repo id (e.g. user/soc-triage-tier1)")
+    p.add_argument("--repo", default=None, help="HF model repo id (e.g. user/soc-triage-tier1)")
     p.add_argument("--private", action="store_true", help="create as private repo")
-    p.add_argument("--space",   action="store_true", help="also sync the Space (rohitcraftsyt/openenv2)")
+    p.add_argument("--space", action="store_true", help="also sync the Space (rohitcraftsyt/openenv2)")
     args = p.parse_args()
 
     token = os.environ.get("HF_TOKEN")
@@ -219,8 +220,15 @@ def main() -> int:
             repo_type="space",
             token=token,
             commit_message="Sync from main",
-            ignore_patterns=[".git/**", ".venv/**", "__pycache__/**", "*.pyc",
-                             "soc_grpo_tier1/**", "wandb/**", ".pytest_cache/**"],
+            ignore_patterns=[
+                ".git/**",
+                ".venv/**",
+                "__pycache__/**",
+                "*.pyc",
+                "soc_grpo_tier1/**",
+                "wandb/**",
+                ".pytest_cache/**",
+            ],
         )
         print("✓ Space synced: https://huggingface.co/spaces/rohitcraftsyt/openenv2")
 

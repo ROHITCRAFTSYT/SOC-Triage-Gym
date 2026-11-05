@@ -16,6 +16,7 @@ The quality gate means long-and-empty gets 0; short-but-perfect also gets 0.
 Only long-AND-substantive saturates. This matches Mercor's brief of "frontier
 model rewards scale with token output" without allowing trivial farming.
 """
+
 from __future__ import annotations
 
 from models import RewardBlendConfig

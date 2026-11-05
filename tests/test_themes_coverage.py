@@ -5,6 +5,7 @@ Each test asserts presence + correctness of one OpenEnv hackathon sub-theme
 mechanic so that judges — and CI — can confirm the env still claims what
 it says it claims in the README.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -26,6 +27,7 @@ from tools.ticketing import TicketingSystem
 # ---------------------------------------------------------------------------
 # Halluminate — multi-actor inbox
 # ---------------------------------------------------------------------------
+
 
 def test_actors_registry_deterministic_and_routes_by_role():
     reg_a = build_default_registry(seed=42)
@@ -56,6 +58,7 @@ def test_actors_produce_both_relevant_and_noise_messages():
 # Patronus — policy / schema drift
 # ---------------------------------------------------------------------------
 
+
 def test_policy_drift_respects_schedule_and_activates_in_order():
     engine = PolicyDriftEngine(seed=99)
     engine.plan(max_steps=100, drift_count=2)
@@ -82,13 +85,11 @@ def test_policy_active_at_returns_correct_version():
 
 def test_policy_compliance_flags_admin_escalation_violations():
     engine = PolicyDriftEngine(seed=1)
-    engine._versions.append(
-        PolicyVersion(version=2, step_activated=5, admin_must_escalate=True)
-    )
+    engine._versions.append(PolicyVersion(version=2, step_activated=5, admin_must_escalate=True))
     log = [
-        {"step": 3, "is_admin": True, "escalated": False},   # before drift — no violation
-        {"step": 6, "is_admin": True, "escalated": True},    # after drift, compliant
-        {"step": 7, "is_admin": True, "escalated": False},   # after drift, violation
+        {"step": 3, "is_admin": True, "escalated": False},  # before drift — no violation
+        {"step": 6, "is_admin": True, "escalated": True},  # after drift, compliant
+        {"step": 7, "is_admin": True, "escalated": False},  # after drift, violation
     ]
     result = engine.policy_compliance(log)
     assert result["total"] == 2
@@ -99,6 +100,7 @@ def test_policy_compliance_flags_admin_escalation_violations():
 # ---------------------------------------------------------------------------
 # Mercor — token-scaled reward
 # ---------------------------------------------------------------------------
+
 
 def test_token_bonus_zero_below_floor():
     cfg = RewardBlendConfig()
@@ -129,6 +131,7 @@ def test_token_bonus_monotonic_in_length():
 # Snorkel — experts-in-the-loop
 # ---------------------------------------------------------------------------
 
+
 def test_expert_panel_rotation_is_cyclic():
     panel = ExpertPanel(build_standard_panel())
     ids = [panel.for_round(i).expert_id for i in range(6)]
@@ -139,8 +142,11 @@ def test_expert_panel_rotation_is_cyclic():
 def test_expert_weights_shift_scoring():
     panel = ExpertPanel()
     signals = {
-        "accuracy": 1.0, "reasoning": 0.0, "actionability": 0.0,
-        "speed": 1.0, "thoroughness": 0.0,
+        "accuracy": 1.0,
+        "reasoning": 0.0,
+        "actionability": 0.0,
+        "speed": 1.0,
+        "thoroughness": 0.0,
     }
     scored = [panel.score(signals, expert=e) for e in panel.all_profiles()]
     # Accuracy-weighted expert should score this highest, speedy still high, thorough lowest.
@@ -153,6 +159,7 @@ def test_expert_weights_shift_scoring():
 # ---------------------------------------------------------------------------
 # Scaler AI Labs — multi-app ticketing + cross-app rule
 # ---------------------------------------------------------------------------
+
 
 def test_ticketing_open_resolve_and_audit():
     ts = TicketingSystem()
@@ -190,15 +197,18 @@ def test_ticketing_sla_tick_decrements():
 # Long-horizon — apt_campaign task registered and grader wired
 # ---------------------------------------------------------------------------
 
+
 def test_apt_campaign_registered():
     from graders import GRADER_REGISTRY
     from scenarios import SCENARIO_REGISTRY
+
     assert "apt_campaign" in SCENARIO_REGISTRY
     assert "apt_campaign" in GRADER_REGISTRY
 
 
 def test_apt_campaign_generates_long_scenario():
     from scenarios.apt_campaign import APTCampaignScenario
+
     cfg = APTCampaignScenario(seed=42).generate()
     assert cfg.max_steps == 250
     assert len(cfg.alerts) >= 30  # composite — typically 60+
@@ -214,14 +224,11 @@ def test_apt_campaign_grader_rewards_narrative_length():
     cfg = APTCampaignScenario(seed=42).generate()
     # Fabricate a minimal investigations dict that classifies all TPs correctly.
     from models import AlertClassification, InvestigationState
+
     invs = {}
     for alert in cfg.alerts:
-        gt_cls = cfg.ground_truth.alert_classifications.get(
-            alert.alert_id, AlertClassification.FALSE_POSITIVE
-        )
-        invs[alert.alert_id] = InvestigationState(
-            alert_id=alert.alert_id, classification=gt_cls
-        )
+        gt_cls = cfg.ground_truth.alert_classifications.get(alert.alert_id, AlertClassification.FALSE_POSITIVE)
+        invs[alert.alert_id] = InvestigationState(alert_id=alert.alert_id, classification=gt_cls)
 
     grader.set_context(narrative_text="", policy_compliance_rate=1.0)
     short_score = grader.grade(cfg, invs, steps_used=100, max_steps=250)
@@ -236,6 +243,7 @@ def test_apt_campaign_grader_rewards_narrative_length():
 # ---------------------------------------------------------------------------
 # Endpoint-level smoke: themes/coverage + actor/expert/policy endpoints live
 # ---------------------------------------------------------------------------
+
 
 def test_themes_coverage_endpoint():
     with TestClient(app) as client:

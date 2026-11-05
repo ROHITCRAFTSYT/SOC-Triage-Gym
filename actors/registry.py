@@ -1,4 +1,5 @@
 """Actor registry that fans out step() notifications to all active actors."""
+
 from __future__ import annotations
 
 import random
@@ -57,8 +58,10 @@ def build_default_registry(seed: int = 0) -> ActorRegistry:
     from actors.end_user import EndUserReporterActor
     from actors.threat_intel import ThreatIntelFeedActor
 
-    return ActorRegistry([
-        ThreatIntelFeedActor(seed=seed),
-        ComplianceOfficerActor(seed=seed + 1),
-        EndUserReporterActor(seed=seed + 2),
-    ])
+    return ActorRegistry(
+        [
+            ThreatIntelFeedActor(seed=seed),
+            ComplianceOfficerActor(seed=seed + 1),
+            EndUserReporterActor(seed=seed + 2),
+        ]
+    )

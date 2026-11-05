@@ -156,6 +156,7 @@ def _do_step(sess: SessionState, action: SOCAction) -> SOCObservation:
         )
     return obs
 
+
 TASKS = [
     {
         "id": "phishing",
@@ -295,6 +296,7 @@ _MAX_SEED = 2**32 - 1
 
 class ResetRequest(BaseModel):
     """Request body for POST /reset."""
+
     task_id: str = Field(default="phishing", min_length=1, max_length=64)
     seed: int = Field(default=42, ge=0, le=_MAX_SEED, strict=True)
     mode: Literal["tier1_solo", "team"] = "tier1_solo"
@@ -305,6 +307,7 @@ class ResetRequest(BaseModel):
 
 class GenerateScenarioRequest(BaseModel):
     """Request body for POST /generate_scenario."""
+
     seed: int = Field(default=42, ge=0, le=_MAX_SEED, strict=True)
     difficulty_floor: float = Field(default=0.5, ge=0.0, le=1.0)
     attack_patterns: list[str] = Field(
@@ -322,6 +325,7 @@ class GenerateScenarioRequest(BaseModel):
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
+
 
 @app.get("/health")
 def health():
@@ -348,7 +352,17 @@ def metadata():
         ),
         "tasks": [task["id"] for task in TASKS],
         "author": "rohitcraftsyt",
-        "tags": ["openenv", "cybersecurity", "soc", "siem", "mitre-attack", "reinforcement-learning", "multi-agent", "oversight", "self-improvement"],
+        "tags": [
+            "openenv",
+            "cybersecurity",
+            "soc",
+            "siem",
+            "mitre-attack",
+            "reinforcement-learning",
+            "multi-agent",
+            "oversight",
+            "self-improvement",
+        ],
     }
 
 
@@ -356,6 +370,7 @@ def metadata():
 def schema():
     """Action, observation and state JSON schemas (OpenEnv runtime spec)."""
     from models import EnvironmentState, SOCAction, SOCObservation
+
     return {
         "action": SOCAction.model_json_schema(),
         "observation": SOCObservation.model_json_schema(),
@@ -432,7 +447,10 @@ def mcp_endpoint(
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "log_source": {"type": "string", "enum": ["firewall", "proxy", "dns", "endpoint", "auth", "email_gateway", "ids", "cloud_trail"]},
+                    "log_source": {
+                        "type": "string",
+                        "enum": ["firewall", "proxy", "dns", "endpoint", "auth", "email_gateway", "ids", "cloud_trail"],
+                    },
                     "query_alert_id": {"type": "string", "description": "Alert ID to scope the query"},
                     "time_window_hours": {"type": "integer", "default": 24, "minimum": 1, "maximum": 168},
                 },
@@ -458,7 +476,10 @@ def mcp_endpoint(
                 "type": "object",
                 "properties": {
                     "alert_id": {"type": "string"},
-                    "classification": {"type": "string", "enum": ["true_positive", "false_positive", "benign_true_positive"]},
+                    "classification": {
+                        "type": "string",
+                        "enum": ["true_positive", "false_positive", "benign_true_positive"],
+                    },
                     "confidence": {"type": "number", "minimum": 0.0, "maximum": 1.0, "default": 0.8},
                 },
                 "required": ["alert_id", "classification"],
@@ -483,7 +504,19 @@ def mcp_endpoint(
                 "type": "object",
                 "properties": {
                     "alert_id": {"type": "string"},
-                    "response_action": {"type": "string", "enum": ["isolate_endpoint", "disable_account", "block_ip", "block_domain", "quarantine_file", "reset_password", "revoke_sessions", "no_action"]},
+                    "response_action": {
+                        "type": "string",
+                        "enum": [
+                            "isolate_endpoint",
+                            "disable_account",
+                            "block_ip",
+                            "block_domain",
+                            "quarantine_file",
+                            "reset_password",
+                            "revoke_sessions",
+                            "no_action",
+                        ],
+                    },
                 },
                 "required": ["alert_id", "response_action"],
             },
@@ -675,6 +708,7 @@ def root():
 def blog_md():
     """Raw blog.md so the landing-page modal can render it client-side via marked.js."""
     from pathlib import Path
+
     p = Path(__file__).resolve().parent.parent / "blog.md"
     if not p.exists():
         return PlainTextResponse("# blog.md not found\n", status_code=404)
@@ -685,6 +719,7 @@ def blog_md():
 # /ui/* — styled HTML accessors for the JSON-bearing endpoints.
 # API consumers keep hitting the raw routes; these are browser-facing.
 # ---------------------------------------------------------------------------
+
 
 @app.get("/ui/metadata", response_class=HTMLResponse, include_in_schema=False)
 def ui_metadata():
@@ -718,6 +753,7 @@ def ui_schema():
 # ---------------------------------------------------------------------------
 # REST Tool Endpoints (for LLM agents using direct REST tool calls)
 # ---------------------------------------------------------------------------
+
 
 @app.get("/tasks")
 def get_tasks():
@@ -885,7 +921,7 @@ def list_alerts(
         sess.ensure_episode()
         alerts = [a.model_dump() for a in sess.env._config.alerts]
         total = len(alerts)
-        page = alerts[offset: offset + limit]
+        page = alerts[offset : offset + limit]
         return {
             "total": total,
             "offset": offset,
@@ -1045,6 +1081,7 @@ def query_log_source(
 # (Halluminate / Patronus / Mercor / Snorkel / Scaler AI Labs)
 # ---------------------------------------------------------------------------
 
+
 @app.get("/actors/messages")
 def actor_messages(role: str | None = Query(default=None), sess: SessionState = Depends(get_session)):
     """
@@ -1086,6 +1123,7 @@ def reward_config(sess: SessionState = Depends(get_session)):
 
 class RewardBlendUpdate(BaseModel):
     """Optional blend override."""
+
     role_weight: float | None = Field(default=None, ge=0.0, le=1.0)
     team_weight: float | None = Field(default=None, ge=0.0, le=1.0)
     token_scale_enabled: bool | None = None
@@ -1248,6 +1286,7 @@ def themes_coverage():
 # Production operations endpoints — metrics, audit trail, session admin
 # ---------------------------------------------------------------------------
 
+
 @app.get("/metrics", response_class=PlainTextResponse)
 def metrics():
     """Prometheus text-format operational metrics (requests, episodes, steps, rewards)."""
@@ -1305,6 +1344,7 @@ def sessions_delete(session_id: str):
 # Application factory (for testing)
 # ---------------------------------------------------------------------------
 
+
 def create_app() -> FastAPI:
     """Return the FastAPI application instance."""
     return app
@@ -1332,5 +1372,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
