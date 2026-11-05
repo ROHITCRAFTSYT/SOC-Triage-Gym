@@ -43,3 +43,15 @@ Thumbs.db
 # Logs
 *.log
 logs/
+
+# Heavy assets the server never reads (README charts, slide PDFs, notebooks,
+# the static microsite, committed training/benchmark outputs). Keeps the build
+# context small and avoids shipping Git LFS pointer files into the image.
+*.png
+*.pdf
+*.ipynb
+*.csv
+site/
+assets/
+benchmarks/
+uv.lock
