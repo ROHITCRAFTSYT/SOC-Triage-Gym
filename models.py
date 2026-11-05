@@ -402,6 +402,18 @@ class InvestigationState(BaseModel):
 # Top-level Action Model
 # ---------------------------------------------------------------------------
 
+# Upper bounds for free-form SOCAction strings. Generous enough for any real
+# indicator or analyst note, small enough that one request can't push megabytes
+# into observations, audit logs and the manager judge's prompt.
+_MAX_ID = 128
+_MAX_LABEL = 32
+_MAX_TECHNIQUE = 32
+_MAX_NAME = 256
+_MAX_IOC = 2048
+_MAX_TEXT = 4096
+_MAX_NARRATIVE = 32_000
+
+
 class SOCAction(BaseModel):
     """
     Flat action model for the SOC analyst agent.
@@ -415,59 +427,63 @@ class SOCAction(BaseModel):
         {"action_type": "noop"}
     """
 
-    model_config = ConfigDict(frozen=False)
+    # extra="ignore" is deliberate: LLM policies routinely add keys such as
+    # "reasoning" or "thought" next to the action, and rejecting those would
+    # turn a valid action into a 422 mid-rollout. Every *declared* field is
+    # typed and bounded below, so malformed values still fail validation.
+    model_config = ConfigDict(frozen=False, extra="ignore")
 
     action_type: ActionType = Field(..., description="Type of action to perform")
 
     # --- enrich_indicator params ---
-    indicator: str | None = Field(None, description="Indicator value to enrich (IP, domain, hash, email, URL)")
+    indicator: str | None = Field(None, max_length=_MAX_IOC, description="Indicator value to enrich (IP, domain, hash, email, URL)")
     indicator_type: IndicatorType | None = Field(None, description="Type of indicator being enriched")
 
     # --- query_logs params ---
     log_source: LogSource | None = Field(None, description="Log source to query")
-    query_alert_id: str | None = Field(None, description="Alert ID providing context for log query")
-    time_window_hours: int | None = Field(24, description="Time window for log query in hours (default 24)")
+    query_alert_id: str | None = Field(None, max_length=_MAX_ID, description="Alert ID providing context for log query")
+    time_window_hours: int | None = Field(24, ge=1, le=168, description="Time window for log query in hours (1-168, default 24)")
 
     # --- correlate_alerts params ---
-    alert_id_a: str | None = Field(None, description="First alert ID for correlation check")
-    alert_id_b: str | None = Field(None, description="Second alert ID for correlation check")
+    alert_id_a: str | None = Field(None, max_length=_MAX_ID, description="First alert ID for correlation check")
+    alert_id_b: str | None = Field(None, max_length=_MAX_ID, description="Second alert ID for correlation check")
 
     # --- check_asset params ---
-    hostname: str | None = Field(None, description="Hostname to look up in asset inventory")
+    hostname: str | None = Field(None, max_length=_MAX_NAME, description="Hostname to look up in asset inventory")
 
     # --- check_user params ---
-    username: str | None = Field(None, description="Username to look up in user directory")
+    username: str | None = Field(None, max_length=_MAX_NAME, description="Username to look up in user directory")
 
     # --- classify_alert params ---
-    alert_id: str | None = Field(None, description="Alert ID to classify")
+    alert_id: str | None = Field(None, max_length=_MAX_ID, description="Alert ID to classify")
     classification: AlertClassification | None = Field(None, description="Classification decision")
     confidence: float | None = Field(None, ge=0.0, le=1.0, description="Classification confidence 0.0-1.0")
 
     # --- map_technique params ---
-    technique_id: str | None = Field(None, description="MITRE ATT&CK technique ID (e.g. T1566.001)")
+    technique_id: str | None = Field(None, max_length=_MAX_TECHNIQUE, description="MITRE ATT&CK technique ID (e.g. T1566.001)")
 
     # --- recommend_action params ---
     response_action: ResponseActionType | None = Field(None, description="Recommended containment action")
-    action_target: str | None = Field(None, description="Target of the response action (IP, hostname, username, etc.)")
+    action_target: str | None = Field(None, max_length=_MAX_IOC, description="Target of the response action (IP, hostname, username, etc.)")
 
     # --- escalate / escalate_to_tier2 params ---
-    escalation_severity: str | None = Field(None, description="Escalation severity: critical or high")
-    justification: str | None = Field(None, description="Justification for escalation")
+    escalation_severity: str | None = Field(None, max_length=_MAX_LABEL, description="Escalation severity: critical or high")
+    justification: str | None = Field(None, max_length=_MAX_TEXT, description="Justification for escalation")
 
     # --- Multi-agent role field (team mode) ---
     role: AgentRole | None = Field(None, description="Role of the agent submitting this action (team mode)")
 
     # --- Tier-2 Responder action params ---
-    target_host: str | None = Field(None, description="Target hostname for containment/forensic actions")
-    target_user: str | None = Field(None, description="Target username for user-related actions")
-    target_ioc: str | None = Field(None, description="IOC value to block (IP, domain, hash)")
-    ioc_type: str | None = Field(None, description="IOC type: ip, domain, file_hash")
+    target_host: str | None = Field(None, max_length=_MAX_NAME, description="Target hostname for containment/forensic actions")
+    target_user: str | None = Field(None, max_length=_MAX_NAME, description="Target username for user-related actions")
+    target_ioc: str | None = Field(None, max_length=_MAX_IOC, description="IOC value to block (IP, domain, hash)")
+    ioc_type: str | None = Field(None, max_length=_MAX_LABEL, description="IOC type: ip, domain, file_hash")
 
     # --- SOC Manager action params ---
-    ticket_id: str | None = Field(None, description="Ticket ID to review or reference")
+    ticket_id: str | None = Field(None, max_length=_MAX_ID, description="Ticket ID to review or reference")
     new_classification: AlertClassification | None = Field(None, description="Override classification for override_classification action")
-    flag_reason: str | None = Field(None, description="Reason for flagging an inconsistency")
-    explanation_text: str | None = Field(None, description="Manager's explanation of team behavior")
+    flag_reason: str | None = Field(None, max_length=_MAX_TEXT, description="Reason for flagging an inconsistency")
+    explanation_text: str | None = Field(None, max_length=_MAX_NARRATIVE, description="Manager's explanation of team behavior")
 
 
 # ---------------------------------------------------------------------------

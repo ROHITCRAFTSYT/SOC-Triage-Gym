@@ -26,7 +26,7 @@ from typing import Literal
 from fastapi import Body, Depends, FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, PlainTextResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
@@ -247,26 +247,36 @@ app.add_middleware(MetricsMiddleware)
 # Request / Response schemas
 # ---------------------------------------------------------------------------
 
+# Seeds are passed to random.Random, which accepts any int, but bounding them to
+# uint32 keeps them portable to numpy/torch seeding in training code and rejects
+# accidental floats/strings with a clear 422 instead of a silent coercion.
+_MAX_SEED = 2**32 - 1
+
+
 class ResetRequest(BaseModel):
     """Request body for POST /reset."""
-    task_id: str = "phishing"
-    seed: int = 42
+    task_id: str = Field(default="phishing", min_length=1, max_length=64)
+    seed: int = Field(default=42, ge=0, le=_MAX_SEED, strict=True)
     mode: Literal["tier1_solo", "team"] = "tier1_solo"
     # Optional body-level session selector for clients that can't set the
     # X-Session-ID header. Takes precedence over the header when present.
-    session_id: str | None = None
+    session_id: str | None = Field(default=None, max_length=128)
 
 
 class GenerateScenarioRequest(BaseModel):
     """Request body for POST /generate_scenario."""
-    seed: int = 42
-    difficulty_floor: float = 0.5
-    attack_patterns: list[str] = ["phishing", "lateral_movement", "insider_threat"]
-    noise_density: float = 0.6
-    ioc_freshness: float = 0.7
-    correlation_obfuscation: float = 0.3
-    blue_team_win_rate: float = 0.5
-    episode_count: int = 0
+    seed: int = Field(default=42, ge=0, le=_MAX_SEED, strict=True)
+    difficulty_floor: float = Field(default=0.5, ge=0.0, le=1.0)
+    attack_patterns: list[str] = Field(
+        default_factory=lambda: ["phishing", "lateral_movement", "insider_threat"],
+        min_length=1,
+        max_length=16,
+    )
+    noise_density: float = Field(default=0.6, ge=0.0, le=1.0)
+    ioc_freshness: float = Field(default=0.7, ge=0.0, le=1.0)
+    correlation_obfuscation: float = Field(default=0.3, ge=0.0, le=1.0)
+    blue_team_win_rate: float = Field(default=0.5, ge=0.0, le=1.0)
+    episode_count: int = Field(default=0, ge=0)
 
 
 # ---------------------------------------------------------------------------
@@ -1036,12 +1046,12 @@ def reward_config(sess: SessionState = Depends(get_session)):
 
 class RewardBlendUpdate(BaseModel):
     """Optional blend override."""
-    role_weight: float | None = None
-    team_weight: float | None = None
+    role_weight: float | None = Field(default=None, ge=0.0, le=1.0)
+    team_weight: float | None = Field(default=None, ge=0.0, le=1.0)
     token_scale_enabled: bool | None = None
-    token_scale_floor: int | None = None
-    token_scale_cap: int | None = None
-    token_scale_max_bonus: float | None = None
+    token_scale_floor: int | None = Field(default=None, ge=0)
+    token_scale_cap: int | None = Field(default=None, ge=1)
+    token_scale_max_bonus: float | None = Field(default=None, ge=0.0, le=1.0)
 
 
 @app.post("/reward/config")
@@ -1055,8 +1065,8 @@ def reward_config_update(patch: RewardBlendUpdate, sess: SessionState = Depends(
 
 
 class TokenBonusRequest(BaseModel):
-    text: str
-    content_quality: float = 0.5
+    text: str = Field(..., max_length=100_000)
+    content_quality: float = Field(default=0.5, ge=0.0, le=1.0)
 
 
 @app.post("/reward/token_bonus")

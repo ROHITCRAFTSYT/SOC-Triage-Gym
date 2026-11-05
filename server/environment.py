@@ -120,7 +120,7 @@ class SOCEnvironment:
     # Public API
     # ------------------------------------------------------------------
 
-    def reset(self, task_id: str, seed: int = 42, mode: str = "tier1_solo") -> SOCObservation:
+    def reset(self, task_id: str, seed: int = 42, mode: EpisodeMode | str = EpisodeMode.TIER1_SOLO) -> SOCObservation:
         """
         Start a new episode.
 
@@ -130,7 +130,16 @@ class SOCEnvironment:
             seed: RNG seed for deterministic scenario generation.
             mode: "tier1_solo" (backward compat) or "team".
         """
-        self._mode = EpisodeMode(mode)
+        # Validate before touching any state so a bad call leaves the previous
+        # episode intact. bool is an int subclass; reject it explicitly.
+        if isinstance(seed, bool) or not isinstance(seed, int):
+            raise ValueError(f"seed must be an int, got {type(seed).__name__}")
+        if seed < 0:
+            raise ValueError(f"seed must be non-negative, got {seed}")
+        try:
+            new_mode = EpisodeMode(mode)
+        except ValueError:
+            raise ValueError(f"Unknown mode '{mode}'. Valid: {[m.value for m in EpisodeMode]}") from None
         if task_id == "red_team_generated":
             if self._generated_scenario is None:
                 raise ValueError("No generated scenario loaded. Call /generate_scenario first.")
@@ -143,6 +152,7 @@ class SOCEnvironment:
             generator = generator_cls(seed=seed)
             self._config = generator.generate()
 
+        self._mode = new_mode
         self._investigations = {
             alert.alert_id: InvestigationState(alert_id=alert.alert_id)
             for alert in self._config.alerts
@@ -173,7 +183,7 @@ class SOCEnvironment:
 
         active_role = AgentRole.TIER1 if self._mode == EpisodeMode.TEAM else None
         msg = (
-            f"Episode started. Task: {task_id}. Mode: {mode}. "
+            f"Episode started. Task: {task_id}. Mode: {self._mode.value}. "
             f"{len(self._config.alerts)} alert(s). Budget: {(_TEAM_MAX_STEPS if self._mode == EpisodeMode.TEAM else self._config.max_steps)} steps."
         )
         if self._mode == EpisodeMode.TEAM:
