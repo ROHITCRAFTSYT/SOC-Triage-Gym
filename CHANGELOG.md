@@ -35,6 +35,12 @@ loosely follows [Semantic Versioning](https://semver.org/).
   and skips Tier-2 and the Manager: a correctly-triaging policy that followed
   the hint scored 0.001 (vs 0.999 escalating). Team mode now says to escalate
   true positives and phase_complete; solo mode is unchanged.
+- In team mode any role could end the episode with `submit_investigation`:
+  the shortcut ran before the per-role action check, so even Tier-2 (whose
+  action set never allowed it) could skip the remaining phases. Only the
+  Manager may submit now; Tier-1/Tier-2 get the standard wrong-role penalty
+  and play continues. `inference.py`'s timeout path and the baseline `submit`
+  agent use `phase_complete` for non-manager roles.
 - Held-out text-policy eval (`scripts/train_and_evaluate.py`) aborted an
   episode on the first rejected action and kept nothing but the score. It now
   records every completion (parse quality, action type, env response) to

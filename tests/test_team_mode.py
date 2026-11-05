@@ -792,3 +792,76 @@ def test_over_escalation_threshold_off_by_one():
     role_component = float(m.group(1))
     # Normal escalation reward is higher; penalty (-0.08) applied should lower it substantially
     assert role_component < 0.20
+
+
+# ---------------------------------------------------------------------------
+# Only the Manager may finalise a team episode
+# ---------------------------------------------------------------------------
+
+
+def _advance_to(env, role):
+    """Drive the episode with the scripted team policy until `role` is acting."""
+    from train_grpo import oracle_action
+
+    obs = env._build_observation(role=env._current_role(), reward=0.0).model_dump(mode="json")
+    while (obs.get("current_role") or "tier1") != role:
+        assert not obs["done"], f"episode ended before {role} acted"
+        obs = env.step(SOCAction.model_validate(oracle_action(obs))).model_dump(mode="json")
+    return obs
+
+
+@pytest.mark.parametrize("role", ["tier1", "tier2"])
+def test_non_manager_cannot_submit_in_team_mode(role):
+    """Regression: the submit shortcut ran before the role check, so tier-1 (and
+    tier-2, whose action set never allowed it) could end the episode mid-triage."""
+    env = SOCEnvironment()
+    env.reset("team_phishing_escalation", seed=42, mode="team")
+    _advance_to(env, role)
+    phase_before = env._phase
+    obs = env.step(SOCAction(action_type="submit_investigation", role=role))
+    assert not obs.done
+    assert env._phase == phase_before
+    assert obs.reward < 0
+    assert f"not allowed for role {role}" in obs.message
+
+
+def test_manager_can_still_submit():
+    env = SOCEnvironment()
+    env.reset("team_phishing_escalation", seed=42, mode="team")
+    _advance_to(env, "manager")
+    obs = env.step(SOCAction(action_type="submit_investigation", role="manager"))
+    assert obs.done and obs.task_score is not None
+
+
+def test_tier1_submit_after_correct_triage_no_longer_ends_episode():
+    """The trap end to end: correct triage, then the old 'call submit' hint."""
+    env = SOCEnvironment()
+    obs = env.reset("team_phishing_escalation", seed=100, mode="team")
+    alert = obs.alert_queue[0]
+    env.step(
+        SOCAction(
+            action_type="enrich_indicator", indicator=alert.indicators["ip"][0], indicator_type="ip", role="tier1"
+        )
+    )
+    env.step(
+        SOCAction(action_type="classify_alert", alert_id=alert.alert_id, classification="true_positive", role="tier1")
+    )
+    obs = env.step(SOCAction(action_type="submit_investigation", role="tier1"))
+    assert not obs.done, "tier-1 must not be able to skip Tier-2 and the Manager"
+    env.step(SOCAction(action_type="escalate_to_tier2", alert_id=alert.alert_id, role="tier1"))
+    obs = env.step(SOCAction(action_type="phase_complete", role="tier1"))
+    assert obs.current_role.value == "tier2"
+
+
+def test_submit_rejected_without_role_field():
+    """Clients that omit `role` are attributed to the acting role and still blocked."""
+    env = SOCEnvironment()
+    env.reset("team_phishing_escalation", seed=42, mode="team")
+    obs = env.step(SOCAction(action_type="submit_investigation"))
+    assert not obs.done
+
+
+def test_solo_mode_submit_unchanged():
+    env = SOCEnvironment()
+    env.reset("phishing", seed=42)
+    assert env.step(SOCAction(action_type="submit_investigation")).done

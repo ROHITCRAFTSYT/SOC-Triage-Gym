@@ -77,7 +77,7 @@ _TIER1_ACTIONS = {
     ActionType.RECOMMEND_ACTION,
     ActionType.ESCALATE,
     ActionType.ESCALATE_TO_TIER2,
-    ActionType.SUBMIT_INVESTIGATION,
+    # No SUBMIT_INVESTIGATION: in team mode only the Manager finalises.
     ActionType.PHASE_COMPLETE,
     ActionType.NOOP,
 }
@@ -242,7 +242,16 @@ class SOCEnvironment:
         # Phase complete / submit trigger phase advance
         if action.action_type == ActionType.PHASE_COMPLETE:
             return self._advance_phase(acting_role)
-        if self._mode == EpisodeMode.TEAM and action.action_type == ActionType.SUBMIT_INVESTIGATION:
+        # Only the Manager may finalise a team episode. This shortcut used to run
+        # before the role check in _dispatch, so Tier-1 (and even Tier-2, whose
+        # action set never included it) could end the episode mid-triage and
+        # skip the remaining phases. Other roles fall through to _dispatch,
+        # which rejects the action with the standard wrong-role penalty.
+        if (
+            self._mode == EpisodeMode.TEAM
+            and action.action_type == ActionType.SUBMIT_INVESTIGATION
+            and acting_role == AgentRole.MANAGER
+        ):
             return self._finalize_team_episode()
 
         # Loop detection

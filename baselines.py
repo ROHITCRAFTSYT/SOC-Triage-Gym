@@ -8,7 +8,8 @@ needed and results are a pure function of ``(agent, task_id, seed)``.
 
 Agents, from floor to ceiling:
 
-* ``submit``    — submits immediately. The "do nothing" floor.
+* ``submit``    — submits immediately (in team mode, ends its phase at once).
+                  The "do nothing" floor.
 * ``random``    — uniform over role-valid action types with parameters drawn
                   from the observation. Seeded, so it is reproducible.
 * ``heuristic`` — the rule-based analyst in ``baseline_agent.py`` (solo) and
@@ -80,6 +81,9 @@ class SubmitAgent:
         pass
 
     def act(self, obs: dict[str, Any]) -> dict[str, Any]:
+        # In team mode only the Manager may submit; earlier roles hand off at once.
+        if obs.get("current_role") in ("tier1", "tier2"):
+            return {"action_type": ActionType.PHASE_COMPLETE.value}
         return {"action_type": ActionType.SUBMIT_INVESTIGATION.value}
 
 

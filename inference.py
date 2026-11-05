@@ -597,7 +597,11 @@ def run_team_task(
         phase = obs.get("current_phase") or "unknown"
 
         if time.time() - task_start > TASK_TIMEOUT_SECONDS:
-            action_dict = {"action_type": "submit_investigation", "role": role}
+            # Only the Manager may submit in team mode; other roles end their phase.
+            action_dict = {
+                "action_type": "submit_investigation" if role == "manager" else "phase_complete",
+                "role": role,
+            }
         elif llm_client is not None:
             system_prompt = ROLE_SYSTEM_PROMPTS.get(role, SYSTEM_PROMPT)
             messages = role_histories.setdefault(role, [{"role": "system", "content": system_prompt}])
