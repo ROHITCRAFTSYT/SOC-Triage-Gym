@@ -1099,13 +1099,26 @@ class SOCEnvironment:
         return min(0.0, -0.5 * missed_tps)
 
     def _action_signature(self, action: SOCAction) -> str:
+        """Identity of an action for loop detection.
+
+        Must include every parameter that makes two actions *different
+        decisions*. Previously technique_id / response_action / classification
+        were missing, so mapping five distinct correct techniques to one alert
+        was penalised as a four-times-repeated loop (up to -0.30 on a perfect
+        phishing trajectory).
+        """
         return (
             f"{action.action_type.value}|{action.indicator or ''}|"
             f"{action.log_source.value if action.log_source else ''}|"
             f"{action.alert_id or ''}|{action.query_alert_id or ''}|"
             f"{action.alert_id_a or ''}|{action.alert_id_b or ''}|"
             f"{action.hostname or ''}|{action.username or ''}|"
-            f"{action.target_host or ''}|{action.target_user or ''}|{action.target_ioc or ''}"
+            f"{action.target_host or ''}|{action.target_user or ''}|{action.target_ioc or ''}|"
+            f"{action.technique_id or ''}|"
+            f"{action.response_action.value if action.response_action else ''}|{action.action_target or ''}|"
+            f"{action.classification.value if action.classification else ''}|"
+            f"{action.new_classification.value if action.new_classification else ''}|"
+            f"{action.ticket_id or ''}"
         )
 
     def _trajectory_hash(self) -> str:
