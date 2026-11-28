@@ -2,14 +2,14 @@
 fastapi>=0.115.6
 uvicorn>=0.34.0
 pydantic>=2.10.6
-pydantic-core>=2.50.2
+pydantic-core>=2.50.5
 pyyaml>=6.0.2
 # python-multipart >=0.0.22 fixes Arbitrary File Write (CVE-2025-*, High)
 python-multipart>=0.0.22
 httpx>=0.28.1
-# anyio >=4.15.1 fixes TLSStream IDNA 2003 host-name encoding enabling certificate
+# anyio >=4.16.0 fixes TLSStream IDNA 2003 host-name encoding enabling certificate
 # spoofing (Critical) and process-pool workers blocking on undrained stderr
-anyio>=4.15.1
+anyio>=4.16.0
 # starlette >=1.10.0 fixes O(n^2) DoS via Range header (High) and multipart DoS (Moderate)
 starlette>=1.10.0
 openai>=1.0.0
@@ -38,13 +38,13 @@ pillow>=12.3.0
 # PyJWT JWK/HMAC key-confusion and token forgery (Critical/High)
 pyjwt>=2.15.1
 # certifi drops emSign root CAs with compromised intermediate keys (Critical)
-certifi>=2026.10.23
+certifi>=2026.11.20
 # urllib3 unbounded chunk-size buffering and ignored HTTPS-proxy TLS config (High)
 urllib3>=2.8.0
 # fsspec ReferenceFileSystem template injection leading to RCE (High)
 fsspec>=2026.9.0
 # filelock ReadWriteLock symlink/journal planting (High)
-filelock>=4.2.5
+filelock>=4.2.12
 # brotli decoder out-of-bounds write (Critical)
 brotli>=1.2.1
 # opentelemetry-api unbounded tracestate parsing (Moderate)

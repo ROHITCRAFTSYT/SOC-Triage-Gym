@@ -47,7 +47,7 @@ dev = [
     "pytest-cov>=5.0",
     # Pinned to the .pre-commit-config.yaml rev so local, pre-commit and CI
     # format identically. Bump all three together.
-    "ruff==0.17.3",
+    "ruff==0.17.6",
 ]
 
 [project.scripts]
